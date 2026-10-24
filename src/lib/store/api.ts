@@ -53,8 +53,8 @@ function optimistic(id: string, input: NewLinkInput): StoreLink {
 		projectsText: '',
 		version: 0,
 		deletedAt: null,
-		tagIds: [],
-		projectIds: [],
+		tagIds: input.tagIds ?? [],
+		projectIds: input.projectIds ?? [],
 		pending: true
 	};
 }
@@ -142,15 +142,27 @@ export function createApiStore(
 		try {
 			const { body } = await request<PutResult>('/api/links', {
 				method: 'POST',
-				body: JSON.stringify({ id, url: input.url, title: input.title ?? null, via: input.via })
+				body: JSON.stringify({
+					id,
+					url: input.url,
+					title: input.title ?? null,
+					via: input.via,
+					tagIds: input.tagIds,
+					projectIds: input.projectIds
+				})
 			});
 			// The optimistic row becomes the server's (the same id), or gives way to the existing link.
 			state = { ...state, links: without(id) };
 			set(withLink(body.link));
+			const joins = Boolean(input.tagIds?.length || input.projectIds?.length);
 			if (!body.duplicate) {
 				const c = state.counts;
-				emit({ counts: { ...c, links: c.links + 1, unsorted: c.unsorted + 1 } });
+				emit({
+					counts: { ...c, links: c.links + 1, unsorted: joins ? c.unsorted : c.unsorted + 1 }
+				});
 			}
+			// The tag's or project's own count (and Unsorted) moved with the join: read them again.
+			if (joins) refresh().catch(() => {});
 			if (!body.duplicate && body.link.metaState === 'pending') watchDetails(body.link.id);
 			return body;
 		} catch (error) {

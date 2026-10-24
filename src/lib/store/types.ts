@@ -117,6 +117,9 @@ export interface NewLinkInput {
 	url: string;
 	title?: string | null;
 	via?: SavedVia;
+	/** Tags and projects the link joins as it is made (the view it was added on). */
+	tagIds?: string[];
+	projectIds?: string[];
 }
 
 /** Fields to change on a link the store holds. */
