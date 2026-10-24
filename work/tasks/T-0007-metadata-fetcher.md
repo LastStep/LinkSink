@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0007
 title: Safe metadata fetcher — SSRF-guarded fetch, oEmbed and head parsing, image cache, Source and Media classifiers
-status: approved
+status: running
 lane: full
 done_when:
   - "src/lib/server/fetch/safe.ts refuses every case in the plan's SSRF list (IP-literal forms incl. [::ffff:7f00:1], 127.0.0.1.nip.io, 169.254.169.254, private ranges, a redirect to 127.0.0.1, a public-then-private resolver), proved by unit tests and an integration test with a real listener on 127.0.0.1 that is never reached"
@@ -16,7 +16,7 @@ done_when:
 depends_on: [T-0003]
 blocked_by: null
 created: 2026-10-24
-started: null
+started: 2026-10-24
 finished: null
 labels:
   bonsai.branch: t0007-metadata-fetcher

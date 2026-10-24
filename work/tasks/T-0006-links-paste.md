@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0006
 title: Links and paste-to-save — links JSON API through syncWrite, URL normalise and duplicates, store interface, global paste with optimistic row, delete with undo
-status: approved
+status: running
 lane: full
 done_when:
   - "POST/GET/PATCH/DELETE /api/links work with the session cookie or a Bearer token, every write goes through syncWrite, and DELETE soft-deletes (unit + API tests)"
@@ -16,7 +16,7 @@ done_when:
 depends_on: [T-0003]
 blocked_by: null
 created: 2026-10-24
-started: null
+started: 2026-10-24
 finished: null
 labels:
   bonsai.branch: t0006-links-paste
