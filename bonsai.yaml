@@ -38,11 +38,76 @@ protected: [".claude/**", "bonsai.yaml", ".bonsai/lock.json"]
 person_only: [".claude/**", "bonsai.yaml", ".bonsai/lock.json"]
 # paths no agent changes: deny rules Edit(/<path>), anchored at the project's top folder; e.g. ["ledger.json"]
 never_edit: []
-ladder_floor: []                      # the rungs every task climbs, whatever its bonsai.ladder lists; e.g. [0, 1]
-# the rungs: what each runs and proves (rung, name, kind, command, required, timeout_s and more)
-ladder: []
-# counts that may only rise, by name, each the floor a rung's count may not fall below; e.g. tests: 120
-ratchets: {}
+ladder_floor: [0, 1, 2, 3, 4, 5]
+ladder:
+  - rung: 0
+    name: guard
+    kind: guard
+    command: null
+    required: true
+    timeout_s: null
+    ratchet: null
+    capture: null
+    means: "The branch changes only what the task grants."
+    tests: null
+    base_setup: null
+  - rung: 1
+    name: types
+    kind: command
+    command: "npm run check"
+    required: true
+    timeout_s: 300
+    ratchet: null
+    capture: null
+    means: "svelte-check and tsc find no type errors."
+    tests: null
+    base_setup: "npm ci"
+  - rung: 2
+    name: lint
+    kind: command
+    command: "npm run lint"
+    required: true
+    timeout_s: 300
+    ratchet: null
+    capture: null
+    means: "prettier --check and eslint pass."
+    tests: null
+    base_setup: "npm ci"
+  - rung: 3
+    name: unit
+    kind: command
+    command: "npm run --silent test:unit -- --run --mode junit"
+    required: true
+    timeout_s: 300
+    ratchet: tests
+    capture: null
+    means: "Every unit test passes (vitest)."
+    tests: junit
+    base_setup: "npm ci"
+  - rung: 4
+    name: e2e
+    kind: command
+    command: "npm run --silent test:e2e -- --reporter=junit"
+    required: true
+    timeout_s: 600
+    ratchet: null
+    capture: null
+    means: "The flows work in a real browser (Playwright, Chromium)."
+    tests: junit
+    base_setup: "npm ci"
+  - rung: 5
+    name: budget
+    kind: command
+    command: "npm run build && npm run size"
+    required: true
+    timeout_s: 300
+    ratchet: null
+    capture: null
+    means: "First-load JS of each first screen is at most 60 KB gzipped."
+    tests: null
+    base_setup: "npm ci"
+ratchets:
+  tests: 29
 # tests allowed to skip in CI only, each by its name in the test output; e.g. ["TestNeedsADisplay"]
 ci_marked_tests: []
 # how long generated files are kept, per kind; null keeps all (skill base:generated-files)
