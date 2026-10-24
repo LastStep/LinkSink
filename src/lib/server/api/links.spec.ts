@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createAuth, type Auth } from '../auth-config.ts';
-import { links } from '../db/schema.ts';
+import { links, sources } from '../db/schema.ts';
 import type { Mail } from '../mail.ts';
 import { createSyncWrite } from '../sync/write.ts';
 import { addUser, tempDatabase } from '../test/db.ts';
@@ -213,6 +213,8 @@ describe('PATCH /api/links/:id', () => {
 
 		const b = await patch(me, id, { title: 'Mine', media: 'article' });
 		expect(b.body.link.userSet.sort()).toEqual(['media', 'title']);
+		// links.source_id references sources (T-0007's foreign key): the source must exist.
+		createSyncWrite(t.db)('u1', (w) => w.insert(sources, { id: 'S1', name: 'S1', hosts: '[]' }));
 		const c = await patch(me, id, { description: 'About it', sourceId: 'S1' });
 		expect(c.body.link.userSet.sort()).toEqual(['description', 'media', 'source', 'title']);
 		expect(c.body.link.version).toBeGreaterThan(b.body.link.version);
