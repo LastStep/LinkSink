@@ -219,3 +219,4 @@ an artifact for the person to open on phone and desktop).
 - Tests T-0007 M-2026-10-24-73559a62: PASS, 0 blocking. Risks: 0002 migration FK fails on orphan source_id (PRAGMA off inside txn is a no-op); surviving mutants (redirect hop scheme/port, 8 s, 5 MB boundary, Accept, media order, suffix order, failure keeps person's title, charset precedence, filename pattern). It edited files inside its scratch copy (copy held .bonsai) and pkill'd e2e-server.js, possibly T-0014's. I deleted its leftover probe file in the scratch copy; warned builder@T-0014.
 - Fix brief M-2026-10-24-4402dc7f to builder@T-0007 (E2E_PORT=4500).
 - Lesson for verifier briefs: archive copies exclude .bonsai, .claude, bonsai.yaml, CLAUDE.md, work; never pkill by pattern, stop only own pids.
+- 11:31 T-0014 landed (843cf86), done, ladder green on main 99f5e10 (102 unit, 13 e2e). Told builder@T-0007 to rebase onto it after its fixes (skeleton.e2e.ts overlap).
