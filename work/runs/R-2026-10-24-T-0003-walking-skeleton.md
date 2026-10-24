@@ -5,9 +5,9 @@ task: T-0003
 role: builder
 model: opus
 started: 2026-10-24 09:11
-finished: 2026-10-24 09:29
+finished: 2026-10-24 09:44
 outcome: needs-verifier
-commits: ["d507b4f", "48038d2", "f0c9781", "88535a8", "9943d1c"]
+commits: ["d507b4f", "48038d2", "f0c9781", "88535a8", "9943d1c", "b742f91", "5066f89", "619cc0e", "740f83c", "6a8b851"]
 labels: {}
 ---
 
@@ -57,6 +57,8 @@ labels: {}
   stdout is one well-formed JUnit document, 23 testcases. `npm run --silent` keeps npm's banner off stdout.
 - 09:28 Final climb from `npm ci` at 9943d1c, every command green (below). `bonsai ladder --task T-0003 --json`:
   `rung-not-defined` ("bonsai.yaml defines no ladder"), as the brief said.
+
+- 09:30 Fix round, brief M-2026-10-24-a4e59799 (two verifier reviews). Four fixes, below in "Fix round".
 
 ## What is different now
 
@@ -213,13 +215,59 @@ ladder:
     tests: null
     base_setup: "npm ci"
 ratchets:
-  tests: 23
+  tests: 29
 ```
+
+(Fix round: the commands are unchanged; the ratchet floor is now 29, today's unit count. Rungs 1 to 5 need no
+environment variables: a build no longer requires ORIGIN or BETTER_AUTH_SECRET, and the e2e script sets its own.)
 
 Unverified until the first climb (*said* by the schema, not *ran*): that Bonsai's junit reader takes vitest's and
 Playwright's XML as printed (I checked both parse as one XML document each: 23 and 2 testcases); Playwright's
 testcases carry no `file` attribute, so Bonsai's "new tests fail on the base" check cannot tell e2e test files (the
 schema says it is then not run). Then `bonsai check --json`.
+
+## Fix round (brief M-2026-10-24-a4e59799)
+
+**1. A fresh checkout with no .env now builds and passes (was the blocking FAIL)** — **ran**. Cause, confirmed in a
+`git archive b742f91` copy: `npm run build` stopped at "Analysing routes" with `SvelteKit error: env_invalid ...
+ORIGIN - Value is missing ... BETTER_AUTH_SECRET must be at least 32 characters`; my earlier green came from the
+worktree's untracked `.env`. Fix (5066f89): `src/env.ts` no longer validates the secrets (SvelteKit 3 runs the
+schemas while it analyses the build); `src/lib/server/config.ts` `loadRuntimeConfig()` checks ORIGIN, the secret and
+mail when the server starts, and the build gets a stand-in (`building`). `paths.origin` stays build-time but optional:
+only the e2e build sets it, inside `scripts/e2e-server.js`; behind Caddy the derived origin is right (adapter-node's
+https default), so production and the size rung need none. Proof, from `git archive 6a8b851` in the scratchpad (no
+`.env`, no app variables in the shell, `npm ci` first), each `exit=0`:
+- `npm run check` -> `COMPLETED 1324 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS`
+- `npm run lint` -> `All matched files use Prettier code style!`
+- `npm run test:unit -- --run` -> `Tests  29 passed (29)`; junit form -> `tests="29" failures="0"`
+- `npm run test:e2e` -> `3 passed (6.2s)`; junit form -> `<testsuites ... tests="3" failures="0" ...>`
+- `npm run build && npm run size` -> `/` `36.4 kB`, `/login` `36.26 kB`, `/signup` `36.41 kB` gzipped (limit 60 kB)
+
+**2. The login and sign-up forms are rate-limited** — **ran**. Cause (*pointed*): `auth.api.*` calls skip Better
+Auth's rate limiter, which runs only in its HTTP handler; and its default `rateLimit.enabled` follows
+`NODE_ENV === 'production'`. Fix (619cc0e): `src/lib/server/auth-form.ts` `authPost()` sends the form's request
+through `auth.handler` with the client address SvelteKit sees as `x-forwarded-for`, and copies Set-Cookie back;
+`rateLimit: { enabled: true }` always. Proof: new e2e test 3, wrong passwords through the form get 401 then **429**
+("Too many tries"), and the right password is refused while limited. With `rateLimit: { enabled: false }` the same
+test fails (`1 failed, 2 passed`; reverted). Behind Caddy every client will share one address until adapter-node's
+`ADDRESS_HEADER` is set: T-0005's, as the brief says.
+
+**3. No console mail in production** — **ran**. Fix (5066f89): outside `vite dev`, mail goes through Resend and the
+server refuses to start without `RESEND_API_KEY` and `MAIL_FROM`, unless `MAIL_TRANSPORT=console` (set only by the e2e
+server). Unit `config.spec.ts`, 5 tests. Live, from the clean copy's build: `node build` with no settings exits 1 with
+`LinkSink cannot start: - ORIGIN must be ... - BETTER_AUTH_SECRET must be at least 32 characters - RESEND_API_KEY must
+be set ... - MAIL_FROM must be set ...`; with ORIGIN and secret only, exit 1 naming the two mail settings; with all
+four it prints `Listening on http://127.0.0.1:4199` (stopped by `timeout`, exit 124).
+
+**4. No raw errors on the save form** — **ran**. Fix (740f83c): `saveErrorMessage()` in `src/lib/server/links.ts`:
+a bad link and a duplicate get plain messages; anything else is logged with `console.error('[links] save failed',
+error)` and shown as "Something went wrong saving that link. Try again." Unit test: an `SQLITE_IOERR ...` error shows
+the generic line, contains no "SQLITE", and is logged once. Bad links now throw `InvalidLinkError` (my own test
+updated from `TypeError` to it: same strength).
+
+Fix-round slips: a scripted replace silently missed `addLink`'s parse lines (prettier had re-wrapped them); the unit
+run caught it (`expected error to be instance of InvalidLinkError`), fixed on the next edit. `npm run format` was not
+run; prettier ran only on `src`, `e2e`, `scripts` and `vite.config.ts`.
 
 ## What did not work
 
@@ -270,7 +318,7 @@ processes older than this session or not mine (a studio bridge, esbuild for it, 
 
 ## What it cost
 
-About 18 minutes wall-clock (09:11 to 09:29 UTC), one builder session on opus, brief M-2026-10-24-b9633541. Spend not
+About 18 minutes wall-clock (09:11 to 09:29 UTC), then the fix round 09:30 to 09:44, one builder session on opus, brief M-2026-10-24-b9633541. Spend not
 known to me; the hours are T-0003's rows in `.bonsai/sessions.md`.
 
 ## Left for next time
