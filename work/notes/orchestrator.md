@@ -214,3 +214,4 @@ an artifact for the person to open on phone and desktop).
 - 11:15 Person couldn't confirm sign-up in dev: the console mail went to an earlier dev run's terminal; unverified account blocks sign-up and login with no resend. Told them to reset the dev DB (0 links). Bug to fix before T-0005: emailVerification.sendOnSignIn true + login page message + e2e (fold into T-0008's start or a light task).
 - 11:17 The person closed T-0006 (done) after using it.
 - 11:19 T-0014 (light lane, resend confirmation on login) written+running; brief M-2026-10-24-e60ba01b builder@T-0014 (sonnet, 60 min). Light lane: I read the diff instead of verifiers.
+- 11:21 Person: Docker setup for deploy, 'deploy it anywhere' → ADR-0004 accepted (replaces systemd part of ADR-0002 / plan step 3). Open for T-0005: runtime vs build-time origin.
