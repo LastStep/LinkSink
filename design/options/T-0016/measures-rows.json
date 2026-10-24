@@ -1,0 +1,136 @@
+[
+  {
+    "row": "current",
+    "size": 1440,
+    "rows": 12,
+    "minH": 44,
+    "medianH": 44,
+    "maxH": 48,
+    "visibleWhole": 12,
+    "listTop": 216,
+    "fitBelowListTop": 15,
+    "fitWholeViewport": 20,
+    "statusColumnLefts": [
+      1286,
+      1225,
+      1226,
+      1241,
+      1155,
+      1157,
+      1177,
+      1135
+    ]
+  },
+  {
+    "row": "current",
+    "size": 390,
+    "rows": 12,
+    "minH": 60,
+    "medianH": 80,
+    "maxH": 84,
+    "visibleWhole": 7,
+    "listTop": 235,
+    "fitBelowListTop": 7,
+    "fitWholeViewport": 10,
+    "statusColumnLefts": [
+      324,
+      299,
+      300,
+      315,
+      229,
+      231,
+      251,
+      209
+    ]
+  },
+  {
+    "row": "a",
+    "size": 1440,
+    "rows": 12,
+    "minH": 44,
+    "medianH": 44,
+    "maxH": 48,
+    "visibleWhole": 12,
+    "listTop": 216,
+    "fitBelowListTop": 15,
+    "fitWholeViewport": 20,
+    "statusColumnLefts": [
+      1154
+    ]
+  },
+  {
+    "row": "a",
+    "size": 390,
+    "rows": 12,
+    "minH": 64,
+    "medianH": 80,
+    "maxH": 84,
+    "visibleWhole": 7,
+    "listTop": 235,
+    "fitBelowListTop": 7,
+    "fitWholeViewport": 10,
+    "statusColumnLefts": [
+      268
+    ]
+  },
+  {
+    "row": "b",
+    "size": 1440,
+    "rows": 12,
+    "minH": 44,
+    "medianH": 44,
+    "maxH": 48,
+    "visibleWhole": 12,
+    "listTop": 216,
+    "fitBelowListTop": 15,
+    "fitWholeViewport": 20,
+    "statusColumnLefts": [
+      324
+    ]
+  },
+  {
+    "row": "b",
+    "size": 390,
+    "rows": 12,
+    "minH": 62,
+    "medianH": 82,
+    "maxH": 86,
+    "visibleWhole": 7,
+    "listTop": 235,
+    "fitBelowListTop": 7,
+    "fitWholeViewport": 10,
+    "statusColumnLefts": [
+      56
+    ]
+  },
+  {
+    "row": "c",
+    "size": 1440,
+    "rows": 12,
+    "minH": 60,
+    "medianH": 60,
+    "maxH": 64,
+    "visibleWhole": 10,
+    "listTop": 216,
+    "fitBelowListTop": 11,
+    "fitWholeViewport": 15,
+    "statusColumnLefts": [
+      1240
+    ]
+  },
+  {
+    "row": "c",
+    "size": 390,
+    "rows": 12,
+    "minH": 62,
+    "medianH": 82,
+    "maxH": 86,
+    "visibleWhole": 7,
+    "listTop": 235,
+    "fitBelowListTop": 7,
+    "fitWholeViewport": 10,
+    "statusColumnLefts": [
+      268
+    ]
+  }
+]
