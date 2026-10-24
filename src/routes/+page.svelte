@@ -136,11 +136,31 @@
 					class:pending={link.pending}
 					class:flash={flashed === link.id}
 					data-state={link.pending ? 'saving' : 'saved'}
+					data-meta={link.metaState}
 				>
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a saved link points off-site -->
-					<a class="t" href={link.url} rel="noopener noreferrer" target="_blank"
-						>{link.title || link.url}</a
-					>
+					<span class="lead">
+						{#if link.faviconPath}
+							<img class="icon" src="/media/{link.faviconPath}" alt="" width="16" height="16" />
+						{:else}
+							<span class="icon blank" aria-hidden="true"></span>
+						{/if}
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a saved link points off-site -->
+						<a class="t" href={link.url} rel="noopener noreferrer" target="_blank"
+							>{link.title || link.url}</a
+						>
+					</span>
+					{#if link.imagePath}
+						<img
+							class="preview"
+							src="/media/{link.imagePath.replace(/\.webp$/, '-320.webp')}"
+							alt=""
+							width="64"
+							height="36"
+							loading="lazy"
+						/>
+					{:else}
+						<span class="preview blank" aria-hidden="true"></span>
+					{/if}
 					<span class="meta">{link.pending ? 'Saving…' : displayHost(link.url)}</span>
 					<time class="meta num" datetime={new Date(link.createdAt).toISOString()}>
 						{time.format(link.createdAt)}
@@ -244,7 +264,7 @@
 	.row {
 		position: relative;
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto auto auto;
+		grid-template-columns: minmax(0, 1fr) auto auto auto auto;
 		align-items: center;
 		gap: 14px;
 		min-height: var(--row-height);
@@ -258,6 +278,28 @@
 		top: 0;
 		height: 1px;
 		background: var(--rule);
+	}
+	.lead {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
+	}
+	.icon {
+		flex: none;
+		width: 16px;
+		height: 16px;
+		border-radius: 3px;
+	}
+	.preview {
+		width: 64px;
+		height: 36px;
+		object-fit: cover;
+		border-radius: var(--radius-control);
+		background: var(--active);
+	}
+	.preview.blank {
+		background: transparent;
 	}
 	.t {
 		color: var(--text);
@@ -337,7 +379,7 @@
 			grid-template-columns: 1fr;
 		}
 		.row {
-			grid-template-columns: minmax(0, 1fr) auto auto;
+			grid-template-columns: minmax(0, 1fr) auto auto auto;
 		}
 		.row time {
 			display: none;
