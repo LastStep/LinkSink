@@ -86,7 +86,7 @@ describe('the links API, signed in with a session cookie or a Bearer token', () 
 		expect(a.body.duplicate).toBe(false);
 		expect(a.body.link).toMatchObject({
 			url: 'https://www.example.com/a/',
-			urlKey: 'https://example.com/a',
+			urlKey: 'example.com/a',
 			title: 'example.com',
 			metaState: 'pending',
 			savedVia: 'api',
@@ -148,14 +148,15 @@ describe('POST /api/links', () => {
 			'https://example.com/post',
 			'https://www.example.com/post/',
 			'https://example.com/post?utm_source=newsletter#comments',
-			'https://example.com:443/post?fbclid=1'
+			'https://example.com:443/post?fbclid=1',
+			'http://example.com/post'
 		]) {
 			const res = await post(me, { url: again });
 			expect(res.status).toBe(200);
 			expect(res.body.duplicate).toBe(true);
 			expect(res.body.link.id).toBe(first.body.link.id);
 		}
-		expect(changes).toEqual([1, 0, 0, 0, 0]);
+		expect(changes).toEqual([1, 0, 0, 0, 0, 0]);
 		expect(t.db.select().from(links).all()).toHaveLength(1);
 	});
 

@@ -57,8 +57,9 @@ export function cleanUrl(input: string): string | null {
  * The key two addresses share when they are the same link: trackers removed (`utm_*`, `fbclid`, `gclid`, `dclid`,
  * `msclkid`, `mc_cid`, `mc_eid`, `igshid`, `ref_src`; `si` on YouTube and Spotify), the fragment, a leading `www.`,
  * a trailing slash and a default port dropped, the remaining query parameters sorted by name (YouTube's `v`, `t`
- * and `list` are ordinary parameters, so they stay). Scheme and host are lower-cased by the URL parser; the path's
- * case is kept. Null if it is not an http(s) link.
+ * and `list` are ordinary parameters, so they stay). The scheme is left out: `http://` and `https://` of one
+ * address are one link (the person, 2026-10-24). The host is lower-cased by the URL parser; the path's case is
+ * kept. Null if it is not an http(s) link.
  */
 export function normalise(input: string): string | null {
 	const parsed = parseHttpUrl(input);
@@ -73,7 +74,7 @@ export function normalise(input: string): string | null {
 	const path = url.pathname.replace(/\/+$/, '');
 	url.searchParams.sort();
 	const query = url.searchParams.size ? `?${url.searchParams}` : '';
-	return `${url.protocol}//${host}${port}${path}${query}`;
+	return `${host}${port}${path}${query}`;
 }
 
 /** The host a person recognises: lower-case, without `www.`. Used as a new link's title until its page is read. */
