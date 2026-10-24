@@ -59,3 +59,12 @@ link whose details are closed while it is out of view: it is dropped when the pa
 
 none of mine (e2e servers on 4700 exit with their climbs; checked with ps). Another agent's `vite dev --port 4800`
 (T-0016 spike) is running; not touched.
+
+## Landing (orchestrator, 2026-10-24 17:27 UTC)
+
+- Brief M-2026-10-24-e48c9fda; builder report M-2026-10-24-5785eb82 (done, HEAD c063820).
+- Light lane: no verifiers. The orchestrator read the diff against the task (Detail/Picker kind, belongsToView in
+  the store and LinkList, hold() for the open link) and found nothing outside the task beyond the two noted extras.
+- Merged no-ff into main as 96062ea; `bonsai ladder --task T-0015` on main at 96062ea (clean): rungs 0-5 green,
+  unit 364, e2e 34, 0 skipped. The leftovers it named (pids 2272, 2333, 2334) are the Notion MCP server, not ours.
+- T-0015 → done (light lane, the agent closes).

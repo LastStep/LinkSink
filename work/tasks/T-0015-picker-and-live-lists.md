@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0015
 title: Fix BUG-001 (Add to project opens the tag picker) and BUG-002 (lists do not follow the store)
-status: running
+status: done
 lane: light
 done_when:
   - "In a link's details, \"Add to project\" opens the projects picker; picking a project adds the link to it, and typing a new name there creates the project and adds the link (e2e)"
@@ -15,7 +15,7 @@ depends_on: [T-0008]
 blocked_by: null
 created: 2026-10-24
 started: 2026-10-24
-finished: null
+finished: 2026-10-24
 labels:
   bonsai.branch: t0015-picker-and-live-lists
   bonsai.ladder: []
