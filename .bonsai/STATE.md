@@ -26,7 +26,8 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
 
 1. T-0006 (links API, paste, duplicates, undo) is done (landed 8ce031c). T-0007
    (fetcher: titles, icons, previews, Source, Media, SSRF guard) landed and reads `verify` (the person closes it). T-0014
-   (resend confirmation on login) is done. T-0008 (organising + Ledger screens, approved) is starting. QA now has WebKit (playwright webkit-2287) as well as Chromium.
+   (resend confirmation on login) is done. T-0008 (organising + the Ledger
+   screens) landed and reads `verify`: the person looks at the screens and closes it. Next written task: T-0009 (search, filters, keys). QA now has WebKit (playwright webkit-2287) as well as Chromium.
 2. T-0005 (deploy) is a Docker Compose setup (ADR-0004, the person's word) and waits for the person's VPS facts
    (Open questions); HTTPS only (Caddy redirect, HSTS, secure
    cookies), the person's word. T-0005 also carries: rate-limit client IP behind Caddy (Better Auth
