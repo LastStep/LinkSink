@@ -30,7 +30,9 @@ const base: LinkJson = {
 	tagsText: '',
 	projectsText: '',
 	version: 1,
-	deletedAt: null
+	deletedAt: null,
+	tagIds: [],
+	projectIds: []
 };
 
 /** A fake API: POST answers with the posted id; each GET answers with the next of `answers` (the last repeats). */
