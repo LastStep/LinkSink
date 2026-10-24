@@ -5,9 +5,9 @@ task: T-0007
 role: builder
 model: opus
 started: 2026-10-24 10:01
-finished: 2026-10-24 11:10
+finished: 2026-10-24 11:50
 outcome: needs-verifier
-commits: ["e553f42", "57ebbac", "51908cb", "750f084", "72636ff", "01ddeef", "308067c", "8c44336", "cd30be3", "0e2a6a5", "fcbfe35", "9eb6af9", "2c9b04a", "534351a"]
+commits: ["f01a89d", "80ab189", "9514d43", "693b41a", "556689f", "4635238", "9096974", "3076609", "6c622fe", "d99b380", "9b4d8bb", "4968956", "72a4930", "b8fafc4", "6d48862", "e50c750", "27baa40", "12a2347", "6e070b0", "0f16111", "dc779b9"]
 labels: {}
 ---
 
@@ -111,6 +111,55 @@ gzipped of 60 kB. The rise from 36.4 kB came with T-0006's list page, already on
 doc-only commit; its sha is in the report to the orchestrator. Processes: none left (`ps -eo pid,cmd | grep -E
 "LinkSink-t0007|e2e-server|e2e-fixtures"` empty at 11:11; the fixture site runs inside the e2e server process and
 stops with it).
+
+## Fix round (brief M-2026-10-24-4402dc7f, both verifiers PASS)
+
+**What did not work first, then what was true:** item 2's 11 s was not the fetcher. With an event-loop watchdog,
+the delay showed up with undici alone, inside vitest and in plain Node, at random. A 1 s interval logging both
+clocks showed why: `wall gap 3081 monotonic gap 100`. This WSL machine's wall clock jumps forward about 3 s every
+so often, so `Date.now()` counted 11 s for a request the 8 s timer (monotonic) ended on time. I first raced the
+caller's answer against a timer of my own; that changed nothing and is reverted. No code change for item 2.
+
+1. **Migration with orphan source_id**, *ran*: `drizzle/0002_sources.sql` has one hand-added statement before the
+   copy, `UPDATE links SET source_id = NULL WHERE source_id IS NOT NULL` (before 0002 there was no sources table,
+   so every non-null source_id was an orphan; the link stays and the fetcher fills its source). The journal is
+   untouched. New test `sources-migration.spec.ts` "a link whose source_id names no source survives": the database
+   opens, the row keeps its title and URL with source_id null, search finds it, `foreign_key_check` is empty.
+   Without the line (git stash), the same test fails with `SqliteError: FOREIGN KEY constraint failed`.
+2. **8 s total, back to back**, *ran*: `safe.spec.ts` "two hung requests in a row each end within 8.5 s". The real
+   default deadline (8 s), a local server that never answers, timed with `performance.now()`. Each took
+   7,900-8,500 ms (16.0 s for the test). With `TIMEOUT_MS = 9_000` it fails (9003 ms). The 1 s deadline test moved
+   to `performance.now()` too.
+3. **NODE_ENV=production**, *ran*: `parseTestFetchAllow(value, mailTransport, nodeEnv)` refuses with
+   `NODE_ENV=production`. `NODE_ENV` is declared in `src/env.ts` and read at runtime through `$app/env/private`.
+   `wiring.spec.ts` "NODE_ENV=production refuses it, even beside MAIL_TRANSPORT=console". Live, from the build:
+   `NODE_ENV=production MAIL_TRANSPORT=console TEST_ONLY_FETCH_ALLOW=127.0.0.1:4591 node build` exits with
+   `LinkSink cannot start: - TEST_ONLY_FETCH_ALLOW is refused with NODE_ENV=production; unset it`; without NODE_ENV
+   it prints `Listening on http://127.0.0.1:4590`.
+4. **Mutants**, `src/lib/server/fetch/pins.spec.ts` (14 tests). Each mutation was applied by a script, the tests
+   run, the file restored. Killed:
+   - **M1** re-check only the first hop: killed by "a redirect to ftp:/file:/:8080/:22 is refused".
+   - **M2** cap `>` to `>=`: killed by "an image of exactly 5 MB is fetched and stored; one byte more is refused"
+     and "the guard reads exactly maxBytes and fails at maxBytes + 1".
+   - **M2b** cap + 1 byte: killed by "is 5 MB".
+   - **M3** page Accept `*/*`: killed by "asks for text/html".
+   - **M4** rule 2 before rule 1: killed (a .pdf and a .png inside a GitHub repo).
+   - **M5** oEmbed video before og:type: killed.
+   - **M6b** first match instead of longest: killed by "the longest suffix wins whatever order the rows come in".
+   - **M7** failure ignores user_set: killed. **M7b** failure overwrites any title: killed once the test also
+     covered a title from an earlier fetch.
+   - **M8** meta charset before the header: killed.
+   - **M9** pattern without `^`, without `$`, `-\d+` widths, `/i`: all killed. Their first version was masked by
+     the file not existing, so the test now writes each bad name to disk and also tests `MEDIA_NAME`.
+
+   Survived: **M6** (`>` to `>=` on equal-length suffixes). It only differs when two live sources list the same
+   host, and no rule says which of those wins. I left it unpinned rather than invent a rule.
+5. **Rebased onto main 9508f2a** (T-0014 at 843cf86): no conflicts. `e2e/skeleton.e2e.ts` merged cleanly with both
+   changes. `e2e/resend-verification.e2e.ts` now takes its origin from E2E_PORT.
+
+**Climb at dc779b9** (`E2E_PORT=4500`, clean): `"green": true`, 11:47:41Z to 11:49:20Z. Guard green; types
+green; lint green; unit green, `tests.seen` 346 (ratchet 29 -> 346); e2e green, `tests.seen` 14 (52 s, with
+T-0014's three); budget green (`/` 40.33 kB gz). A last climb follows this report commit.
 
 ## What is different now
 
