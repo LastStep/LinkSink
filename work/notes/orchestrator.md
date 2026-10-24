@@ -222,3 +222,4 @@ an artifact for the person to open on phone and desktop).
 - 11:31 T-0014 landed (843cf86), done, ladder green on main 99f5e10 (102 unit, 13 e2e). Told builder@T-0007 to rebase onto it after its fixes (skeleton.e2e.ts overlap).
 - 11:55 T-0007 landed (merge into main), to verify. Next: T-0008 builder.
 - 11:58 T-0007 ladder green on main 5e9fc85 (346 unit, 14 e2e) after npm ci (main's node_modules lacked T-0007 deps). T-0008 running.
+- 12:00 T-0008 brief M-2026-10-24-1ce98ac1 builder@T-0008 (opus, E2E_PORT=4600), ordered so a budget cut leaves usable work. Verifiers when done: tests + QA (Chromium + WebKit, 390/1440, light/dark), then the person looks.
