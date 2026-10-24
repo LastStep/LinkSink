@@ -46,6 +46,25 @@ export function listLinks(db: DB, userId: string, q?: string | null, limit = 200
 		.all();
 }
 
+/** A link the person typed that cannot be saved; its message is safe to show them. */
+export class InvalidLinkError extends Error {}
+
+/**
+ * What the person sees when a save fails: known causes in plain words. Anything else is logged on the server and
+ * shown only as a generic line, so no internal detail reaches the page.
+ */
+export function saveErrorMessage(
+	error: unknown,
+	log: (...args: unknown[]) => void = console.error
+): string {
+	if (error instanceof InvalidLinkError) return error.message;
+	const text = error instanceof Error ? error.message : '';
+	if (text.includes('UNIQUE constraint failed: links.user_id, links.url_key'))
+		return 'That link is already saved.';
+	log('[links] save failed', error);
+	return 'Something went wrong saving that link. Try again.';
+}
+
 /**
  * Saves one link through syncWrite. A placeholder until T-0006: `url_key` is the parsed URL's href (T-0006 brings
  * the real `normalise()`), and a URL already saved is refused by the live-row unique index.
@@ -55,9 +74,11 @@ export function addLink(
 	userId: string,
 	input: { url: string; title?: string | null }
 ): string {
-	const parsed = new URL(input.url.trim());
-	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
-		throw new Error('Only http and https links');
+	const parsed = URL.parse(input.url.trim());
+	if (!parsed) throw new InvalidLinkError('That is not a link.');
+	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+		throw new InvalidLinkError('Only http and https links can be saved.');
+	}
 	const id = ulid();
 	syncWrite(userId, (w) => {
 		w.insert(links, {

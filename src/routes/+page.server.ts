@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { auth } from '#lib/server/auth.ts';
 import { db, syncWrite } from '#lib/server/db/index.ts';
-import { addLink, listLinks } from '#lib/server/links.ts';
+import { addLink, listLinks, saveErrorMessage } from '#lib/server/links.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals, url }) => {
@@ -19,13 +19,7 @@ export const actions: Actions = {
 		try {
 			addLink(syncWrite, locals.user.id, { url, title });
 		} catch (error) {
-			const message =
-				error instanceof TypeError
-					? 'That is not a link.'
-					: String((error as Error).message).includes('UNIQUE')
-						? 'That link is already saved.'
-						: (error as Error).message;
-			return fail(400, { url, title, message });
+			return fail(400, { url, title, message: saveErrorMessage(error) });
 		}
 		return { added: true };
 	},

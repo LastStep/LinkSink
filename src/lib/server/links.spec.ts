@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { links } from './db/schema.ts';
-import { addLink, listLinks, toFtsQuery } from './links.ts';
+import { addLink, InvalidLinkError, listLinks, saveErrorMessage, toFtsQuery } from './links.ts';
 import { createSyncWrite, type SyncWrite } from './sync/write.ts';
 import { addUser, tempDatabase } from './test/db.ts';
 
@@ -61,7 +61,29 @@ describe('listLinks and addLink', () => {
 	});
 
 	it('refuses what is not an http(s) link', () => {
-		expect(() => addLink(syncWrite, 'u1', { url: 'not a link' })).toThrow(TypeError);
+		expect(() => addLink(syncWrite, 'u1', { url: 'not a link' })).toThrow(InvalidLinkError);
 		expect(() => addLink(syncWrite, 'u1', { url: 'javascript:alert(1)' })).toThrow(/http/);
+		expect(listLinks(t.db, 'u1')).toEqual([]);
+	});
+
+	it('shows known save failures in plain words, and only a generic line for anything else', () => {
+		const logged: unknown[] = [];
+		const log = (...args: unknown[]) => logged.push(args);
+		addLink(syncWrite, 'u1', { url: 'https://example.com/a' });
+		let dup: unknown;
+		try {
+			addLink(syncWrite, 'u1', { url: 'https://example.com/a' });
+		} catch (error) {
+			dup = error;
+		}
+		expect(saveErrorMessage(dup, log)).toBe('That link is already saved.');
+		expect(saveErrorMessage(new InvalidLinkError('That is not a link.'), log)).toBe(
+			'That is not a link.'
+		);
+		const internal = new Error('SQLITE_IOERR: disk I/O error at /srv/linksink/data/linksink.db');
+		const shown = saveErrorMessage(internal, log);
+		expect(shown).toBe('Something went wrong saving that link. Try again.');
+		expect(shown).not.toContain('SQLITE');
+		expect(logged).toEqual([['[links] save failed', internal]]);
 	});
 });
