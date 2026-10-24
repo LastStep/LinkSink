@@ -199,11 +199,11 @@ describe('safe fetch on an allowed site', () => {
 	});
 
 	it('gives up after the deadline', async () => {
-		const started = Date.now();
+		const started = performance.now();
 		await expect(safeFetch(page(`http://public.test:${stub.port}/slow`))).rejects.toMatchObject({
 			reason: 'timeout'
 		});
-		expect(Date.now() - started).toBeLessThan(2_000);
+		expect(performance.now() - started).toBeLessThan(2_000);
 	});
 
 	it('caps a page at 1 MB, keeping the start', async () => {
@@ -231,4 +231,32 @@ describe('safe fetch on an allowed site', () => {
 		const response = await safeFetch(page(`http://public.test:${stub.port}/gzip`));
 		expect(response.body.toString()).toBe('<title>zipped</title>');
 	});
+});
+
+describe('the 8 s deadline holds back to back', () => {
+	// Timed on the monotonic clock: this machine's wall clock (WSL) steps forward about 3 s every so often, which
+	// made Date.now() report 11 s for a request that took 8 (measured: wall gap 3081 ms, monotonic gap 100 ms).
+	it('two hung requests in a row each end within 8.5 s', async () => {
+		const hung = await startStub(() => {}); // never answers
+		const fetchDefaultDeadline = createSafeFetch({
+			userAgent: UA,
+			ports: new Set([hung.port]),
+			resolve: async () => [PUBLIC_STUB_IP],
+			dialFor: () => ({ host: '127.0.0.1', port: hung.port })
+		});
+		try {
+			for (let i = 0; i < 2; i++) {
+				const started = performance.now();
+				await expect(
+					fetchDefaultDeadline(page(`http://public.test:${hung.port}/hang`))
+				).rejects.toMatchObject({ reason: 'timeout' });
+				const took = performance.now() - started;
+				expect(took).toBeGreaterThanOrEqual(7_900);
+				expect(took).toBeLessThanOrEqual(8_500);
+			}
+		} finally {
+			await fetchDefaultDeadline.close();
+			await hung.close();
+		}
+	}, 25_000);
 });
