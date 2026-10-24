@@ -6,7 +6,6 @@ import { linkIn, sentMail } from './outbox.ts';
 // saves its own links under its own host, so it does not lean on what the others left.
 const port = Number(process.env.E2E_PORT || 4173);
 const origin = `http://127.0.0.1:${port}`;
-const fixture = `http://127.0.0.1:${Number(process.env.E2E_FIXTURE_PORT || port + 1)}`;
 const email = 'person@example.com';
 const password = 'correct horse battery staple';
 const state = 'data/e2e/t0015-session.json';
