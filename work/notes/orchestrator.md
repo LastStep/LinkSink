@@ -254,3 +254,4 @@ an artifact for the person to open on phone and desktop).
 - 17:27 T-0015 landed (96062ea), done, ladder green on main (364 unit, 34 e2e). Builder report M-2026-10-24-5785eb82.
 - 17:28 Person: a link pasted on a tag/project page → "add it to the tag or project automatically". T-0017 (light) running; brief M-2026-10-24-28056afb builder@T-0017 (sonnet), worktree ../LinkSink-t0017, E2E_PORT=4710. My reading, in the task: a duplicate pasted there gets the tag/project too.
 - 17:45 T-0016 spike report M-2026-10-24-667c7ac1 done; spike stopped, kept in scratchpad. OPT-0003 written (recommend rows A + controls C); shots in design/options/T-0016/. Waiting on the person's pick.
+- 17:34 T-0017 paused: report M-2026-10-24-bf4d5461, HEAD 995d80c, climb at HEAD not run. Person away; resume: OPT-0003 pick, then land T-0017.
