@@ -158,6 +158,7 @@
 
 	function toggleSelect(id: string, range = false) {
 		selecting = true;
+		loadPicker();
 		if (range && anchor) {
 			const a = flat.findIndex((l) => l.id === anchor);
 			const b = flat.findIndex((l) => l.id === id);
@@ -208,11 +209,12 @@
 	// ---------- rows: click, keys, long-press ----------
 	/** Rows already warmed (not shown, so not reactive). */
 	const warmed: Record<string, true> = {};
-	/** On hover or focus of a row: fetch the details' code and picture, so they open at once. */
+	/** On hover or focus of a row: fetch the details' and organiser's code and the picture, so they open at once. */
 	function warm(link: StoreLink) {
 		if (link.pending || warmed[link.id]) return;
 		warmed[link.id] = true;
 		loadDetail();
+		loadPicker();
 		if (link.imagePath) new Image().src = `/media/${link.imagePath}`;
 	}
 

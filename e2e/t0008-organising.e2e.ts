@@ -228,6 +228,7 @@ test('bulk select with x, shift-click and long-press sets tags, projects, status
 		.getByRole('button', { name: 'Organise' })
 		.click();
 	const picker = page.getByRole('dialog', { name: 'Organise 3 links' });
+	await expect(picker.getByRole('combobox', { name: 'Find or create a tag' })).toBeFocused();
 	await page.keyboard.type('bulk-tag');
 	await page.keyboard.press('Enter');
 	await expect(picker.getByRole('option', { name: /bulk-tag/ })).toHaveAttribute(
