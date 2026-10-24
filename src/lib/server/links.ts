@@ -1,4 +1,8 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { MEDIA, PRIORITIES, STATUSES, type SavedVia, type UserSetField } from '../fields.ts';
+import type { LinkJson } from '../store/types.ts';
+import { ULID_PATTERN } from '../ulid.ts';
+import { cleanUrl, displayHost, normalise } from '../url.ts';
 import type { DB } from './db/open.ts';
 import { links } from './db/schema.ts';
 import type { SyncWrite } from './sync/write.ts';
@@ -65,29 +69,253 @@ export function saveErrorMessage(
 	return 'Something went wrong saving that link. Try again.';
 }
 
+const TITLE_MAX = 500;
+const DESCRIPTION_MAX = 5_000;
+const NOTES_MAX = 20_000;
+
+/** The user's link by id, live or deleted; null if it is not theirs. */
+export function getLink(db: DB, userId: string, id: string): Link | null {
+	return (
+		db
+			.select()
+			.from(links)
+			.where(and(eq(links.id, id), eq(links.userId, userId)))
+			.get() ?? null
+	);
+}
+
+/** The user's live link with this url_key, if any. */
+export function findByKey(db: DB, userId: string, urlKey: string): Link | null {
+	return (
+		db
+			.select()
+			.from(links)
+			.where(and(eq(links.userId, userId), eq(links.urlKey, urlKey), isNull(links.deletedAt)))
+			.get() ?? null
+	);
+}
+
+export interface NewLink {
+	url: string;
+	/** A title the person typed; empty or missing means "the hostname until the page is read". */
+	title?: string | null;
+	/** An id the device made (a ULID), so its optimistic row keeps its id; ignored if malformed or taken. */
+	id?: string | null;
+	via?: SavedVia;
+}
+
+function isUnique(error: unknown) {
+	return (
+		error instanceof Error &&
+		error.message.includes('UNIQUE constraint failed: links.user_id, links.url_key')
+	);
+}
+
 /**
- * Saves one link through syncWrite. A placeholder until T-0006: `url_key` is the parsed URL's href (T-0006 brings
- * the real `normalise()`), and a URL already saved is refused by the live-row unique index.
+ * Inserts one link through syncWrite: the address kept with trackers removed, its `url_key` from `normalise()`, the
+ * title the person typed (then marked as theirs in `user_set`) or else the hostname, `meta_state` pending. A URL
+ * already saved is refused by the live-row unique index (`saveLink` turns that into a duplicate answer).
  */
-export function addLink(
-	syncWrite: SyncWrite,
-	userId: string,
-	input: { url: string; title?: string | null }
-): string {
-	const parsed = URL.parse(input.url.trim());
-	if (!parsed) throw new InvalidLinkError('That is not a link.');
-	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-		throw new InvalidLinkError('Only http and https links can be saved.');
+export function addLink(syncWrite: SyncWrite, userId: string, input: NewLink): string {
+	const urlKey = normalise(input.url);
+	const url = cleanUrl(input.url);
+	if (!urlKey || !url) {
+		throw new InvalidLinkError(
+			URL.canParse(input.url.trim())
+				? 'Only http and https links can be saved.'
+				: 'That is not a link.'
+		);
 	}
-	const id = ulid();
-	syncWrite(userId, (w) => {
+	const typed = input.title?.trim().slice(0, TITLE_MAX) || null;
+	const wanted = input.id && ULID_PATTERN.test(input.id) ? input.id : null;
+	return syncWrite(userId, (w) => {
+		const taken =
+			wanted && w.tx.select({ id: links.id }).from(links).where(eq(links.id, wanted)).get();
+		const id = wanted && !taken ? wanted : ulid(w.now);
 		w.insert(links, {
 			id,
-			url: parsed.href,
-			urlKey: parsed.href,
-			title: input.title?.trim() || null,
-			savedVia: 'paste'
+			url,
+			urlKey,
+			title: typed ?? displayHost(url),
+			userSet: JSON.stringify(typed ? ['title'] : []),
+			metaState: 'pending',
+			savedVia: input.via ?? 'paste'
 		});
+		return id;
 	});
-	return id;
+}
+
+/**
+ * Saves a link unless its address is already saved: then nothing is written and the existing link comes back with
+ * `duplicate: true` (F-web-mvp, "saved once per address").
+ */
+export function saveLink(
+	db: DB,
+	syncWrite: SyncWrite,
+	userId: string,
+	input: NewLink
+): { link: Link; duplicate: boolean } {
+	const key = normalise(input.url);
+	const existing = key ? findByKey(db, userId, key) : null;
+	if (existing) return { link: existing, duplicate: true };
+	try {
+		const id = addLink(syncWrite, userId, input);
+		return { link: getLink(db, userId, id)!, duplicate: false };
+	} catch (error) {
+		// Saved by another request between the look-up and the insert.
+		const raced = key && isUnique(error) ? findByKey(db, userId, key) : null;
+		if (raced) return { link: raced, duplicate: true };
+		throw error;
+	}
+}
+
+/** What a PATCH may change. `archived` sets or clears `archived_at`. */
+export interface LinkPatch {
+	title?: string | null;
+	description?: string | null;
+	notes?: string | null;
+	sourceId?: string | null;
+	media?: string;
+	status?: string | null;
+	priority?: number | null;
+	archived?: boolean;
+}
+
+/** A request the person (or a client) got wrong; its message is safe to send back. */
+export class BadPatchError extends Error {}
+
+function text(value: unknown, field: string, max: number): string | null {
+	if (value === null) return null;
+	if (typeof value !== 'string') throw new BadPatchError(`${field} must be text or null.`);
+	if (value.length > max) throw new BadPatchError(`${field} is longer than ${max} characters.`);
+	return value;
+}
+
+/** Checks a PATCH body field by field; unknown fields are refused rather than ignored. */
+export function parsePatch(body: unknown): LinkPatch {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		throw new BadPatchError('Send a JSON object.');
+	}
+	const patch: LinkPatch = {};
+	for (const [field, value] of Object.entries(body)) {
+		switch (field) {
+			case 'title': {
+				const title = text(value, field, TITLE_MAX)?.trim();
+				if (!title) throw new BadPatchError('title cannot be empty.');
+				patch.title = title;
+				break;
+			}
+			case 'description':
+				patch.description = text(value, field, DESCRIPTION_MAX);
+				break;
+			case 'notes':
+				patch.notes = text(value, field, NOTES_MAX);
+				break;
+			case 'sourceId':
+				patch.sourceId = text(value, field, 64);
+				break;
+			case 'media':
+				if (!MEDIA.includes(value as never)) {
+					throw new BadPatchError(`media must be one of ${MEDIA.join(', ')}.`);
+				}
+				patch.media = value as string;
+				break;
+			case 'status':
+				if (value !== null && !STATUSES.includes(value as never)) {
+					throw new BadPatchError(`status must be null or one of ${STATUSES.join(', ')}.`);
+				}
+				patch.status = value as string | null;
+				break;
+			case 'priority':
+				if (value !== null && !PRIORITIES.includes(value as never)) {
+					throw new BadPatchError('priority must be null, 1, 2 or 3.');
+				}
+				patch.priority = value as number | null;
+				break;
+			case 'archived':
+				if (typeof value !== 'boolean') throw new BadPatchError('archived must be true or false.');
+				patch.archived = value;
+				break;
+			default:
+				throw new BadPatchError(`${field} cannot be changed.`);
+		}
+	}
+	return patch;
+}
+
+/** The `user_set` name of each hand-editable column. */
+const USER_SET: Partial<Record<keyof LinkPatch, UserSetField>> = {
+	title: 'title',
+	description: 'description',
+	sourceId: 'source',
+	media: 'media'
+};
+
+/**
+ * Applies a checked patch to the user's live link through syncWrite, and adds each of title, description, source
+ * and media whose value it changes to the link's `user_set`, so the metadata fetcher never overwrites it. Returns
+ * the link after the write, the same link untouched when nothing changes, or null if there is no such live link.
+ */
+export function patchLink(
+	db: DB,
+	syncWrite: SyncWrite,
+	userId: string,
+	id: string,
+	patch: LinkPatch
+): Link | null {
+	const link = getLink(db, userId, id);
+	if (!link || link.deletedAt !== null) return null;
+
+	const set: Partial<typeof links.$inferInsert> = {};
+	const userSet = new Set<string>(JSON.parse(link.userSet) as string[]);
+	for (const [field, value] of Object.entries(patch) as [keyof LinkPatch, unknown][]) {
+		if (field === 'archived') {
+			if ((link.archivedAt !== null) !== value) set.archivedAt = value ? Date.now() : null;
+			continue;
+		}
+		if (link[field] === value) continue;
+		(set as Record<string, unknown>)[field] = value;
+		const mark = USER_SET[field];
+		if (mark) userSet.add(mark);
+	}
+	if (Object.keys(set).length === 0) return link;
+	set.userSet = JSON.stringify([...userSet]);
+
+	syncWrite(userId, (w) => {
+		if (set.archivedAt) set.archivedAt = w.now;
+		w.update(links, and(eq(links.id, id), isNull(links.deletedAt))!, set);
+	});
+	return getLink(db, userId, id);
+}
+
+/** Soft-deletes the user's live link (the row stays as a tombstone, ADR-0001). False if there was none. */
+export function deleteLink(syncWrite: SyncWrite, userId: string, id: string): boolean {
+	return syncWrite(userId, (w) => w.softDelete(links, eq(links.id, id))) > 0;
+}
+
+/** Why a deleted link could not come back. */
+export class RestoreConflictError extends Error {}
+
+/**
+ * Brings a soft-deleted link back (the undo after a delete) through syncWrite. Null if the user has no such
+ * deleted link; a `RestoreConflictError` if the same address was saved again since.
+ */
+export function restoreLink(db: DB, syncWrite: SyncWrite, userId: string, id: string): Link | null {
+	const link = getLink(db, userId, id);
+	if (!link) return null;
+	if (link.deletedAt === null) return link;
+	if (findByKey(db, userId, link.urlKey)) {
+		throw new RestoreConflictError('That address was saved again after it was deleted.');
+	}
+	syncWrite(userId, (w) =>
+		w.update(links, and(eq(links.id, id), isNotNull(links.deletedAt))!, { deletedAt: null })
+	);
+	return getLink(db, userId, id);
+}
+
+/** The link as the API sends it: every column but the owner. */
+export function linkJson(link: Link): LinkJson {
+	const { userId, userSet, ...rest } = link;
+	void userId;
+	return { ...rest, userSet: JSON.parse(userSet) as LinkJson['userSet'] };
 }
