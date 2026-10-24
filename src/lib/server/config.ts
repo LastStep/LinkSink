@@ -9,6 +9,7 @@ export interface RawEnv {
 	MAIL_TRANSPORT?: string;
 	MAIL_OUTBOX?: string;
 	TEST_ONLY_FETCH_ALLOW?: string;
+	NODE_ENV?: string;
 }
 
 export interface RuntimeConfig {
@@ -45,7 +46,7 @@ export function loadRuntimeConfig(env: RawEnv, { dev }: { dev: boolean }): Runti
 		if (!env.MAIL_FROM) problems.push('MAIL_FROM must be set when mail goes through Resend');
 	}
 	try {
-		parseTestFetchAllow(env.TEST_ONLY_FETCH_ALLOW, env.MAIL_TRANSPORT);
+		parseTestFetchAllow(env.TEST_ONLY_FETCH_ALLOW, env.MAIL_TRANSPORT, env.NODE_ENV);
 	} catch (error) {
 		problems.push((error as Error).message);
 	}

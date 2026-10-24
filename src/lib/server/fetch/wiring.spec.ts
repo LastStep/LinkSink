@@ -134,7 +134,28 @@ describe('TEST_ONLY_FETCH_ALLOW', () => {
 		expect(() =>
 			loadRuntimeConfig({ ...base, TEST_ONLY_FETCH_ALLOW: '127.0.0.1:4174' }, { dev: true })
 		).toThrow(/TEST_ONLY_FETCH_ALLOW/);
-		expect(() => parseTestFetchAllow('127.0.0.1:4174', undefined)).toThrow();
+		expect(() => parseTestFetchAllow('127.0.0.1:4174', undefined, undefined)).toThrow();
+	});
+
+	it('NODE_ENV=production refuses it, even beside MAIL_TRANSPORT=console', () => {
+		expect(() =>
+			loadRuntimeConfig(
+				{
+					...base,
+					MAIL_TRANSPORT: 'console',
+					NODE_ENV: 'production',
+					TEST_ONLY_FETCH_ALLOW: '127.0.0.1:4174'
+				},
+				{ dev: false }
+			)
+		).toThrow(/TEST_ONLY_FETCH_ALLOW is refused with NODE_ENV=production/);
+		expect(() => parseTestFetchAllow('127.0.0.1:4174', 'console', 'production')).toThrow(
+			/NODE_ENV=production/
+		);
+		// production without the variable starts as before
+		expect(() =>
+			loadRuntimeConfig({ ...base, NODE_ENV: 'production' }, { dev: false })
+		).not.toThrow();
 	});
 
 	it('the e2e server (MAIL_TRANSPORT=console) may set it, to 127.0.0.1:<port> only', () => {
@@ -144,12 +165,12 @@ describe('TEST_ONLY_FETCH_ALLOW', () => {
 				{ dev: false }
 			)
 		).not.toThrow();
-		expect(parseTestFetchAllow('127.0.0.1:4174', 'console')).toEqual({
+		expect(parseTestFetchAllow('127.0.0.1:4174', 'console', undefined)).toEqual({
 			address: '127.0.0.1',
 			port: 4174
 		});
-		expect(parseTestFetchAllow(undefined, 'resend')).toBeNull();
-		expect(parseTestFetchAllow('', 'resend')).toBeNull();
+		expect(parseTestFetchAllow(undefined, 'resend', 'production')).toBeNull();
+		expect(parseTestFetchAllow('', 'resend', 'production')).toBeNull();
 		for (const bad of [
 			'127.0.0.1',
 			'127.0.0.1:80',
@@ -160,7 +181,9 @@ describe('TEST_ONLY_FETCH_ALLOW', () => {
 			'127.0.0.1:4174,127.0.0.1:22',
 			'0.0.0.0:4174'
 		]) {
-			expect(() => parseTestFetchAllow(bad, 'console'), bad).toThrow(/must be 127\.0\.0\.1:<port>/);
+			expect(() => parseTestFetchAllow(bad, 'console', undefined), bad).toThrow(
+				/must be 127\.0\.0\.1:<port>/
+			);
 		}
 	});
 });
