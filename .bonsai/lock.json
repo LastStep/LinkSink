@@ -1,0 +1,1173 @@
+{
+  "format": "bonsai.lock/1",
+  "written_by": "1.0.0-rc.2",
+  "packs": [
+    {
+      "id": "base",
+      "source": "https://github.com/LastStep/Bonsai",
+      "version": "0.1.0",
+      "commit": "d19a3dff93addc643173b5a1e19cad767292ab47",
+      "sha256": "74f25d8aea768518ad1a944ecd9c40cc4e9df6b15bf632466da318ed0eb57ef7",
+      "declares": {
+        "labels": {
+          "namespace": "bonsai",
+          "version": 1,
+          "labels": [
+            {
+              "name": "bonsai.allows",
+              "kind": "list",
+              "values": [],
+              "items": "text",
+              "pattern": null,
+              "max": null,
+              "kinds": [
+                "task"
+              ],
+              "set_by": "agent",
+              "grants": true,
+              "description": "Protected paths this task may change, as globs. A path on the person-only list counts only if a person granted it."
+            },
+            {
+              "name": "bonsai.wants",
+              "kind": "list",
+              "values": [],
+              "items": "text",
+              "pattern": null,
+              "max": null,
+              "kinds": [
+                "task"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "Person-only paths this task asks for. A person's approval or grant copies them into bonsai.allows."
+            },
+            {
+              "name": "bonsai.ladder",
+              "kind": "list",
+              "values": [],
+              "items": "number",
+              "pattern": null,
+              "max": null,
+              "kinds": [
+                "task"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "The rungs this task climbs. It adds rungs to the workspace's floor and never drops one."
+            },
+            {
+              "name": "bonsai.branch",
+              "kind": "text",
+              "values": [],
+              "items": null,
+              "pattern": "^[A-Za-z0-9._/-]{1,100}$",
+              "max": null,
+              "kinds": [
+                "task"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "The branch the task is built on; empty means the base branch."
+            }
+          ]
+        },
+        "protected": [
+          "bonsai.yaml",
+          ".bonsai/lock.json"
+        ],
+        "deny": [
+          {
+            "rule": "Read(~/.ssh/**)",
+            "why": "Agents cannot read ~/.ssh/, where SSH keeps private keys."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.ssh/**)",
+            "why": "Agents in WSL cannot read the Windows home's .ssh/, where SSH keeps private keys."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.ssh/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.ssh/ by its wsl.localhost path, where SSH keeps private keys."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.ssh/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.ssh/ by its wsl$ path, where SSH keeps private keys."
+          },
+          {
+            "rule": "Read(~/.aws/**)",
+            "why": "Agents cannot read ~/.aws/, where the AWS command line keeps its keys."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.aws/**)",
+            "why": "Agents in WSL cannot read the Windows home's .aws/, where the AWS command line keeps its keys."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.aws/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.aws/ by its wsl.localhost path, where the AWS command line keeps its keys."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.aws/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.aws/ by its wsl$ path, where the AWS command line keeps its keys."
+          },
+          {
+            "rule": "Read(~/.azure/**)",
+            "why": "Agents cannot read ~/.azure/, where Azure's command line keeps its logins."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.azure/**)",
+            "why": "Agents in WSL cannot read the Windows home's .azure/, where Azure's command line keeps its logins."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.azure/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.azure/ by its wsl.localhost path, where Azure's command line keeps its logins."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.azure/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.azure/ by its wsl$ path, where Azure's command line keeps its logins."
+          },
+          {
+            "rule": "Read(~/.config/gcloud/**)",
+            "why": "Agents cannot read ~/.config/gcloud/, where Google Cloud's command line keeps its logins."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.config/gcloud/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.config/gcloud/ by its wsl.localhost path, where Google Cloud's command line keeps its logins."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.config/gcloud/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.config/gcloud/ by its wsl$ path, where Google Cloud's command line keeps its logins."
+          },
+          {
+            "rule": "Read(~/AppData/Roaming/gcloud/**)",
+            "why": "Agents cannot read ~/AppData/Roaming/gcloud/, where Google Cloud's command line keeps its logins on Windows."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/AppData/Roaming/gcloud/**)",
+            "why": "Agents in WSL cannot read the Windows home's AppData/Roaming/gcloud/, where Google Cloud's command line keeps its logins on Windows."
+          },
+          {
+            "rule": "Read(~/.config/gh/hosts.yml)",
+            "why": "Agents cannot read ~/.config/gh/hosts.yml, where GitHub's gh keeps its login token."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.config/gh/hosts.yml)",
+            "why": "Agents on Windows cannot read WSL's ~/.config/gh/hosts.yml by its wsl.localhost path, where GitHub's gh keeps its login token."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.config/gh/hosts.yml)",
+            "why": "Agents on Windows cannot read WSL's ~/.config/gh/hosts.yml by its wsl$ path, where GitHub's gh keeps its login token."
+          },
+          {
+            "rule": "Read(~/AppData/Roaming/GitHub CLI/hosts.yml)",
+            "why": "Agents cannot read ~/AppData/Roaming/GitHub CLI/hosts.yml, where GitHub's gh keeps its login token on Windows."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/AppData/Roaming/GitHub CLI/hosts.yml)",
+            "why": "Agents in WSL cannot read the Windows home's AppData/Roaming/GitHub CLI/hosts.yml, where GitHub's gh keeps its login token on Windows."
+          },
+          {
+            "rule": "Read(~/.gnupg/**)",
+            "why": "Agents cannot read ~/.gnupg/, where GnuPG keeps private keys."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.gnupg/**)",
+            "why": "Agents in WSL cannot read the Windows home's .gnupg/, where GnuPG keeps private keys."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.gnupg/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.gnupg/ by its wsl.localhost path, where GnuPG keeps private keys."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.gnupg/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.gnupg/ by its wsl$ path, where GnuPG keeps private keys."
+          },
+          {
+            "rule": "Read(~/AppData/Roaming/gnupg/**)",
+            "why": "Agents cannot read ~/AppData/Roaming/gnupg/, where GnuPG keeps private keys on Windows."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/AppData/Roaming/gnupg/**)",
+            "why": "Agents in WSL cannot read the Windows home's AppData/Roaming/gnupg/, where GnuPG keeps private keys on Windows."
+          },
+          {
+            "rule": "Read(~/.git-credentials)",
+            "why": "Agents cannot read ~/.git-credentials, where git's store helper keeps passwords and tokens."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.git-credentials)",
+            "why": "Agents in WSL cannot read the Windows home's .git-credentials, where git's store helper keeps passwords and tokens."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.git-credentials)",
+            "why": "Agents on Windows cannot read WSL's ~/.git-credentials by its wsl.localhost path, where git's store helper keeps passwords and tokens."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.git-credentials)",
+            "why": "Agents on Windows cannot read WSL's ~/.git-credentials by its wsl$ path, where git's store helper keeps passwords and tokens."
+          },
+          {
+            "rule": "Read(~/.config/git/credentials)",
+            "why": "Agents cannot read ~/.config/git/credentials, git's other file of stored passwords and tokens."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.config/git/credentials)",
+            "why": "Agents in WSL cannot read the Windows home's .config/git/credentials, git's other file of stored passwords and tokens."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.config/git/credentials)",
+            "why": "Agents on Windows cannot read WSL's ~/.config/git/credentials by its wsl.localhost path, git's other file of stored passwords and tokens."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.config/git/credentials)",
+            "why": "Agents on Windows cannot read WSL's ~/.config/git/credentials by its wsl$ path, git's other file of stored passwords and tokens."
+          },
+          {
+            "rule": "Read(~/.netrc)",
+            "why": "Agents cannot read ~/.netrc, where curl, git and other tools keep logins."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.netrc)",
+            "why": "Agents in WSL cannot read the Windows home's .netrc, where curl, git and other tools keep logins."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.netrc)",
+            "why": "Agents on Windows cannot read WSL's ~/.netrc by its wsl.localhost path, where curl, git and other tools keep logins."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.netrc)",
+            "why": "Agents on Windows cannot read WSL's ~/.netrc by its wsl$ path, where curl, git and other tools keep logins."
+          },
+          {
+            "rule": "Read(~/_netrc)",
+            "why": "Agents cannot read ~/_netrc, the name Windows tools give the same login file as .netrc."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/_netrc)",
+            "why": "Agents in WSL cannot read the Windows home's _netrc, the name Windows tools give the same login file as .netrc."
+          },
+          {
+            "rule": "Read(~/.npmrc)",
+            "why": "Agents cannot read ~/.npmrc, where npm keeps registry tokens."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.npmrc)",
+            "why": "Agents in WSL cannot read the Windows home's .npmrc, where npm keeps registry tokens."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.npmrc)",
+            "why": "Agents on Windows cannot read WSL's ~/.npmrc by its wsl.localhost path, where npm keeps registry tokens."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.npmrc)",
+            "why": "Agents on Windows cannot read WSL's ~/.npmrc by its wsl$ path, where npm keeps registry tokens."
+          },
+          {
+            "rule": "Read(~/.pypirc)",
+            "why": "Agents cannot read ~/.pypirc, where Python's upload tools keep package index logins."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.pypirc)",
+            "why": "Agents in WSL cannot read the Windows home's .pypirc, where Python's upload tools keep package index logins."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.pypirc)",
+            "why": "Agents on Windows cannot read WSL's ~/.pypirc by its wsl.localhost path, where Python's upload tools keep package index logins."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.pypirc)",
+            "why": "Agents on Windows cannot read WSL's ~/.pypirc by its wsl$ path, where Python's upload tools keep package index logins."
+          },
+          {
+            "rule": "Read(~/.kube/config)",
+            "why": "Agents cannot read ~/.kube/config, where kubectl keeps cluster logins."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.kube/config)",
+            "why": "Agents in WSL cannot read the Windows home's .kube/config, where kubectl keeps cluster logins."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.kube/config)",
+            "why": "Agents on Windows cannot read WSL's ~/.kube/config by its wsl.localhost path, where kubectl keeps cluster logins."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.kube/config)",
+            "why": "Agents on Windows cannot read WSL's ~/.kube/config by its wsl$ path, where kubectl keeps cluster logins."
+          },
+          {
+            "rule": "Read(~/.docker/config.json)",
+            "why": "Agents cannot read ~/.docker/config.json, where Docker keeps registry logins."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.docker/config.json)",
+            "why": "Agents in WSL cannot read the Windows home's .docker/config.json, where Docker keeps registry logins."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.docker/config.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.docker/config.json by its wsl.localhost path, where Docker keeps registry logins."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.docker/config.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.docker/config.json by its wsl$ path, where Docker keeps registry logins."
+          },
+          {
+            "rule": "Read(~/.claude/.credentials.json)",
+            "why": "Agents cannot read ~/.claude/.credentials.json, Claude Code's login."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.claude/.credentials.json)",
+            "why": "Agents in WSL cannot read the Windows home's .claude/.credentials.json, Claude Code's login."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.claude/.credentials.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.claude/.credentials.json by its wsl.localhost path, Claude Code's login."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.claude/.credentials.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.claude/.credentials.json by its wsl$ path, Claude Code's login."
+          },
+          {
+            "rule": "Read(~/.claude.json)",
+            "why": "Agents cannot read ~/.claude.json, Claude Code's own file, whose MCP servers' settings often hold tokens."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.claude.json)",
+            "why": "Agents in WSL cannot read the Windows home's .claude.json, Claude Code's own file, whose MCP servers' settings often hold tokens."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.claude.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.claude.json by its wsl.localhost path, Claude Code's own file, whose MCP servers' settings often hold tokens."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.claude.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.claude.json by its wsl$ path, Claude Code's own file, whose MCP servers' settings often hold tokens."
+          },
+          {
+            "rule": "Read(~/.codex/auth.json)",
+            "why": "Agents cannot read ~/.codex/auth.json, where OpenAI's Codex command line keeps its login."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.codex/auth.json)",
+            "why": "Agents in WSL cannot read the Windows home's .codex/auth.json, where OpenAI's Codex command line keeps its login."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.codex/auth.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.codex/auth.json by its wsl.localhost path, where OpenAI's Codex command line keeps its login."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.codex/auth.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.codex/auth.json by its wsl$ path, where OpenAI's Codex command line keeps its login."
+          },
+          {
+            "rule": "Read(~/.gemini/oauth_creds.json)",
+            "why": "Agents cannot read ~/.gemini/oauth_creds.json, where Google's Gemini command line keeps its login."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.gemini/oauth_creds.json)",
+            "why": "Agents in WSL cannot read the Windows home's .gemini/oauth_creds.json, where Google's Gemini command line keeps its login."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.gemini/oauth_creds.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.gemini/oauth_creds.json by its wsl.localhost path, where Google's Gemini command line keeps its login."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.gemini/oauth_creds.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.gemini/oauth_creds.json by its wsl$ path, where Google's Gemini command line keeps its login."
+          },
+          {
+            "rule": "Read(~/.cache/huggingface/token)",
+            "why": "Agents cannot read ~/.cache/huggingface/token, where Hugging Face's tools keep the access token."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.cache/huggingface/token)",
+            "why": "Agents in WSL cannot read the Windows home's .cache/huggingface/token, where Hugging Face's tools keep the access token."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.cache/huggingface/token)",
+            "why": "Agents on Windows cannot read WSL's ~/.cache/huggingface/token by its wsl.localhost path, where Hugging Face's tools keep the access token."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.cache/huggingface/token)",
+            "why": "Agents on Windows cannot read WSL's ~/.cache/huggingface/token by its wsl$ path, where Hugging Face's tools keep the access token."
+          },
+          {
+            "rule": "Read(~/.cache/huggingface/stored_tokens)",
+            "why": "Agents cannot read ~/.cache/huggingface/stored_tokens, where Hugging Face's tools keep every saved access token."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.cache/huggingface/stored_tokens)",
+            "why": "Agents in WSL cannot read the Windows home's .cache/huggingface/stored_tokens, where Hugging Face's tools keep every saved access token."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.cache/huggingface/stored_tokens)",
+            "why": "Agents on Windows cannot read WSL's ~/.cache/huggingface/stored_tokens by its wsl.localhost path, where Hugging Face's tools keep every saved access token."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.cache/huggingface/stored_tokens)",
+            "why": "Agents on Windows cannot read WSL's ~/.cache/huggingface/stored_tokens by its wsl$ path, where Hugging Face's tools keep every saved access token."
+          },
+          {
+            "rule": "Read(~/.cli-proxy-api/**)",
+            "why": "Agents cannot read ~/.cli-proxy-api/, where CLIProxyAPI keeps its accounts' logins and its keys."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.cli-proxy-api/**)",
+            "why": "Agents in WSL cannot read the Windows home's .cli-proxy-api/, where CLIProxyAPI keeps its accounts' logins and its keys."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.cli-proxy-api/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.cli-proxy-api/ by its wsl.localhost path, where CLIProxyAPI keeps its accounts' logins and its keys."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.cli-proxy-api/**)",
+            "why": "Agents on Windows cannot read WSL's ~/.cli-proxy-api/ by its wsl$ path, where CLIProxyAPI keeps its accounts' logins and its keys."
+          },
+          {
+            "rule": "Read(~/.pi/agent/auth.json)",
+            "why": "Agents cannot read ~/.pi/agent/auth.json, where the pi coding agent keeps its logins."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.pi/agent/auth.json)",
+            "why": "Agents in WSL cannot read the Windows home's .pi/agent/auth.json, where the pi coding agent keeps its logins."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.pi/agent/auth.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.pi/agent/auth.json by its wsl.localhost path, where the pi coding agent keeps its logins."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.pi/agent/auth.json)",
+            "why": "Agents on Windows cannot read WSL's ~/.pi/agent/auth.json by its wsl$ path, where the pi coding agent keeps its logins."
+          },
+          {
+            "rule": "Read(~/.bonsai/salt)",
+            "why": "Agents cannot read ~/.bonsai/salt, Bonsai's secret salt for this machine."
+          },
+          {
+            "rule": "Read(//mnt/c/Users/*/.bonsai/salt)",
+            "why": "Agents in WSL cannot read the Windows home's .bonsai/salt, Bonsai's secret salt for this machine."
+          },
+          {
+            "rule": "Read(//wsl.localhost/*/home/*/.bonsai/salt)",
+            "why": "Agents on Windows cannot read WSL's ~/.bonsai/salt by its wsl.localhost path, Bonsai's secret salt for this machine."
+          },
+          {
+            "rule": "Read(//wsl$/*/home/*/.bonsai/salt)",
+            "why": "Agents on Windows cannot read WSL's ~/.bonsai/salt by its wsl$ path, Bonsai's secret salt for this machine."
+          },
+          {
+            "rule": "Edit(//**/.claude/settings.local.json)",
+            "why": "Agents cannot edit a .claude/settings.local.json anywhere: the person's own Claude Code settings, which beat the project's."
+          },
+          {
+            "rule": "Edit(~/.claude/settings.json)",
+            "why": "Agents cannot edit ~/.claude/settings.json, the person's own Claude Code settings."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.claude/settings.json)",
+            "why": "Agents in WSL cannot edit the Windows home's .claude/settings.json, the person's own Claude Code settings."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.claude/settings.json)",
+            "why": "Agents on Windows cannot edit WSL's ~/.claude/settings.json by its wsl.localhost path, the person's own Claude Code settings."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.claude/settings.json)",
+            "why": "Agents on Windows cannot edit WSL's ~/.claude/settings.json by its wsl$ path, the person's own Claude Code settings."
+          },
+          {
+            "rule": "Edit(~/.claude.json)",
+            "why": "Agents cannot edit ~/.claude.json, whose MCP servers are code Claude Code starts on its own."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.claude.json)",
+            "why": "Agents in WSL cannot edit the Windows home's .claude.json, whose MCP servers are code Claude Code starts on its own."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.claude.json)",
+            "why": "Agents on Windows cannot edit WSL's ~/.claude.json by its wsl.localhost path, whose MCP servers are code Claude Code starts on its own."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.claude.json)",
+            "why": "Agents on Windows cannot edit WSL's ~/.claude.json by its wsl$ path, whose MCP servers are code Claude Code starts on its own."
+          },
+          {
+            "rule": "Edit(~/.claude/CLAUDE.md)",
+            "why": "Agents cannot edit ~/.claude/CLAUDE.md, the person's own memory file, which every project loads."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.claude/CLAUDE.md)",
+            "why": "Agents in WSL cannot edit the Windows home's .claude/CLAUDE.md, the person's own memory file, which every project loads."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.claude/CLAUDE.md)",
+            "why": "Agents on Windows cannot edit WSL's ~/.claude/CLAUDE.md by its wsl.localhost path, the person's own memory file, which every project loads."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.claude/CLAUDE.md)",
+            "why": "Agents on Windows cannot edit WSL's ~/.claude/CLAUDE.md by its wsl$ path, the person's own memory file, which every project loads."
+          },
+          {
+            "rule": "Edit(~/go/bin/**)",
+            "why": "Agents cannot write in ~/go/bin/, where a copy could shadow the installed bonsai."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/go/bin/**)",
+            "why": "Agents in WSL cannot write in the Windows home's go/bin/, where a copy could shadow the installed bonsai."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/go/bin/**)",
+            "why": "Agents on Windows cannot write in WSL's ~/go/bin/ by its wsl.localhost path, where a copy could shadow the installed bonsai."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/go/bin/**)",
+            "why": "Agents on Windows cannot write in WSL's ~/go/bin/ by its wsl$ path, where a copy could shadow the installed bonsai."
+          },
+          {
+            "rule": "Edit(~/.local/bin/bonsai*)",
+            "why": "Agents cannot write a bonsai in ~/.local/bin/, where a copy could shadow the installed bonsai."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.local/bin/bonsai*)",
+            "why": "Agents in WSL cannot write a bonsai in the Windows home's .local/bin/, where a copy could shadow the installed bonsai."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.local/bin/bonsai*)",
+            "why": "Agents on Windows cannot write a bonsai in WSL's ~/.local/bin/ by its wsl.localhost path, where a copy could shadow the installed bonsai."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.local/bin/bonsai*)",
+            "why": "Agents on Windows cannot write a bonsai in WSL's ~/.local/bin/ by its wsl$ path, where a copy could shadow the installed bonsai."
+          },
+          {
+            "rule": "Edit(~/.ssh/**)",
+            "why": "Agents cannot write in ~/.ssh/: its config can run a command at every connection, and authorized_keys lets someone in."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.ssh/**)",
+            "why": "Agents in WSL cannot write in the Windows home's .ssh/: its config can run a command at every connection, and authorized_keys lets someone in."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.ssh/**)",
+            "why": "Agents on Windows cannot write in WSL's ~/.ssh/ by its wsl.localhost path: its config can run a command at every connection, and authorized_keys lets someone in."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.ssh/**)",
+            "why": "Agents on Windows cannot write in WSL's ~/.ssh/ by its wsl$ path: its config can run a command at every connection, and authorized_keys lets someone in."
+          },
+          {
+            "rule": "Edit(~/.gitconfig)",
+            "why": "Agents cannot edit ~/.gitconfig: its aliases, hooks path and helpers run commands in every repository."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.gitconfig)",
+            "why": "Agents in WSL cannot edit the Windows home's .gitconfig: its aliases, hooks path and helpers run commands in every repository."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.gitconfig)",
+            "why": "Agents on Windows cannot edit WSL's ~/.gitconfig by its wsl.localhost path: its aliases, hooks path and helpers run commands in every repository."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.gitconfig)",
+            "why": "Agents on Windows cannot edit WSL's ~/.gitconfig by its wsl$ path: its aliases, hooks path and helpers run commands in every repository."
+          },
+          {
+            "rule": "Edit(~/.config/git/config)",
+            "why": "Agents cannot edit ~/.config/git/config, git's other settings file, which can run commands in every repository."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.config/git/config)",
+            "why": "Agents in WSL cannot edit the Windows home's .config/git/config, git's other settings file, which can run commands in every repository."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.config/git/config)",
+            "why": "Agents on Windows cannot edit WSL's ~/.config/git/config by its wsl.localhost path, git's other settings file, which can run commands in every repository."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.config/git/config)",
+            "why": "Agents on Windows cannot edit WSL's ~/.config/git/config by its wsl$ path, git's other settings file, which can run commands in every repository."
+          },
+          {
+            "rule": "Edit(~/.bashrc)",
+            "why": "Agents cannot edit ~/.bashrc: it runs at every bash start."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.bashrc)",
+            "why": "Agents in WSL cannot edit the Windows home's .bashrc: it runs at every bash start."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.bashrc)",
+            "why": "Agents on Windows cannot edit WSL's ~/.bashrc by its wsl.localhost path: it runs at every bash start."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.bashrc)",
+            "why": "Agents on Windows cannot edit WSL's ~/.bashrc by its wsl$ path: it runs at every bash start."
+          },
+          {
+            "rule": "Edit(~/.bash_profile)",
+            "why": "Agents cannot edit ~/.bash_profile: it runs at every login shell's start."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.bash_profile)",
+            "why": "Agents in WSL cannot edit the Windows home's .bash_profile: it runs at every login shell's start."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.bash_profile)",
+            "why": "Agents on Windows cannot edit WSL's ~/.bash_profile by its wsl.localhost path: it runs at every login shell's start."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.bash_profile)",
+            "why": "Agents on Windows cannot edit WSL's ~/.bash_profile by its wsl$ path: it runs at every login shell's start."
+          },
+          {
+            "rule": "Edit(~/.profile)",
+            "why": "Agents cannot edit ~/.profile: it runs at every login shell's start."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/.profile)",
+            "why": "Agents in WSL cannot edit the Windows home's .profile: it runs at every login shell's start."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.profile)",
+            "why": "Agents on Windows cannot edit WSL's ~/.profile by its wsl.localhost path: it runs at every login shell's start."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.profile)",
+            "why": "Agents on Windows cannot edit WSL's ~/.profile by its wsl$ path: it runs at every login shell's start."
+          },
+          {
+            "rule": "Edit(~/.zshrc)",
+            "why": "Agents cannot edit ~/.zshrc: it runs at every zsh start."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.zshrc)",
+            "why": "Agents on Windows cannot edit WSL's ~/.zshrc by its wsl.localhost path: it runs at every zsh start."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.zshrc)",
+            "why": "Agents on Windows cannot edit WSL's ~/.zshrc by its wsl$ path: it runs at every zsh start."
+          },
+          {
+            "rule": "Edit(~/.zprofile)",
+            "why": "Agents cannot edit ~/.zprofile: it runs at every zsh login's start."
+          },
+          {
+            "rule": "Edit(//wsl.localhost/*/home/*/.zprofile)",
+            "why": "Agents on Windows cannot edit WSL's ~/.zprofile by its wsl.localhost path: it runs at every zsh login's start."
+          },
+          {
+            "rule": "Edit(//wsl$/*/home/*/.zprofile)",
+            "why": "Agents on Windows cannot edit WSL's ~/.zprofile by its wsl$ path: it runs at every zsh login's start."
+          },
+          {
+            "rule": "Edit(~/Documents/PowerShell/**)",
+            "why": "Agents cannot write in ~/Documents/PowerShell/, where PowerShell's profiles and modules run at its start."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/Documents/PowerShell/**)",
+            "why": "Agents in WSL cannot write in the Windows home's Documents/PowerShell/, where PowerShell's profiles and modules run at its start."
+          },
+          {
+            "rule": "Edit(~/Documents/WindowsPowerShell/**)",
+            "why": "Agents cannot write in ~/Documents/WindowsPowerShell/, where Windows PowerShell's profiles and modules run at its start."
+          },
+          {
+            "rule": "Edit(//mnt/c/Users/*/Documents/WindowsPowerShell/**)",
+            "why": "Agents in WSL cannot write in the Windows home's Documents/WindowsPowerShell/, where Windows PowerShell's profiles and modules run at its start."
+          }
+        ],
+        "needs": {
+          "claude_code": "2.1.294"
+        }
+      },
+      "path": "packs/base"
+    },
+    {
+      "id": "workflow",
+      "source": "https://github.com/LastStep/bonsai-workflow.git",
+      "version": "0.1.0",
+      "commit": "612bc3330742b25f30329d128dddd6020e5d51eb",
+      "sha256": "62e06e810da70097ee93365b7c99b69d724d3e29a90c73257ead9f1ec3a7ddc6",
+      "declares": {
+        "lanes": [
+          {
+            "name": "light",
+            "approve_first": false,
+            "close": "agent",
+            "description": "Bug fixes, tweaks, refactors, tests and docs: under about 200 changed lines, no new wire or data format, nothing a player notices. Build it, climb the ladder, land it."
+          },
+          {
+            "name": "full",
+            "approve_first": true,
+            "close": "person",
+            "description": "A feature: anything a player notices, or a change to a wire format, a data schema or a public contract. A person approves the one-pager and the plan before code, and closes the task."
+          },
+          {
+            "name": "director",
+            "approve_first": false,
+            "close": "person",
+            "description": "A decision, not code: design and feel, scope, an irreversible technical choice, or whether it is good. Write the options and stop; a person chooses."
+          }
+        ],
+        "documents": [
+          {
+            "kind": "plan",
+            "path": "work/plans",
+            "file": null,
+            "id": "^P-T-[0-9]{4,6}$",
+            "statuses": [
+              "draft",
+              "approved",
+              "rejected",
+              "superseded"
+            ],
+            "person": [
+              [
+                "draft",
+                "approved"
+              ],
+              [
+                "draft",
+                "rejected"
+              ]
+            ],
+            "agent": [
+              [
+                "rejected",
+                "draft"
+              ],
+              [
+                "approved",
+                "superseded"
+              ]
+            ],
+            "stamp": {
+              "approved": "approved"
+            },
+            "task_field": "task"
+          },
+          {
+            "kind": "feature",
+            "path": "work/features",
+            "file": null,
+            "id": "^F-[a-z0-9-]+$",
+            "statuses": [
+              "draft",
+              "approved",
+              "building",
+              "verified",
+              "done",
+              "cut"
+            ],
+            "person": [
+              [
+                "draft",
+                "approved"
+              ],
+              [
+                "verified",
+                "done"
+              ],
+              [
+                "draft",
+                "cut"
+              ],
+              [
+                "approved",
+                "cut"
+              ],
+              [
+                "building",
+                "cut"
+              ],
+              [
+                "verified",
+                "cut"
+              ]
+            ],
+            "agent": [
+              [
+                "approved",
+                "building"
+              ],
+              [
+                "building",
+                "verified"
+              ],
+              [
+                "verified",
+                "building"
+              ]
+            ],
+            "stamp": {
+              "approved": "approved"
+            },
+            "task_field": null
+          },
+          {
+            "kind": "decision",
+            "path": "work/decisions",
+            "file": null,
+            "id": "^ADR-[0-9]{4}$",
+            "statuses": [
+              "proposed",
+              "accepted",
+              "superseded"
+            ],
+            "person": [
+              [
+                "proposed",
+                "accepted"
+              ]
+            ],
+            "agent": [
+              [
+                "accepted",
+                "superseded"
+              ]
+            ],
+            "stamp": {
+              "accepted": "date"
+            },
+            "task_field": null
+          },
+          {
+            "kind": "options",
+            "path": "work/options",
+            "file": null,
+            "id": "^OPT-[0-9]{4}$",
+            "statuses": [
+              "open",
+              "decided",
+              "deferred"
+            ],
+            "person": [
+              [
+                "open",
+                "decided"
+              ],
+              [
+                "deferred",
+                "decided"
+              ]
+            ],
+            "agent": [
+              [
+                "open",
+                "deferred"
+              ],
+              [
+                "deferred",
+                "open"
+              ]
+            ],
+            "stamp": {
+              "decided": "decided"
+            },
+            "task_field": null
+          },
+          {
+            "kind": "spec",
+            "path": "work/specs",
+            "file": null,
+            "id": "^SPEC-[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9-]+$",
+            "statuses": [
+              "draft",
+              "approved"
+            ],
+            "person": [
+              [
+                "draft",
+                "approved"
+              ]
+            ],
+            "agent": [],
+            "stamp": {
+              "approved": "approved"
+            },
+            "task_field": null
+          },
+          {
+            "kind": "playtest",
+            "path": "work/playtests",
+            "file": null,
+            "id": null,
+            "statuses": [],
+            "person": [],
+            "agent": [],
+            "stamp": {},
+            "task_field": null
+          },
+          {
+            "kind": "brief",
+            "path": "work/briefs",
+            "file": null,
+            "id": null,
+            "statuses": [],
+            "person": [],
+            "agent": [],
+            "stamp": {},
+            "task_field": null
+          },
+          {
+            "kind": "bugs",
+            "path": null,
+            "file": "work/bugs.md",
+            "id": null,
+            "statuses": [],
+            "person": [],
+            "agent": [],
+            "stamp": {},
+            "task_field": null
+          }
+        ],
+        "labels": {
+          "namespace": "workflow",
+          "version": 1,
+          "labels": [
+            {
+              "name": "workflow.owner",
+              "kind": "choice",
+              "values": [
+                "orchestrator",
+                "builder",
+                "verifier",
+                "researcher",
+                "auditor",
+                "runner"
+              ],
+              "items": null,
+              "pattern": null,
+              "max": null,
+              "kinds": [
+                "task"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "The role that owns the task's work."
+            },
+            {
+              "name": "workflow.model",
+              "kind": "choice",
+              "values": [
+                "opus",
+                "sonnet",
+                "haiku",
+                "fable"
+              ],
+              "items": null,
+              "pattern": null,
+              "max": null,
+              "kinds": [
+                "task",
+                "run"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "The Claude Code model the work runs on, or ran on (Claude Code only)."
+            },
+            {
+              "name": "workflow.feature",
+              "kind": "text",
+              "values": [],
+              "items": null,
+              "pattern": "^F-[a-z0-9-]+$",
+              "max": null,
+              "kinds": [
+                "task",
+                "plan"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "The one-pager (kind feature) this belongs to, by its id."
+            },
+            {
+              "name": "workflow.milestone",
+              "kind": "text",
+              "values": [],
+              "items": null,
+              "pattern": null,
+              "max": 60,
+              "kinds": [
+                "task",
+                "state",
+                "feature"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "The milestone this counts toward, by the project's own name for it."
+            },
+            {
+              "name": "workflow.spec",
+              "kind": "text",
+              "values": [],
+              "items": null,
+              "pattern": "^SPEC-[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9-]+$",
+              "max": null,
+              "kinds": [
+                "task"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "The spec (kind spec) this task carries out, by its id."
+            },
+            {
+              "name": "workflow.estimate_h",
+              "kind": "number",
+              "values": [],
+              "items": null,
+              "pattern": null,
+              "max": null,
+              "kinds": [
+                "task"
+              ],
+              "set_by": "agent",
+              "grants": false,
+              "description": "The task's estimate in hours, written with the task."
+            }
+          ]
+        },
+        "needs": {
+          "claude_code": "2.1.294"
+        },
+        "roles": [
+          {
+            "name": "orchestrator",
+            "kind": "lead",
+            "session": true,
+            "writes": true,
+            "max_turns": null,
+            "minutes": {
+              "default": null,
+              "max": null
+            },
+            "actions": {
+              "default": null,
+              "max": null
+            },
+            "red_runs": {
+              "default": null,
+              "max": null
+            }
+          },
+          {
+            "name": "builder",
+            "kind": "lead",
+            "session": false,
+            "writes": true,
+            "max_turns": 2400,
+            "minutes": {
+              "default": 180,
+              "max": 180
+            },
+            "actions": {
+              "default": 600,
+              "max": 600
+            },
+            "red_runs": {
+              "default": 4,
+              "max": 4
+            }
+          },
+          {
+            "name": "verifier",
+            "kind": "lead",
+            "session": false,
+            "writes": false,
+            "max_turns": 1600,
+            "minutes": {
+              "default": 120,
+              "max": 120
+            },
+            "actions": {
+              "default": 400,
+              "max": 400
+            },
+            "red_runs": {
+              "default": null,
+              "max": null
+            }
+          },
+          {
+            "name": "researcher",
+            "kind": "helper",
+            "session": false,
+            "writes": false,
+            "max_turns": 600,
+            "minutes": {
+              "default": 30,
+              "max": 30
+            },
+            "actions": {
+              "default": 150,
+              "max": 150
+            },
+            "red_runs": {
+              "default": null,
+              "max": null
+            }
+          },
+          {
+            "name": "auditor",
+            "kind": "helper",
+            "session": false,
+            "writes": false,
+            "max_turns": 600,
+            "minutes": {
+              "default": 30,
+              "max": 30
+            },
+            "actions": {
+              "default": 150,
+              "max": 150
+            },
+            "red_runs": {
+              "default": null,
+              "max": null
+            }
+          },
+          {
+            "name": "runner",
+            "kind": "helper",
+            "session": false,
+            "writes": false,
+            "max_turns": 1000,
+            "minutes": {
+              "default": 150,
+              "max": 150
+            },
+            "actions": {
+              "default": 250,
+              "max": 250
+            },
+            "red_runs": {
+              "default": null,
+              "max": null
+            }
+          }
+        ]
+      },
+      "path": null
+    }
+  ],
+  "files": {
+    ".bonsai/STATE.md": {
+      "kind": "once",
+      "pack": "base",
+      "sha256": "1548ed628005e1a7ef852e73f4b66605dca05b12a5a1d3456e2f30302ede70f5"
+    },
+    ".claude/settings.json": {
+      "kind": "keys",
+      "pack": "base",
+      "sha256": "b7cd14425f8cef88912ed184ea09eabbd3932c7d9e36fc1b97e6e1bd20fa66c4"
+    },
+    "CLAUDE.md": {
+      "kind": "block",
+      "pack": "base",
+      "sha256": "deee03cde0c66ff992213b1c25e535e2d945a8a3e94ca35266e312d1ec531ef5"
+    },
+    "work/protocols/session-start.md": {
+      "kind": "pack",
+      "pack": "workflow",
+      "sha256": "d2ac27dc16ef6bbf76cff5f1e11143ccd4c5fdaeeceb5c2a6b915e7df2b5171f"
+    }
+  },
+  "format0": {}
+}

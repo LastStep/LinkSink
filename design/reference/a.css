@@ -1,0 +1,66 @@
+/* Direction A — Ledger (achromatic-ledger, Geist). The chrome holds no colour; the one hue marks the link arriving now. */
+:root {
+  --font: "Geist", Inter, system-ui, sans-serif;
+  --ground: #f2f4f7; --surface: #ffffff; --raised: #eceef2; --active: #e2e5ea;
+  --border: #e2e5ea; --rule: #eef0f3; --control: #cfd4db;
+  --text: #0a0a0a; --muted: #5f6368; --faint: #6b6b6b;
+  --accent: #1d5fbf; --primary: #141414; --primary-ink: #ffffff;
+  --positive: #2e7d32; --negative: #c4242a; --warning: #92400e;
+  --pill-positive-bg: #dcfae5; --pill-positive-ink: #04250e;
+  --pill-negative-bg: #ffedea; --pill-negative-ink: #831c1e;
+  --pill-warning-bg: #fffbeb; --pill-warning-ink: #92400e;
+  --pill-neutral-bg: #eceef2; --pill-neutral-ink: #3d3d3d;
+  --radius-card: 8px; --radius-control: 6px; --radius-chip: 4px;
+  --row-height: 44px; --sidebar-width: 256px; --detail-width: 400px; --gap: 12px; --pad: 24px; --control-height: 36px; --nav-row: 32px;
+  --fs-title: 24px; --fs-section: 16px; --fs-body: 14px; --fs-small: 12px;
+  --demo-bg: #e4e7ec; --mark: #0a0a0a;
+}
+:root[data-theme="dark"] {
+  --ground: #111111; --surface: #181818; --raised: #232323; --active: #2a2a2a;
+  --border: #2a2a2a; --rule: #222222; --control: #454545;
+  --text: #ffffff; --muted: #b4b4b4; --faint: #949494;
+  --accent: #7aa7ff; --primary: #ffffff; --primary-ink: #000000;
+  --positive: #3fc07a; --negative: #e5566f; --warning: #e5a93b;
+  --pill-positive-bg: #172a1d; --pill-positive-ink: #3fc07a;
+  --pill-negative-bg: #2c1a20; --pill-negative-ink: #e5566f;
+  --pill-warning-bg: #2b2414; --pill-warning-ink: #e5a93b;
+  --pill-neutral-bg: #262626; --pill-neutral-ink: #ffffff;
+  --demo-bg: #1c1c1c; --mark: #ffffff;
+}
+/* shell: open plane; the sidebar on the ground, no line */
+.title-text h1 { font-weight: 500; letter-spacing: -0.015em; }
+.title-row { padding-top: 28px; }
+.brand-name { font-weight: 600; letter-spacing: -0.01em; }
+/* the day ledger: one white card per day, rows ruled */
+.list { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+.day { background: var(--surface); border-radius: var(--radius-card); padding-bottom: 4px; }
+.day-h { position: sticky; top: 0; z-index: 2; padding: 12px 14px 8px; background: var(--surface); border-radius: var(--radius-card) var(--radius-card) 0 0; font-size: 14px; font-weight: 500; }
+.day-h .n { font-size: 13px; }
+.row { grid-template-columns: 16px minmax(0, 1fr) auto auto auto 44px 28px; gap: 14px; padding: 0 14px; margin: 0 4px; border-radius: 4px; }
+.app[data-select="true"] .row { grid-template-columns: 28px 16px minmax(0, 1fr) auto auto auto 44px 28px; }
+.day .row + .row::before { content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 1px; background: var(--rule); }
+.row .t { font-weight: 450; }
+.row .sub { display: none; }
+.row.pending .t { color: var(--accent); font-weight: 450; }
+.c-time { font-size: 13px; }
+.row:hover, .row.open, .row.selected { position: relative; }
+.row:hover::before, .row.open::before, .row.selected::before { opacity: 0; }
+.empty { background: var(--surface); border-radius: var(--radius-card); padding: 40px 24px; max-width: none; }
+.paste { height: 44px; }
+.chip { height: 32px; }
+.search { height: 32px; }
+.toolbar .count { font-size: 13px; }
+/* the detail: a third column with a hairline */
+.app[data-detail="panel"] .detail { border-left: 1px solid var(--border); }
+.kv { grid-template-columns: 124px 1fr; }
+@container app (max-width: 759px) {
+  .row { grid-template-columns: 16px minmax(0, 1fr) auto; gap: 10px; padding: 10px 10px; margin: 0 4px; }
+  .app[data-select="true"] .row { grid-template-columns: 28px 16px minmax(0, 1fr) auto; }
+  .row .sub { display: block; }
+  .c-fav { align-self: start; margin-top: 2px; }
+  .c-time { grid-column: 3; grid-row: 2; align-self: end; }
+  .c-status { grid-column: 3; grid-row: 1; align-self: start; }
+  .c-title { grid-column: 2; grid-row: 1 / 3; }
+  .row .t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 20px; }
+  .day-h { padding: 10px 14px 6px; }
+}

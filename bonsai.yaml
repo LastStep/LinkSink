@@ -1,0 +1,77 @@
+# bonsai.yaml: this project's Bonsai settings (format bonsai.workspace/1), the one Bonsai file a person edits.
+# bonsai init wrote it from Bonsai's built-in template, a comment on every key. It is committed and person-only:
+# an agent changes it only while its running task's bonsai.allows holds it, which a person grants.
+# To change a setting, edit its value, then run: bonsai update (it previews every change; --yes writes them).
+# Every field, its allowed values and an example: bonsai check --schema bonsai.workspace
+format: bonsai.workspace/1            # the format and its version; a newer one is refused, never guessed
+# this project's id, written once by bonsai init; a copy meant as a new project: bonsai init --new-id
+id: ws-7mluznljspojjt5seedsnt5w2v
+# a short name: a lower-case letter, then up to 39 lower-case letters, digits and dashes
+name: linksink
+# the packs this project uses, applied in this order (a path two packs write stops update)
+packs:
+  - id: base                          # the pack's id, as its bonsai/pack.yaml says
+    # the git repository the pack comes from, fetched with this machine's git
+    source: "https://github.com/LastStep/Bonsai"
+    path: "packs/base"                # the pack's folder inside that repository; null for the repository's top
+    # a release tag (base-v1.0.0 for base) or a 40-character commit; change it, then run bonsai update
+    ref: "d19a3dff93addc643173b5a1e19cad767292ab47"
+    # this project's limits for the pack's roles; null keeps the pack's; changed any time
+    roles: null
+  - id: workflow
+    source: "https://github.com/LastStep/bonsai-workflow.git"
+    path: null
+    ref: "612bc3330742b25f30329d128dddd6020e5d51eb"
+    roles: null
+# where this project keeps the documents Bonsai knows: a folder (one file each) or one file
+documents:
+  task: work/tasks                    # the tasks' folder: one file per task, named <id>-<slug>.md (bonsai.task/1)
+  run: work/runs                      # the run reports' folder: one report per agent session (bonsai.run/1)
+  answers: work/answers.md            # the file for answers to questions that name no file of their own
+  # the memory notes' folder, with their INDEX.md, which the block in CLAUDE.md imports
+  memory: work/memory
+  # the folder the packs' always-on protocol files go to; the block in CLAUDE.md imports each
+  protocols: work/protocols
+# paths (globs) an agent changes only while its running task lists them in bonsai.allows
+protected: [".claude/**", "bonsai.yaml", ".bonsai/lock.json"]
+# of those, the paths only a person grants (an approve or grant tap)
+person_only: [".claude/**", "bonsai.yaml", ".bonsai/lock.json"]
+# paths no agent changes: deny rules Edit(/<path>), anchored at the project's top folder; e.g. ["ledger.json"]
+never_edit: []
+ladder_floor: []                      # the rungs every task climbs, whatever its bonsai.ladder lists; e.g. [0, 1]
+# the rungs: what each runs and proves (rung, name, kind, command, required, timeout_s and more)
+ladder: []
+# counts that may only rise, by name, each the floor a rung's count may not fall below; e.g. tests: 120
+ratchets: {}
+# tests allowed to skip in CI only, each by its name in the test output; e.g. ["TestNeedsADisplay"]
+ci_marked_tests: []
+# how long generated files are kept, per kind; null keeps all (skill base:generated-files)
+generated:
+  # the log, one file per session, in .bonsai/local/log/; default: 30 days after a file's last line
+  log:
+    keep_days: 30                     # clean what is older than this many days; null: no age rule
+    keep_newest: null                 # keep only this many of the newest; null: no count rule
+  asks:                               # questions for a person and their answers, in .bonsai/local/asks/; default: kept
+    keep_days: null                   # clean what is older than this many days; null: no age rule
+    keep_newest: null                 # keep only this many of the newest; null: no count rule
+  # ladder results, one per task, in .bonsai/local/ladder/; default: 7 days after the result's finished
+  ladder:
+    keep_days: 7                      # clean what is older than this many days; null: no age rule
+    keep_newest: null                 # keep only this many of the newest; null: no count rule
+  # run reports, committed history, in the run reports' folder (documents.run); default: kept
+  run:
+    keep_days: null                   # clean what is older than this many days; null: no age rule
+    keep_newest: null                 # keep only this many of the newest; null: no count rule
+  sessions:                           # rows of the sessions table, in .bonsai/sessions.md; default: kept
+    keep_days: null                   # clean what is older than this many days; null: no age rule
+    keep_newest: null                 # keep only this many of the newest; null: no count rule
+  # messages between agents, in .bonsai/local/messages/; default: 30 days after a thread's last message
+  messages:
+    keep_days: 30                     # clean what is older than this many days; null: no age rule
+    keep_newest: null                 # keep only this many of the newest; null: no count rule
+  # each agent's state, in .bonsai/local/agents/; default: 30 days after a session folder's last line
+  agents:
+    keep_days: 30                     # clean what is older than this many days; null: no age rule
+    keep_newest: null                 # keep only this many of the newest; null: no count rule
+# when bonsai messages flags a thread; null for Bonsai's defaults (bonsai check --schema bonsai.messages)
+messages: null

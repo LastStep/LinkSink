@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkSink A — Ledger</title>
+<meta name="description" content="LinkSink design direction A, Ledger: the list as a day ledger; no colour in the chrome, one blue on the link arriving now">
+<script>(function(){var p=new URLSearchParams(location.search).get('theme');document.documentElement.dataset.theme=p||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="a.css">
+</head>
+<body>
+<div id="demo"></div>
+<div id="stage" data-view="auto"><div class="frame"><div id="app" class="app" data-dir="a" data-shell="sidebar" data-detail="panel" data-rows="ledger"></div></div></div>
+<script src="shared/data.js"></script>
+<script>window.LINKSINK_CONFIG={dir:'a',letter:'A',name:'Ledger',shell:'sidebar',detail:'panel',rows:'ledger',groupByDay:true};</script>
+<script src="shared/app.js"></script>
+</body>
+</html>

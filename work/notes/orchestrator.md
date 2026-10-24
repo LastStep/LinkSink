@@ -1,0 +1,182 @@
+# Orchestrator notes — LinkSink planning (T-0001, T-0002)
+
+Re-read before each question to the person and before writing the plan.
+
+## The person's word (2026-10-24)
+
+- Paste a link into the app and it is saved. Tags of different kinds: category, source, project, etc.
+- One hub, reachable from anywhere. Web app now, iOS app later.
+- Core rule: highly responsive, very lightweight, great UI/UX on phone and desktop.
+- Single user for now ("lets just build it for me").
+- Hosted on their own personal VPS.
+- Basic email sign-up auth; no Supabase.
+- UI design uses taste-skill (installed, user scope, `taste-skill:design-taste-frontend`); app screens follow its
+  `references/app-screens.md` run (`draw.mjs --app`, `inspect.mjs --app`). Needs Node 22+ (have v22.21.1) and a
+  Chrome/Chromium: none installed in this WSL yet.
+
+## Research briefs
+
+- M-2026-10-24-23ad49b1 researcher@T-0001: framework, DB, auth, VPS.
+- M-2026-10-24-29d18b1b researcher@T-0002: product landscape, MVP set.
+- M-2026-10-24-d9fcaf61 researcher@T-0002#2: metadata fetching, SSRF, phone capture, feeling instant.
+
+## Findings
+
+### Stack — report M-2026-10-24-3d020f86 (done)
+
+- Verdict: SvelteKit (3.1.0, Svelte 5.57) + SQLite via better-sqlite3 13 (bundles FTS5) in WAL + Drizzle 0.45.4
+  (pin; v1 is RC) with FTS5 as raw SQL migrations + Better Auth 1.7.x (email/password, verification, reset; override
+  scrypt with argon2id; Bearer plugin for iOS) + Resend free (100/day) for mail + adapter-node on Node 22 behind
+  Caddy, systemd units, Litestream + nightly `.backup` offsite.
+- Runner-up for weight: Hono + server HTML (but no client-nav feel). Next.js wrong on weight; Astro wrong for an
+  all-interactive app. No primary bundle numbers exist.
+- Alt auth: hand-rolled per Copenhagen Book (argon2id 19 MiB / 2 iters / p1); Lucia deprecated Mar 2025; Auth.js
+  now steers to Better Auth.
+- Risk 1: SvelteKit 3.0 shipped 1 Oct; Better Auth docs say SvelteKit 2.20+; unconfirmed on 3.x → a walking-skeleton
+  spike settles it (fallback: SvelteKit 2.x, or hand-rolled auth).
+- Risk: better-sqlite3 native module vs Node majors; node:sqlite RC is the exit. Rehearse a Litestream restore.
+- Deploy: build off-box (CI), releases/<sha> + `current` symlink + restart; migrations before restart. 1 GB VPS
+  comfortable.
+
+### Product — report M-2026-10-24-33b09aa7 (done)
+
+- No surveyed tool has first-class tag groups (Raindrop = 1 collection + tags; Karakeep = lists + tags; Anybox =
+  nested tags). LinkSink's grouped tags = differentiator and main design risk. Keep model simple: a tag belongs to
+  one group; a link has many tags; filter AND across groups, OR within a group.
+- Weight comes from archiving/headless browsers (Linkwarden 350–700 MB idle, ~12 GB / 4k links; Karakeep 3
+  containers). Linkding: one container on SQLite, "minimal, fast". → No archiving in MVP.
+- Pocket (Oct 2025) and Omnivore (Nov 2024) shut down → export from day one (Netscape HTML + JSON).
+- Must: paste box, save instantly, metadata in background; tag groups; Unsorted inbox; filter + keyword search
+  (title/URL/note/tags); duplicate check on paste; edit/delete/note; list view phone+desktop; export.
+- Should: domain auto-tag rules (fills "source"); bookmarklet; keys (n, /, arrows) + command palette (a differentiator
+  — none documents one); saved filters; card/grid toggle.
+- Later: extension, archive, page full-text, dead links, dupe-cleanup UI, AI tags, reader view, iOS, sharing.
+- Budget suggestion: INP ≤ 200 ms (web.dev "good").
+- Open: import (Netscape HTML) was out of scope in T-0002; researcher suggests it with export. → ask the person.
+
+### Technical edges — report M-2026-10-24-71dcc595 (done)
+
+- Researcher tried bot-style UAs to probe og tags; auto-mode denied it as bot-check circumvention; it stopped. →
+  Policy in the plan: honest UA (`LinkSink/1.0 (+https://<host>)`), no spoofing; a site that blocks gets saved with
+  hostname as title, editable.
+- Metadata: oEmbed first (YouTube oEmbed works keyless, gives title + thumbnail; X publish oEmbed gives author+text, no
+  image), then og/twitter, JSON-LD, <title>. Reddit/Instagram/Medium/Amazon unconfirmed → best-effort; re-test from VPS IP.
+  Parser: ~100 lines on htmlparser2 reading only to </head> (or metascraper on our own fetch). Avoid unfurl.js
+  (archived Jun 2026). Limits: 5–8 s, ≤1 MB, ≤5 redirects, http/https only.
+- Images: cache locally via the same safe fetcher, sharp → WebP 320/640, content-hash names, nosniff; favicon 64 px.
+- SSRF: own undici Agent with `connect.lookup` validating every resolved address (v4+v6, mapped, metadata IP) and
+  connecting to the validated IP; `redirect: 'manual'` loop re-checking each hop, cap 5; ports 80/443. Unit tests:
+  localhost, 127.0.0.1.nip.io, ::ffff:127.0.0.1, 169.254.169.254, redirect to 127.0.0.1, rebinding stub.
+  (request-filtering-agent: two advisories, http.Agent only.)
+- Dupes: store `url` (cleaned) + `url_key` (normalised: lowercase host, drop fragment/default port/www-for-compare/
+  trailing slash, sorted query, tracker denylist utm_* fbclid gclid mc_* igshid; keep YouTube v/t). Unique
+  (user_id, url_key).
+- iOS Safari: NO Web Share Target (WebKit bug 194593 open). Phone capture: iOS = Shortcut in share sheet POSTing
+  {url} with a revocable add-only bearer token (needs a real TLS cert); Android = installed PWA share_target (parse URL
+  from `text`); both = paste event in an always-ready input (no permission prompt). Bookmarklet = desktop fallback.
+- Instant: SvelteKit service worker (app shell cache-first, version-scoped), IndexedDB list cache with
+  stale-while-revalidate, optimistic insert with client id, server returns 201 at once and fills metadata async (poll/
+  SSE), offline queue retried on focus (no Background Sync on iOS). Lists: paging + content-visibility, or TanStack
+  Virtual. FTS5 at 100k: p95 < 1 ms word, ~2 ms trigram prefix (synthetic). unicode61 + prefix='2 3' default.
+- Targets: paste→row < 100 ms; keystroke→results < 50 ms; initial JS ≤ ~60 KB gz; cold interactive < 1 s on 4G; warm
+  < 300 ms; INP ≤ 200 ms.
+
+### Facts lens — M-2026-10-24-b9067987: FAIL, 5 blocking (all held, all fixed)
+
+1. adapter-node `ORIGIN` removed in kit 3 → `kit.paths.origin`. 2. `$app/service-worker` exports only `self`;
+`version` from `$app/env`, file lists from `$app/manifest`. 3. Node skips `lookup` for IP-literal hosts → SSRF guard
+needs a literal check per hop (verifier proved 127.0.0.1 got through). 4. X oEmbed has no title/image → read x.com og
+tags. 5. Better Auth does declare SvelteKit 3 (peer ^2 || ^3). Non-blocking: Node ≥ 22.19, TS ~6, `#lib`,
+@size-limit/file, `auth` CLI package, Shortcut Headers field unconfirmed by Apple docs.
+Re-check M-2026-10-24-488cd114: PASS (added the [::ffff:7f00:1] hex-mapped case to the test list).
+
+## Open questions for the person
+
+1. Stack: OPT-0001 (recommend A).
+2. Import from Netscape HTML in the MVP? (recommend yes: small, and moves the person's existing bookmarks in)
+3. Tags outside any group? (recommend: every tag sits in a group; a default "Tags" group catches the rest)
+4. VPS facts (OS, RAM, a domain pointing at it) — needed at the deploy task, not now.
+
+## The person's word, round 2 (2026-10-24 07:22 UTC)
+
+- Docs "look fine". Uneasy about (1) Svelte: never used it, unsure how good the UI/UX can be; wants minimal UI with
+  smooth soft animations; (2) data: protected, local seems good, must sync across devices.
+- Wants an Obsidian-like graph view of links → answered: **later, no rush** (after phone capture and iOS app; own
+  one-pager). Proposed model: links + tags as nodes coloured by group, link–tag edges, optional same-domain clusters,
+  local graph per node; libs force-graph / sigma.js+graphology / d3-force, lazy-loaded route.
+- Protection → **private + never lost** (not E2EE): HTTPS, login, encrypted disk/backups, full copy on each device.
+- Frameworks known → **none**. So Svelte stays a candidate (closest to plain HTML/CSS); a Svelte motion spike shows the
+  feel before they decide.
+- Local-first with two-way sync is now in scope → plan's IndexedDB-cache + outbox (step 8) gets replaced by real sync.
+
+Briefs: M-2026-10-24-fa4573a1 researcher@T-0001#2 (local-first sync, storage, engines, own protocol, protection);
+M-2026-10-24-04713a99 builder@T-0001 (Svelte motion spike in scratchpad/T-0001/spike, static build to publish as
+an artifact for the person to open on phone and desktop).
+
+## Decisions
+
+### Sync — report M-2026-10-24-7c0d5e6b (done)
+
+- Recommend own sync: server change log with one global `version` bumped per write; push batches with
+  (clientId, mutationId) idempotency (Replicache server-push pattern); pull `since=N` incl. tombstones; server orders
+  writes (no client clocks); row-level LWW; `link_tags` as rows so tag add/remove merge; tombstones purged after ~90
+  days with a `tombstone_floor` → device below it pushes outbox then full resync. ~700–1100 lines server+web, 3–5
+  builder days (inference) vs ~1 day for the outbox.
+- No engine fits: PowerSync (best Swift story) needs Postgres/Mongo/MySQL/MSSQL source + bucket store; Electric/Zero
+  Postgres-only; Replicache archived 2026-06-10 (protocol docs still the best reference); Evolu E2E-only, no Swift;
+  Triplit future unclear (Supabase hired founder); Jazz 2.0 alpha; cr-sqlite slow inserts.
+- Web store: IndexedDB + in-memory search (no extra download/worker/headers); SQLite-WASM (wa-sqlite
+  OPFSCoopSyncVFS on Safari) a later swap behind a storage interface. iOS: SQLite + FTS5.
+- Safari 7-day eviction for plain tabs; Home Screen apps keep data; persist() granted by heuristics (installed). Server
+  stays source of truth → only unsynced edits in an evicted tab are at risk → flush outbox ASAP, persist(), "Add to
+  Home Screen" prompt, unsynced badge.
+- Protection: Litestream 0.5 has no Age → bucket SSE for Litestream + nightly `.backup` into restic/Kopia
+  (client-side encrypted) to a second bucket; password kept in the person's password manager; monthly restore test.
+  LUKS on a data volume possible on KVM VPS (protects at rest only). Better Auth: list/revoke sessions; disable or
+  shorten cookieCache; wipe local copy on logout or 401 after one outbox flush.
+- Plan impact: `version`, `deleted_at`, `sync_mutations` (client_id, last_mutation_id) in the data model from T-0003;
+  T-0010 becomes a sync client; add a runner task measuring 50k first-sync + cold start on a real iPhone.
+
+## Decisions
+
+- 2026-10-24 sync → OPT-0002 A, own sync (ADR-0001, person's word "go with A for sync"). Plan and one-pager updated:
+  sync columns from T-0003, store interface in T-0006, T-0010 = sync, T-0011 = PWA + phone capture, T-0012 =
+  export/import, T-0013 = runner measuring 50k-link sync.
+- Graph view: later, own one-pager.
+
+## Spike — report M-2026-10-24-f816f00b (done)
+
+- SvelteKit 3.1 static spike, 69 real links, motion via Svelte built-ins only; `?motion=svelte|none`.
+- JS 43.7 KB gz total (≈33 KB framework, 8.6 KB page + data); CSS 2.3 KB gz; 0 runtime deps.
+- Republished with `kit.appDir: 'app'` (artifact host reserves `_` names); normalised diff identical to the reviewed
+  build. Artifact: https://claude.ai/artifact/1yM2Fg6d2HQKsVPXPSrCK1 . Original build kept in spike/build-underscore.
+
+## Open for the person now
+
+1. Stack: OPT-0001 (recommend A) — after trying the spike.
+2. Import in MVP? (recommend yes). 3. Tags outside groups? (recommend no + default "Tags" group).
+4. Then approve F-web-mvp and P-T-0002.
+
+## Round 3 (2026-10-24 07:49–07:55 UTC)
+
+- Stack → A (ADR-0002, OPT-0001 decided). Import → yes.
+- Fields (person's vision): Source (one, auto), Media (one, auto if possible), Tags (many, free), Projects (many,
+  user collections), Title (auto, editable), Description (auto from page, editable, never overwritten once edited),
+  Notes, + optional Status (to read/in progress/done) and Priority (low/med/high), + Archive. Metadata: created,
+  updated, opened, saved_via, site_name, author, published_at, duration. No other custom fields. F-web-mvp rewritten;
+  plan data model + T-0007 classifiers + T-0008/T-0009/T-0010/T-0012 updated. Old tag-groups model gone.
+- Person: demo UI "boring" → wants good mockups with Fable + taste-skill. T-0004 (director lane, running) briefed:
+  M-2026-10-24-c8915117 builder@T-0004 model fable; three directions, 6 screens, phone+desktop, light+dark, real data,
+  out/ folder to publish as an artifact.
+- Open: approve F-web-mvp and P-T-0002 (after the look is picked, or now — person's choice).
+
+## T-0004 design — report M-2026-10-24-2f8b5d98 (done)
+
+- Three directions (Fable builder, taste-skill app run): A Ledger (Geist, achromatic, day-grouped ledger, one blue),
+  B Shelf (DM Sans, page pictures lead rows, raspberry accent ladder, centred dialog), C Night stream (Inter, true
+  black, media-shaped rows, lime on data, drawer). inspect.mjs --app: 0 FAIL on all six (A has 1 defended WARN).
+- 11 screens per direction via a Screen picker; phone/desktop and light/dark toggles; real data (72 links).
+- Not built: swipe on phone rows. C light is the least distinctive (builder's own note).
+- I read every text file and viewed every image (contact sheet) before publishing:
+  https://claude.ai/artifact/TMwfMgvW24UQoZcMvevNvZ
+- Next: the person picks (or asks for a mix/revision) → ADR → design/tokens.css + reference screens in repo.

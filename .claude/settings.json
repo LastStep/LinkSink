@@ -1,0 +1,366 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(//**/.bonsai/local/**)",
+      "Edit(//**/.bonsai/sessions.md)",
+      "Edit(//**/.bonsai/tasks.md)",
+      "Edit(~/.bonsai/**)",
+      "Edit(//mnt/c/Users/*/.bonsai/**)",
+      "Edit(//wsl.localhost/*/home/*/.bonsai/**)",
+      "Edit(//wsl$/*/home/*/.bonsai/**)",
+      "Read(~/.ssh/**)",
+      "Read(//mnt/c/Users/*/.ssh/**)",
+      "Read(//wsl.localhost/*/home/*/.ssh/**)",
+      "Read(//wsl$/*/home/*/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(//mnt/c/Users/*/.aws/**)",
+      "Read(//wsl.localhost/*/home/*/.aws/**)",
+      "Read(//wsl$/*/home/*/.aws/**)",
+      "Read(~/.azure/**)",
+      "Read(//mnt/c/Users/*/.azure/**)",
+      "Read(//wsl.localhost/*/home/*/.azure/**)",
+      "Read(//wsl$/*/home/*/.azure/**)",
+      "Read(~/.config/gcloud/**)",
+      "Read(//wsl.localhost/*/home/*/.config/gcloud/**)",
+      "Read(//wsl$/*/home/*/.config/gcloud/**)",
+      "Read(~/AppData/Roaming/gcloud/**)",
+      "Read(//mnt/c/Users/*/AppData/Roaming/gcloud/**)",
+      "Read(~/.config/gh/hosts.yml)",
+      "Read(//wsl.localhost/*/home/*/.config/gh/hosts.yml)",
+      "Read(//wsl$/*/home/*/.config/gh/hosts.yml)",
+      "Read(~/AppData/Roaming/GitHub CLI/hosts.yml)",
+      "Read(//mnt/c/Users/*/AppData/Roaming/GitHub CLI/hosts.yml)",
+      "Read(~/.gnupg/**)",
+      "Read(//mnt/c/Users/*/.gnupg/**)",
+      "Read(//wsl.localhost/*/home/*/.gnupg/**)",
+      "Read(//wsl$/*/home/*/.gnupg/**)",
+      "Read(~/AppData/Roaming/gnupg/**)",
+      "Read(//mnt/c/Users/*/AppData/Roaming/gnupg/**)",
+      "Read(~/.git-credentials)",
+      "Read(//mnt/c/Users/*/.git-credentials)",
+      "Read(//wsl.localhost/*/home/*/.git-credentials)",
+      "Read(//wsl$/*/home/*/.git-credentials)",
+      "Read(~/.config/git/credentials)",
+      "Read(//mnt/c/Users/*/.config/git/credentials)",
+      "Read(//wsl.localhost/*/home/*/.config/git/credentials)",
+      "Read(//wsl$/*/home/*/.config/git/credentials)",
+      "Read(~/.netrc)",
+      "Read(//mnt/c/Users/*/.netrc)",
+      "Read(//wsl.localhost/*/home/*/.netrc)",
+      "Read(//wsl$/*/home/*/.netrc)",
+      "Read(~/_netrc)",
+      "Read(//mnt/c/Users/*/_netrc)",
+      "Read(~/.npmrc)",
+      "Read(//mnt/c/Users/*/.npmrc)",
+      "Read(//wsl.localhost/*/home/*/.npmrc)",
+      "Read(//wsl$/*/home/*/.npmrc)",
+      "Read(~/.pypirc)",
+      "Read(//mnt/c/Users/*/.pypirc)",
+      "Read(//wsl.localhost/*/home/*/.pypirc)",
+      "Read(//wsl$/*/home/*/.pypirc)",
+      "Read(~/.kube/config)",
+      "Read(//mnt/c/Users/*/.kube/config)",
+      "Read(//wsl.localhost/*/home/*/.kube/config)",
+      "Read(//wsl$/*/home/*/.kube/config)",
+      "Read(~/.docker/config.json)",
+      "Read(//mnt/c/Users/*/.docker/config.json)",
+      "Read(//wsl.localhost/*/home/*/.docker/config.json)",
+      "Read(//wsl$/*/home/*/.docker/config.json)",
+      "Read(~/.claude/.credentials.json)",
+      "Read(//mnt/c/Users/*/.claude/.credentials.json)",
+      "Read(//wsl.localhost/*/home/*/.claude/.credentials.json)",
+      "Read(//wsl$/*/home/*/.claude/.credentials.json)",
+      "Read(~/.claude.json)",
+      "Read(//mnt/c/Users/*/.claude.json)",
+      "Read(//wsl.localhost/*/home/*/.claude.json)",
+      "Read(//wsl$/*/home/*/.claude.json)",
+      "Read(~/.codex/auth.json)",
+      "Read(//mnt/c/Users/*/.codex/auth.json)",
+      "Read(//wsl.localhost/*/home/*/.codex/auth.json)",
+      "Read(//wsl$/*/home/*/.codex/auth.json)",
+      "Read(~/.gemini/oauth_creds.json)",
+      "Read(//mnt/c/Users/*/.gemini/oauth_creds.json)",
+      "Read(//wsl.localhost/*/home/*/.gemini/oauth_creds.json)",
+      "Read(//wsl$/*/home/*/.gemini/oauth_creds.json)",
+      "Read(~/.cache/huggingface/token)",
+      "Read(//mnt/c/Users/*/.cache/huggingface/token)",
+      "Read(//wsl.localhost/*/home/*/.cache/huggingface/token)",
+      "Read(//wsl$/*/home/*/.cache/huggingface/token)",
+      "Read(~/.cache/huggingface/stored_tokens)",
+      "Read(//mnt/c/Users/*/.cache/huggingface/stored_tokens)",
+      "Read(//wsl.localhost/*/home/*/.cache/huggingface/stored_tokens)",
+      "Read(//wsl$/*/home/*/.cache/huggingface/stored_tokens)",
+      "Read(~/.cli-proxy-api/**)",
+      "Read(//mnt/c/Users/*/.cli-proxy-api/**)",
+      "Read(//wsl.localhost/*/home/*/.cli-proxy-api/**)",
+      "Read(//wsl$/*/home/*/.cli-proxy-api/**)",
+      "Read(~/.pi/agent/auth.json)",
+      "Read(//mnt/c/Users/*/.pi/agent/auth.json)",
+      "Read(//wsl.localhost/*/home/*/.pi/agent/auth.json)",
+      "Read(//wsl$/*/home/*/.pi/agent/auth.json)",
+      "Read(~/.bonsai/salt)",
+      "Read(//mnt/c/Users/*/.bonsai/salt)",
+      "Read(//wsl.localhost/*/home/*/.bonsai/salt)",
+      "Read(//wsl$/*/home/*/.bonsai/salt)",
+      "Edit(//**/.claude/settings.local.json)",
+      "Edit(~/.claude/settings.json)",
+      "Edit(//mnt/c/Users/*/.claude/settings.json)",
+      "Edit(//wsl.localhost/*/home/*/.claude/settings.json)",
+      "Edit(//wsl$/*/home/*/.claude/settings.json)",
+      "Edit(~/.claude.json)",
+      "Edit(//mnt/c/Users/*/.claude.json)",
+      "Edit(//wsl.localhost/*/home/*/.claude.json)",
+      "Edit(//wsl$/*/home/*/.claude.json)",
+      "Edit(~/.claude/CLAUDE.md)",
+      "Edit(//mnt/c/Users/*/.claude/CLAUDE.md)",
+      "Edit(//wsl.localhost/*/home/*/.claude/CLAUDE.md)",
+      "Edit(//wsl$/*/home/*/.claude/CLAUDE.md)",
+      "Edit(~/go/bin/**)",
+      "Edit(//mnt/c/Users/*/go/bin/**)",
+      "Edit(//wsl.localhost/*/home/*/go/bin/**)",
+      "Edit(//wsl$/*/home/*/go/bin/**)",
+      "Edit(~/.local/bin/bonsai*)",
+      "Edit(//mnt/c/Users/*/.local/bin/bonsai*)",
+      "Edit(//wsl.localhost/*/home/*/.local/bin/bonsai*)",
+      "Edit(//wsl$/*/home/*/.local/bin/bonsai*)",
+      "Edit(~/.ssh/**)",
+      "Edit(//mnt/c/Users/*/.ssh/**)",
+      "Edit(//wsl.localhost/*/home/*/.ssh/**)",
+      "Edit(//wsl$/*/home/*/.ssh/**)",
+      "Edit(~/.gitconfig)",
+      "Edit(//mnt/c/Users/*/.gitconfig)",
+      "Edit(//wsl.localhost/*/home/*/.gitconfig)",
+      "Edit(//wsl$/*/home/*/.gitconfig)",
+      "Edit(~/.config/git/config)",
+      "Edit(//mnt/c/Users/*/.config/git/config)",
+      "Edit(//wsl.localhost/*/home/*/.config/git/config)",
+      "Edit(//wsl$/*/home/*/.config/git/config)",
+      "Edit(~/.bashrc)",
+      "Edit(//mnt/c/Users/*/.bashrc)",
+      "Edit(//wsl.localhost/*/home/*/.bashrc)",
+      "Edit(//wsl$/*/home/*/.bashrc)",
+      "Edit(~/.bash_profile)",
+      "Edit(//mnt/c/Users/*/.bash_profile)",
+      "Edit(//wsl.localhost/*/home/*/.bash_profile)",
+      "Edit(//wsl$/*/home/*/.bash_profile)",
+      "Edit(~/.profile)",
+      "Edit(//mnt/c/Users/*/.profile)",
+      "Edit(//wsl.localhost/*/home/*/.profile)",
+      "Edit(//wsl$/*/home/*/.profile)",
+      "Edit(~/.zshrc)",
+      "Edit(//wsl.localhost/*/home/*/.zshrc)",
+      "Edit(//wsl$/*/home/*/.zshrc)",
+      "Edit(~/.zprofile)",
+      "Edit(//wsl.localhost/*/home/*/.zprofile)",
+      "Edit(//wsl$/*/home/*/.zprofile)",
+      "Edit(~/Documents/PowerShell/**)",
+      "Edit(//mnt/c/Users/*/Documents/PowerShell/**)",
+      "Edit(~/Documents/WindowsPowerShell/**)",
+      "Edit(//mnt/c/Users/*/Documents/WindowsPowerShell/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Agent|Task|SendMessage|Workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || { echo \"bonsai guard: no bonsai is installed at C:/Program Files/Bonsai/bonsai.exe or /usr/local/bin/bonsai, so this call is refused; next: tell the person: a person installs Bonsai there\" >&2; exit 2; }; \"$b\" hook guard || exit 2",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "matcher": "^(?!Edit$)(?!Write$)(?!MultiEdit$)(?!NotebookEdit$)(?!Bash$)(?!PowerShell$)(?!Monitor$)(?!Agent$)(?!Task$)(?!SendMessage$)(?!Workflow$).*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook guard --second",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || { echo \"bonsai stop: no bonsai is installed at C:/Program Files/Bonsai/bonsai.exe or /usr/local/bin/bonsai, so the stop gate cannot check this session, which may not end yet (Claude Code ends the turn after its cap of blocks); next: tell the person: a person installs Bonsai there\" >&2; exit 2; }; \"$b\" hook stop || exit 2",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook start",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook now || exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook now || exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "b=\"/c/Program Files/Bonsai/bonsai.exe\"; [ -x \"$b\" ] || b=/usr/local/bin/bonsai; [ -x \"$b\" ] || exit 0; \"$b\" hook record",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "disableAllHooks": false,
+  "enabledPlugins": {
+    "base@bonsai-linksink-e69f7c5a": true,
+    "workflow@bonsai-linksink-e69f7c5a": true
+  },
+  "extraKnownMarketplaces": {
+    "bonsai-linksink-e69f7c5a": {
+      "source": {
+        "source": "settings",
+        "name": "bonsai-linksink-e69f7c5a",
+        "plugins": [
+          {
+            "name": "base",
+            "source": {
+              "source": "git-subdir",
+              "url": "https://github.com/LastStep/Bonsai",
+              "path": "packs/base",
+              "sha": "d19a3dff93addc643173b5a1e19cad767292ab47"
+            }
+          },
+          {
+            "name": "workflow",
+            "source": {
+              "source": "github",
+              "repo": "LastStep/bonsai-workflow",
+              "sha": "612bc3330742b25f30329d128dddd6020e5d51eb"
+            }
+          }
+        ],
+        "owner": {
+          "name": "Bonsai"
+        }
+      }
+    }
+  },
+  "autoMemoryEnabled": false
+}

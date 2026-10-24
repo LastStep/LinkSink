@@ -1,0 +1,4 @@
+# .bonsai/.gitignore: written by Bonsai (spec section 6). .bonsai/local/ holds this checkout's log, questions
+# and their answers, ladder results, messages between agents and each agent's counts, never committed. Bonsai
+# writes this file again when it is missing or changed.
+local/
