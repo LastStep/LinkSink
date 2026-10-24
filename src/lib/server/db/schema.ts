@@ -1,0 +1,87 @@
+import { sql } from 'drizzle-orm';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { user } from './auth.schema.ts';
+
+export * from './auth.schema.ts';
+
+/**
+ * Columns every synced table carries (ADR-0001): the global version of the row's last write, and a tombstone.
+ * Never write these by hand: go through `syncWrite` (src/lib/server/sync/write.ts).
+ */
+const syncColumns = {
+	version: integer('version').notNull(),
+	deletedAt: integer('deleted_at')
+};
+
+/** A saved link. Times are integer milliseconds since the epoch. */
+export const links = sqliteTable(
+	'links',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		// what it is
+		url: text('url').notNull(),
+		urlKey: text('url_key').notNull(),
+		title: text('title'),
+		description: text('description'),
+		notes: text('notes'),
+		// organising (sources arrive with T-0006/T-0008)
+		sourceId: text('source_id'),
+		media: text('media'),
+		status: text('status'),
+		priority: integer('priority'),
+		archivedAt: integer('archived_at'),
+		// from the page
+		siteName: text('site_name'),
+		author: text('author'),
+		publishedAt: integer('published_at'),
+		durationS: integer('duration_s'),
+		faviconPath: text('favicon_path'),
+		imagePath: text('image_path'),
+		metaState: text('meta_state').notNull().default('pending'),
+		metaFetchedAt: integer('meta_fetched_at'),
+		// bookkeeping
+		userSet: text('user_set').notNull().default('[]'),
+		savedVia: text('saved_via').notNull(),
+		createdAt: integer('created_at').notNull(),
+		updatedAt: integer('updated_at').notNull(),
+		openedAt: integer('opened_at'),
+		tagsText: text('tags_text').notNull().default(''),
+		projectsText: text('projects_text').notNull().default(''),
+		...syncColumns
+	},
+	(t) => [
+		uniqueIndex('links_user_url_key_live')
+			.on(t.userId, t.urlKey)
+			.where(sql`${t.deletedAt} IS NULL`),
+		index('links_user_created').on(t.userId, sql`${t.createdAt} DESC`, t.id),
+		index('links_user_archived').on(t.userId, t.archivedAt),
+		index('links_user_source').on(t.userId, t.sourceId),
+		index('links_user_version').on(t.userId, t.version)
+	]
+);
+
+/** One row per user: the global version every write bumps, and the oldest version a device may still pull from. */
+export const syncMeta = sqliteTable('sync_meta', {
+	userId: text('user_id')
+		.primaryKey()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	version: integer('version').notNull().default(0),
+	tombstoneFloor: integer('tombstone_floor').notNull().default(0)
+});
+
+/** A device that pushes mutations, and the last mutation id the server applied from it. */
+export const syncClients = sqliteTable(
+	'sync_clients',
+	{
+		clientId: text('client_id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		lastMutationId: integer('last_mutation_id').notNull().default(0),
+		lastSeenAt: integer('last_seen_at').notNull()
+	},
+	(t) => [index('sync_clients_user').on(t.userId)]
+);
