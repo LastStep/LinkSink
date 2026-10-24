@@ -5,9 +5,9 @@ task: T-0007
 role: builder
 model: opus
 started: 2026-10-24 10:01
-finished: null
-outcome: running
-commits: []
+finished: 2026-10-24 10:55
+outcome: needs-verifier
+commits: ["42dbafe", "f1b9198", "fe9181a", "665abe9", "ccc4fdc", "b3f6944", "7ca23b4", "96d6dc3"]
 labels: {}
 ---
 
@@ -87,7 +87,21 @@ T-0006 lands and this branch is rebased and wired.
 
 ## Ladder
 
-LADDER_PLACEHOLDER
+`bonsai ladder --task T-0007 --json` at **96d6dc3** (clean), result `.bonsai/local/ladder/T-0007.json`:
+`"green": true`, `git.sha` `96d6dc36ccabecd41736330bab893f4586f1be53`, started 10:45:57Z, finished 10:46:27Z (it
+waited about 12 minutes for the home-wide ladder lock held by other projects' climbs). A last climb follows the
+commit of this report (doc-only); its sha is in the report to the orchestrator.
+
+| Rung | Check | Result | Evidence |
+|---|---|---|---|
+| 0 | guard | green | `captures.checked` 51 paths, none outside the grant |
+| 1 | `npm run check` | green | 7.7 s, 0 errors (`COMPLETED 1410 FILES 0 ERRORS` locally) |
+| 2 | `npm run lint` | green | 7.1 s; `All matched files use Prettier code style!` |
+| 3 | unit | green | `tests.seen` 238, 0 skipped; ratchet tests 29 -> 238 ok; 209 new tests |
+| 4 | e2e | green | `tests.seen` 3 |
+| 5 | build + size | green | `/` 36.4 kB, `/login` 36.26 kB, `/signup` 36.41 kB gzipped, limit 60 kB (unchanged: the fetcher is server-only) |
+
+The earlier climb at 7ca23b4 was red on rung 4 only (port 4173 held by another builder's e2e server, log 10:30).
 
 ### done_when, line by line
 
@@ -173,11 +187,14 @@ src/lib/server/fetch/safe.spec.ts` lists each refused address by name.
 
 ## Processes left running
 
-PROCESSES_PLACEHOLDER
+None. Playwright started and stopped its e2e server on each run; the climbs ended. Checked with `ps -eo
+pid,etime,cmd | grep -E "LinkSink-t0007|e2e-server|vitest|playwright"` at 10:55: nothing. Other agents' climbs
+(T-0006, and Bonsai's own T-5736/T-5737) were running and were left alone.
 
 ## What it cost
 
-COST_PLACEHOLDER
+About 55 minutes wall-clock (10:01 to 10:56 UTC), of which about 12 waiting for the ladder lock; one builder session
+on opus, brief M-2026-10-24-afebfbe1. Spend not known to me; the hours are T-0007's rows in `.bonsai/sessions.md`.
 
 ## Left for next time
 
