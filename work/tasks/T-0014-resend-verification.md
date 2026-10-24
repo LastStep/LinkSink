@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0014
 title: Resend the confirmation link when an unconfirmed account tries to log in
-status: running
+status: done
 lane: light
 done_when:
   - "Logging in with the right password on an unconfirmed account sends a fresh confirmation mail (Better Auth emailVerification.sendOnSignIn) and the login page says a new link was sent; a wrong password sends nothing (e2e with the console outbox)"
@@ -13,7 +13,7 @@ depends_on: [T-0003]
 blocked_by: null
 created: 2026-10-24
 started: 2026-10-24
-finished: null
+finished: 2026-10-24
 labels:
   bonsai.branch: t0014-resend-verification
   bonsai.ladder: []

@@ -6,7 +6,7 @@ role: builder
 model: sonnet
 started: 2026-10-24 16:47
 finished: 2026-10-24 17:10
-outcome: done
+outcome: merged
 commits: []
 labels: {}
 ---
@@ -52,3 +52,11 @@ none (checked with ss and ps; nothing on 4173).
 ## Left
 
 Proposed task: a per-account cap on resend (e.g. one mail per minute) if 18 per minute is too many.
+
+## Landing (orchestrator, 2026-10-24 11:30 UTC)
+
+- Light lane: brief M-2026-10-24-e60ba01b, report M-2026-10-24-87654a14 (done). No verifier: the orchestrator read the
+  whole diff against the task (auth-config sendOnSignIn, auth-form code, login page note, new e2e, two exact skeleton
+  assertions updated for the second mail, not loosened). Outcome fixed from `done` to `merged` (bonsai check).
+- The resend fires only after a correct password, so a mail flood needs the password; no per-account cap added.
+- Merged as 843cf86; ladder climbed on main after this record.
