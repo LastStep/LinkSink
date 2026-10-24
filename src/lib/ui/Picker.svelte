@@ -40,6 +40,10 @@
 		...projects.map((p) => ({ kind: 'project' as const, id: p.id, name: p.name, color: p.color }))
 	]);
 	$effect(() => {
+		void needle;
+		active = 0;
+	});
+	$effect(() => {
 		if (active >= options.length) active = Math.max(0, options.length - 1);
 	});
 
@@ -329,6 +333,9 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+	}
+	.body > * {
+		flex: none;
 	}
 	.find {
 		display: flex;

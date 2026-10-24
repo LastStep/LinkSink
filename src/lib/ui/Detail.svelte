@@ -91,7 +91,7 @@
 				/>{/if}
 			<span>{source?.name ?? link.siteName ?? displayHost(link.url)}</span>
 		</span>
-		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a saved link points off-site -->
+		<!-- eslint-disable svelte/no-navigation-without-resolve -- a saved link points off-site -->
 		<a
 			class="btn ghost sm"
 			href={link.url}
@@ -99,6 +99,7 @@
 			rel="noopener noreferrer"
 			onclick={() => store.opened(link.id).catch(() => {})}><Icon name="open" />Open</a
 		>
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		<button class="icon-btn" type="button" aria-label="Copy the link" onclick={copy}>
 			<Icon name={copied ? 'check' : 'copy'} />
 		</button>

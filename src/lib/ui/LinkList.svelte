@@ -295,7 +295,7 @@
 					bind:value={url}
 					name="url"
 					type="url"
-					placeholder="Paste a link to save it — or Ctrl+V anywhere"
+					placeholder="Paste a link to save it"
 					aria-label="Link"
 					required
 				/>
@@ -325,153 +325,143 @@
 		{#if links.length > 0}
 			<ul class="ledger" aria-label="Links" class:selecting>
 				{#each days as day (day.key)}
-					<li class="day" role="none">
-						<h2 class="day-h">{day.label} <span class="n muted num">{day.items.length}</span></h2>
-						<ul class="rows" aria-label={day.label}>
-							{#each day.items as link (link.id)}
-								{@const source = link.sourceId ? sourceById.get(link.sourceId) : undefined}
-								{@const rowTags = link.tagIds
-									.map((id) => tagById.get(id))
-									.filter((t) => t !== undefined)}
-								{@const rowProjects = link.projectIds
-									.map((id) => projectById.get(id))
-									.filter((p) => p !== undefined)}
-								<!-- A row is a listitem the keyboard can reach (Enter opens it, x selects it); its link and buttons
-								     stay the real controls. -->
-								<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-								<li
-									class="row"
-									id="link-{link.id}"
-									class:pending={link.pending}
-									class:flash={flashed === link.id}
-									class:open={openId === link.id}
-									class:selected={selected.has(link.id)}
-									data-state={link.pending ? 'saving' : 'saved'}
-									data-meta={link.metaState}
-									tabindex="0"
-									onclick={(e) => rowClick(e, link)}
-									onkeydown={(e) => rowKey(e, link)}
-									onpointerdown={(e) => pressStart(e, link)}
-									onpointerup={pressEnd}
-									onpointercancel={pressEnd}
-									onpointermove={pressEnd}
-									oncontextmenu={(e) => pressed && e.preventDefault()}
-								>
-									{#if selecting}
-										<input
-											class="chk"
-											type="checkbox"
-											aria-label="Select {name(link)}"
-											checked={selected.has(link.id)}
-											disabled={link.pending}
-											onclick={(e) => {
-												e.preventDefault();
-												toggleSelect(link.id, e.shiftKey);
-											}}
-										/>
-									{/if}
-									{#if link.faviconPath}
-										<img
-											class="icon"
-											src="/media/{link.faviconPath}"
-											alt=""
-											width="16"
-											height="16"
-										/>
-									{:else}
-										<span class="icon blank" aria-hidden="true"
-											>{displayHost(link.url).charAt(0).toUpperCase()}</span
-										>
-									{/if}
-									<span class="c-title">
-										<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a saved link points off-site -->
-										<a
-											class="t"
-											href={link.url}
-											rel="noopener noreferrer"
-											target="_blank"
-											onclick={() => !link.pending && store.opened(link.id).catch(() => {})}
-											>{link.title || link.url}</a
-										>
-										<span class="sub-line muted">
-											{#each rowProjects as p (p.id)}<span
-													class="dot"
-													style:--c="var(--dot-{p.color})"
-												></span>{/each}
-											{link.pending
-												? 'Saving…'
-												: [
-														source?.name ?? displayHost(link.url),
-														...rowTags.map((t) => t.name)
-													].join(' · ')}
-										</span>
-									</span>
-									{#if link.imagePath}
-										<!-- the preview, loaded while the row is near the screen so the details open with it -->
-										<img
-											class="preview sr-only"
-											src="/media/{link.imagePath.replace(/\.webp$/, '-320.webp')}"
-											alt=""
-											width="320"
-											height="180"
-											loading="lazy"
-										/>
-									{/if}
-									<span class="c-tags">
-										{#each rowTags.slice(0, 3) as t (t.id)}<span class="tag-chip">{t.name}</span
-											>{/each}
-										{#if rowTags.length > 3}<span class="tag-chip">+{rowTags.length - 3}</span>{/if}
-									</span>
-									<span
-										class="c-proj"
-										aria-label={rowProjects.map((p) => p.name).join(', ') || undefined}
-									>
-										{#each rowProjects as p (p.id)}<span
-												class="dot"
-												title={p.name}
-												style:--c="var(--dot-{p.color})"
-											></span>{/each}
-									</span>
-									<span class="c-status">
-										{#if link.status}<span class="pill {link.status}"
-												>{STATUS_LABEL[link.status as Status]}</span
-											>{/if}
-										{#if link.priority && link.priority > 1}<span class="prio p{link.priority}"
-												><Icon name="flag" size={12} />{PRIORITY_LABEL[
-													link.priority as Priority
-												]}</span
-											>{/if}
-									</span>
-									<time class="c-time muted num" datetime={new Date(link.createdAt).toISOString()}
-										>{timeOf(link.createdAt)}</time
-									>
-									<span class="c-act">
-										<button
-											class="icon-btn"
-											type="button"
-											aria-label="Organise {name(link)}"
-											disabled={link.pending}
-											onclick={() => organise([link.id])}><Icon name="tag" /></button
-										>
-										<button
-											class="icon-btn"
-											type="button"
-											aria-label="{link.archivedAt ? 'Restore' : 'Archive'} {name(link)}"
-											disabled={link.pending}
-											onclick={() => archive(link)}><Icon name="archive" /></button
-										>
-										<button
-											class="icon-btn del"
-											type="button"
-											aria-label="Delete {name(link)}"
-											disabled={link.pending}
-											onclick={() => remove(link)}><Icon name="trash" /></button
-										>
-									</span>
-								</li>
-							{/each}
-						</ul>
+					<!-- Rows are the list's own children (one list for the whole ledger); each day's heading sits
+					     between them, and the day's card is drawn from its rows' backgrounds. -->
+					<li class="day-h" role="none">
+						<h2>{day.label} <span class="n muted num">{day.items.length}</span></h2>
 					</li>
+					{#each day.items as link, i (link.id)}
+						{@const source = link.sourceId ? sourceById.get(link.sourceId) : undefined}
+						{@const rowTags = link.tagIds
+							.map((id) => tagById.get(id))
+							.filter((t) => t !== undefined)}
+						{@const rowProjects = link.projectIds
+							.map((id) => projectById.get(id))
+							.filter((p) => p !== undefined)}
+						<!-- A row is a listitem the keyboard can reach (Enter opens it, x selects it); its link and buttons
+								     stay the real controls. -->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+						<li
+							class="row"
+							class:last={i === day.items.length - 1}
+							id="link-{link.id}"
+							class:pending={link.pending}
+							class:flash={flashed === link.id}
+							class:open={openId === link.id}
+							class:selected={selected.has(link.id)}
+							data-state={link.pending ? 'saving' : 'saved'}
+							data-meta={link.metaState}
+							tabindex="0"
+							onclick={(e) => rowClick(e, link)}
+							onkeydown={(e) => rowKey(e, link)}
+							onpointerdown={(e) => pressStart(e, link)}
+							onpointerup={pressEnd}
+							onpointercancel={pressEnd}
+							onpointermove={pressEnd}
+							oncontextmenu={(e) => pressed && e.preventDefault()}
+						>
+							{#if selecting}
+								<input
+									class="chk"
+									type="checkbox"
+									aria-label="Select {name(link)}"
+									checked={selected.has(link.id)}
+									disabled={link.pending}
+									onclick={(e) => {
+										e.preventDefault();
+										toggleSelect(link.id, e.shiftKey);
+									}}
+								/>
+							{/if}
+							{#if link.faviconPath}
+								<img class="icon" src="/media/{link.faviconPath}" alt="" width="16" height="16" />
+							{:else}
+								<span class="icon blank" aria-hidden="true"
+									>{displayHost(link.url).charAt(0).toUpperCase()}</span
+								>
+							{/if}
+							<span class="c-title">
+								<!-- eslint-disable svelte/no-navigation-without-resolve -- a saved link points off-site -->
+								<a
+									class="t"
+									href={link.url}
+									rel="noopener noreferrer"
+									target="_blank"
+									onclick={() => !link.pending && store.opened(link.id).catch(() => {})}
+									>{link.title || link.url}</a
+								>
+								<!-- eslint-enable svelte/no-navigation-without-resolve -->
+								<span class="sub-line muted">
+									{#each rowProjects as p (p.id)}<span class="dot" style:--c="var(--dot-{p.color})"
+										></span>{/each}
+									{link.pending
+										? 'Saving…'
+										: [source?.name ?? displayHost(link.url), ...rowTags.map((t) => t.name)].join(
+												' · '
+											)}
+								</span>
+							</span>
+							{#if link.imagePath}
+								<!-- the preview, loaded while the row is near the screen so the details open with it -->
+								<img
+									class="preview preload"
+									src="/media/{link.imagePath.replace(/\.webp$/, '-320.webp')}"
+									alt=""
+									width="320"
+									height="180"
+									loading="lazy"
+								/>
+							{/if}
+							<span class="c-tags">
+								{#each rowTags.slice(0, 3) as t (t.id)}<span class="tag-chip">{t.name}</span>{/each}
+								{#if rowTags.length > 3}<span class="tag-chip">+{rowTags.length - 3}</span>{/if}
+							</span>
+							<span
+								class="c-proj"
+								aria-label={rowProjects.map((p) => p.name).join(', ') || undefined}
+							>
+								{#each rowProjects as p (p.id)}<span
+										class="dot"
+										title={p.name}
+										style:--c="var(--dot-{p.color})"
+									></span>{/each}
+							</span>
+							<span class="c-status">
+								{#if link.status}<span class="pill {link.status}"
+										>{STATUS_LABEL[link.status as Status]}</span
+									>{/if}
+								{#if link.priority && link.priority > 1}<span class="prio p{link.priority}"
+										><Icon name="flag" size={12} />{PRIORITY_LABEL[link.priority as Priority]}</span
+									>{/if}
+							</span>
+							<time class="c-time muted num" datetime={new Date(link.createdAt).toISOString()}
+								>{timeOf(link.createdAt)}</time
+							>
+							<span class="c-act">
+								<button
+									class="icon-btn"
+									type="button"
+									aria-label="Organise {name(link)}"
+									disabled={link.pending}
+									onclick={() => organise([link.id])}><Icon name="tag" /></button
+								>
+								<button
+									class="icon-btn"
+									type="button"
+									aria-label="{link.archivedAt ? 'Restore' : 'Archive'} {name(link)}"
+									disabled={link.pending}
+									onclick={() => archive(link)}><Icon name="archive" /></button
+								>
+								<button
+									class="icon-btn del"
+									type="button"
+									aria-label="Delete {name(link)}"
+									disabled={link.pending}
+									onclick={() => remove(link)}><Icon name="trash" /></button
+								>
+							</span>
+						</li>
+					{/each}
 				{/each}
 			</ul>
 		{:else if !$store.loading}
@@ -646,18 +636,18 @@
 		list-style: none;
 		margin: 20px 0 0;
 		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap);
-	}
-	.day {
-		background: var(--surface);
-		border-radius: var(--radius-card);
-		padding-bottom: 4px;
 	}
 	.day-h {
-		margin: 0;
+		margin-top: var(--gap);
 		padding: 12px 14px 8px;
+		background: var(--surface);
+		border-radius: var(--radius-card) var(--radius-card) 0 0;
+	}
+	.day-h:first-child {
+		margin-top: 0;
+	}
+	.day-h h2 {
+		margin: 0;
 		font-size: 14px;
 		font-weight: 500;
 	}
@@ -666,43 +656,56 @@
 		font-size: 13px;
 		font-weight: 400;
 	}
-	.rows {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
 	.row {
 		position: relative;
+		isolation: isolate;
 		display: grid;
 		grid-template-columns: 16px minmax(0, 1fr) auto auto auto 44px 0;
 		align-items: center;
 		gap: 14px;
 		min-height: var(--row-height);
-		margin: 0 4px;
-		padding: 0 10px;
-		border-radius: 4px;
+		padding: 0 14px;
+		background: var(--surface);
 		cursor: pointer;
 		outline-offset: -2px;
-		transition: background-color var(--t-hover) var(--ease-out);
+	}
+	.row.last {
+		min-height: calc(var(--row-height) + 4px);
+		padding-bottom: 4px;
+		border-radius: 0 0 var(--radius-card) var(--radius-card);
 	}
 	.selecting .row {
 		grid-template-columns: 16px 16px minmax(0, 1fr) auto auto auto 44px 0;
 	}
-	.row + .row::before {
+	/* the ruled line between rows of a day */
+	.row:not(.day-h + .row)::before {
 		content: '';
 		position: absolute;
-		left: 6px;
-		right: 6px;
+		left: 10px;
+		right: 10px;
 		top: 0;
 		height: 1px;
 		background: var(--rule);
 	}
-	.row:hover,
-	.row:focus-within {
+	/* hover, open and selected: a 4 px inset tint inside the day's card */
+	.row::after {
+		content: '';
+		position: absolute;
+		z-index: -1;
+		inset: 0 4px;
+		border-radius: 4px;
+		background: transparent;
+		transition: background-color var(--t-hover) var(--ease-out);
+	}
+	.row.last::after {
+		bottom: 4px;
+	}
+	.row:hover::after,
+	.row:focus-within::after {
 		background: var(--raised);
 	}
-	.row.open,
-	.row.selected {
+	.row.open::after,
+	.row.selected::after {
 		background: var(--active);
 	}
 	.row:hover::before,
@@ -737,8 +740,11 @@
 	.c-title {
 		min-width: 0;
 	}
+	/* Only the title's text opens the site; the rest of the row opens the details. */
 	.t {
-		display: block;
+		display: inline-block;
+		max-width: 100%;
+		vertical-align: top;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -753,6 +759,17 @@
 	}
 	.sub-line {
 		display: none;
+	}
+	/* The row's preview picture, fetched while the row is near the screen so the details open with it; the ledger row
+	   itself shows no picture (ADR-0003). Not clipped, so the browser's lazy loading sees it on screen. */
+	.preload {
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
 	}
 	.c-tags,
 	.c-proj,
@@ -805,6 +822,9 @@
 	.row.flash {
 		background: var(--active);
 		box-shadow: inset 2px 0 0 var(--accent);
+	}
+	.row.flash::after {
+		background: transparent;
 	}
 	.row.flash .t {
 		color: var(--text);
@@ -892,16 +912,33 @@
 			grid-template-rows: auto auto;
 			align-items: start;
 			gap: 2px 10px;
-			padding: 10px 8px;
+			padding: 10px 14px;
+		}
+		.row.last {
+			padding-bottom: 14px;
 		}
 		.selecting .row {
 			grid-template-columns: 16px 16px minmax(0, 1fr) auto;
 		}
 		.icon {
+			grid-column: 1;
+			grid-row: 1;
 			margin-top: 2px;
 		}
 		.c-title {
+			grid-column: 2;
 			grid-row: 1 / 3;
+		}
+		.chk {
+			grid-column: 1;
+			grid-row: 1;
+			margin-top: 2px;
+		}
+		.selecting .icon {
+			grid-column: 2;
+		}
+		.selecting .c-title {
+			grid-column: 3;
 		}
 		.t {
 			white-space: normal;

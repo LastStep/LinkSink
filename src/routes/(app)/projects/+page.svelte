@@ -14,6 +14,7 @@
 	let error = $state('');
 	let confirming = $state<string | null>(null);
 	let nameBox = $state<HTMLInputElement | null>(null);
+	let colouring = $state<string | null>(null);
 
 	const projects = $derived($store.projects);
 
@@ -117,7 +118,14 @@
 		<ul class="card list" aria-label="Projects">
 			{#each projects as project, i (project.id)}
 				<li class="item">
-					<span class="dot big" style:--c="var(--dot-{project.color})"></span>
+					<button
+						class="dot-btn"
+						type="button"
+						aria-label="Colour of {project.name}"
+						aria-expanded={colouring === project.id}
+						onclick={() => (colouring = colouring === project.id ? null : project.id)}
+						><span class="dot big" style:--c="var(--dot-{project.color})"></span></button
+					>
 					<div class="fields">
 						<input
 							class="name"
@@ -139,11 +147,6 @@
 									})
 								)}
 							onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-						/>
-						<Swatches
-							value={project.color}
-							label="Colour of {project.name}"
-							onpick={(c) => c && run(() => store.updateProject(project.id, { color: c }))}
 						/>
 					</div>
 					<a class="count muted num" href={resolve('/(app)/projects/[id]', { id: project.id })}
@@ -173,6 +176,18 @@
 							onclick={() => (confirming = project.id)}><Icon name="trash" /></button
 						>
 					</div>
+					{#if colouring === project.id}
+						<div class="confirm plain">
+							<Swatches
+								value={project.color}
+								label="Colour of {project.name}"
+								onpick={(c) => {
+									if (c) run(() => store.updateProject(project.id, { color: c }));
+									colouring = null;
+								}}
+							/>
+						</div>
+					{/if}
 					{#if confirming === project.id}
 						<div class="confirm" role="alertdialog" aria-label="Delete {project.name}?">
 							<span
@@ -249,7 +264,7 @@
 	.item {
 		position: relative;
 		display: grid;
-		grid-template-columns: 12px minmax(0, 1fr) auto auto;
+		grid-template-columns: 28px minmax(0, 1fr) auto auto;
 		align-items: center;
 		gap: 14px;
 		padding: 10px 10px;
@@ -262,6 +277,22 @@
 		top: 0;
 		height: 1px;
 		background: var(--rule);
+	}
+	.dot-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-control);
+		cursor: pointer;
+	}
+	.dot-btn:hover {
+		background: var(--raised);
+	}
+	.confirm.plain {
+		background: none;
+		padding: 0 0 6px 42px;
 	}
 	.dot.big {
 		width: 12px;
@@ -333,7 +364,7 @@
 			padding-top: 12px;
 		}
 		.item {
-			grid-template-columns: 12px minmax(0, 1fr) auto;
+			grid-template-columns: 28px minmax(0, 1fr) auto;
 		}
 		.count {
 			display: none;
