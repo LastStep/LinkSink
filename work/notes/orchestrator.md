@@ -197,3 +197,7 @@ an artifact for the person to open on phone and desktop).
 - 09:59 ladder committed by the person (e15441f), T-0003 green and done.
 - 10:00 person approved T-0006 and T-0007 (committed), both running at 6c467c4. Briefs: M-2026-10-24-d6363978 builder@T-0006, M-2026-10-24-afebfbe1 builder@T-0007 (both opus). Contract: T-0007 owns fetch/ + classify/, exports enqueueFetch; T-0006 lands first; I resume T-0007 to rebase and wire it. T-0006: PATCH adds to user_set.
 - Verifiers when done: T-0006 tests + QA (screens are plain; QA light); T-0007 security + tests.
+- T-0006 report M-2026-10-24-2d8c29cc: done, HEAD 0de0f3e, ladder green there (101 unit, 8 e2e, 39.95 KB). Deviations: restore endpoint (T-0010 needs link.restore); JSON content-type required on every write incl. DELETE (T-0011 Shortcut must send it); no sources table; http vs https stay separate (ask the person). enqueueFetch goes in create() in src/lib/server/api/links.ts.
+- Verifiers: M-2026-10-24-0fe20bcb tests (opus), M-2026-10-24-3efe2314 QA (sonnet). Waiting.
+- Person 10:26: "we should only be serving https". → T-0005: HTTPS only (Caddy redirects http→https, HSTS header, secure cookies, ORIGIN https). Saved-link http vs https duplicate question still open (recommended: same key, address kept as given).
+- Person 10:27: http and https of the same address = one link (url_key ignores scheme; address kept as given). Goes in T-0006's fix round. "Keep building the app."
