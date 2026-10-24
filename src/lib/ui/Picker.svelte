@@ -34,10 +34,12 @@
 		| { kind: 'create'; name: string }
 		| { kind: 'tag'; id: string; name: string; count: number }
 		| { kind: 'project'; id: string; name: string; color: string };
+	// Matches first, so Enter picks the highlighted match; "Create …" comes last and is highlighted (the first option)
+	// only when nothing matches, or when the person arrows down to it.
 	const options = $derived<Option[]>([
-		...(canCreate ? [{ kind: 'create' as const, name: needle }] : []),
 		...tags.map((t) => ({ kind: 'tag' as const, id: t.id, name: t.name, count: t.count })),
-		...projects.map((p) => ({ kind: 'project' as const, id: p.id, name: p.name, color: p.color }))
+		...projects.map((p) => ({ kind: 'project' as const, id: p.id, name: p.name, color: p.color })),
+		...(canCreate ? [{ kind: 'create' as const, name: needle }] : [])
 	]);
 	$effect(() => {
 		void needle;
@@ -110,7 +112,29 @@
 		document.getElementById(`pk-opt-${active}`)?.scrollIntoView({ block: 'nearest' });
 	}
 
+	let dialog = $state<HTMLElement | null>(null);
+
 	function onwindowkey(event: KeyboardEvent) {
+		if (event.key === 'Tab' && dialog) {
+			// Focus stays inside the organiser while it is open.
+			const focusable = [
+				...dialog.querySelectorAll<HTMLElement>(
+					'input:not([disabled]), select:not([disabled]), button:not([disabled]), [tabindex="0"]'
+				)
+			];
+			if (focusable.length === 0) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			const inside = dialog.contains(document.activeElement);
+			if (event.shiftKey && (document.activeElement === first || !inside)) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && (document.activeElement === last || !inside)) {
+				event.preventDefault();
+				first.focus();
+			}
+			return;
+		}
 		if (event.key === 'Escape') {
 			event.preventDefault();
 			event.stopPropagation();
@@ -141,6 +165,7 @@
 <button class="scrim picker-scrim" type="button" aria-label="Close the organiser" onclick={onclose}
 ></button>
 <div
+	bind:this={dialog}
 	class="picker"
 	role="dialog"
 	aria-modal="true"
@@ -179,6 +204,8 @@
 			{#each options as option, i (option.kind + ('id' in option ? option.id : option.name))}
 				{#if option.kind === 'project' && (i === 0 || options[i - 1].kind !== 'project')}
 					<p class="group" role="presentation">Projects</p>
+				{:else if option.kind === 'create' && i > 0}
+					<p class="group" role="presentation">New tag</p>
 				{:else if option.kind !== 'project' && i === 0}
 					<p class="group" role="presentation">Tags</p>
 				{/if}
