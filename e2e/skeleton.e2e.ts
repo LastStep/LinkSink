@@ -85,3 +85,32 @@ test('a second sign-up is refused once the account exists', async ({ page, reque
 	expect(await res.text()).toContain('Sign-up is closed');
 	expect(sentMail().map((m) => m.to)).toEqual(['person@example.com']);
 });
+
+test('the login form is rate-limited like the API: wrong passwords soon get "too many tries"', async ({
+	page
+}) => {
+	await page.goto('/login');
+	const statuses: number[] = [];
+	for (let i = 0; i < 5 && !statuses.includes(429); i++) {
+		await page.getByLabel('Email').fill(email);
+		await page.getByLabel('Password').fill('not the password at all');
+		const [res] = await Promise.all([
+			page.waitForResponse(
+				(r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/login'
+			),
+			page.getByRole('button', { name: 'Log in' }).click()
+		]);
+		statuses.push(res.status());
+	}
+	// Better Auth allows 3 sign-in tries per 10 s per client; the first test's two log-ins count too.
+	expect(statuses.at(-1)).toBe(429);
+	expect(statuses.slice(0, -1).every((s) => s === 401)).toBe(true);
+	await expect(page.getByRole('alert')).toContainText('Too many tries');
+
+	// While limited, even the right password is refused.
+	await page.getByLabel('Email').fill(email);
+	await page.getByLabel('Password').fill(password);
+	await page.getByRole('button', { name: 'Log in' }).click();
+	await expect(page).toHaveURL(/\/login$/);
+	await expect(page.getByRole('alert')).toContainText('Too many tries');
+});

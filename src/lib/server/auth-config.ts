@@ -34,6 +34,8 @@ export function createAuth({ db, secret, baseURL, mailer, plugins = [] }: AuthDe
 		secret,
 		database: drizzleAdapter(db, { provider: 'sqlite', schema }),
 		telemetry: { enabled: false },
+		// On everywhere, not only when NODE_ENV=production: sign-in and sign-up allow 3 tries per 10 s per client.
+		rateLimit: { enabled: true },
 		emailAndPassword: {
 			enabled: true,
 			requireEmailVerification: true,
