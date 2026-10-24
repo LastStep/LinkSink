@@ -3,7 +3,7 @@ import { parseSetCookieHeader, toCookieOptions } from 'better-auth/cookies';
 import type { Auth } from './auth-config.ts';
 
 export type AuthResult =
-	{ ok: true; data: unknown } | { ok: false; status: number; message: string };
+	{ ok: true; data: unknown } | { ok: false; status: number; message: string; code?: string };
 
 /**
  * Sends a form's request through Better Auth's own HTTP handler (not `auth.api`), so its rate limit, origin check
@@ -51,5 +51,5 @@ export async function authPost(
 		res.status === 429
 			? 'Too many tries. Wait a few seconds and try again.'
 			: ((data as { message?: string } | null)?.message ?? 'That did not work. Try again.');
-	return { ok: false, status: res.status, message };
+	return { ok: false, status: res.status, message, code: (data as { code?: string } | null)?.code };
 }

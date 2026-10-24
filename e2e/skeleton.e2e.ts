@@ -24,8 +24,9 @@ test('sign up, confirm the email, log in, save links and search them', async ({ 
 	await expect(page.getByRole('alert')).toContainText(/not verified/i);
 
 	const mail = sentMail().filter((m) => m.to === email);
-	expect(mail).toHaveLength(1);
-	expect(mail[0].subject).toBe('Confirm your LinkSink email');
+	// The sign-up mail, then the fresh one the refused log-in sent (T-0014).
+	expect(mail).toHaveLength(2);
+	expect(mail.map((m) => m.subject)).toEqual(Array(2).fill('Confirm your LinkSink email'));
 	await page.goto(linkIn(mail[0]));
 	await expect(page).toHaveURL(/\/login\?verified=1$/);
 	await expect(page.getByRole('status')).toContainText('Your email is confirmed');

@@ -14,6 +14,8 @@ export const actions: Actions = {
 		const email = String(form.get('email') ?? '').trim();
 		const password = String(form.get('password') ?? '');
 		const res = await authPost(auth, event, '/sign-in/email', { email, password });
+		if (!res.ok && res.code === 'EMAIL_NOT_VERIFIED')
+			return fail(res.status, { email, message: res.message, resent: true });
 		if (!res.ok) return fail(res.status, { email, message: res.message });
 		redirect(303, '/');
 	}
