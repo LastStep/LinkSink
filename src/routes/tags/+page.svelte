@@ -297,11 +297,11 @@
 		.title-row {
 			padding-top: 12px;
 		}
-		.count {
-			display: none;
-		}
 		.item {
-			grid-template-columns: 28px minmax(0, 1fr) auto;
+			gap: 6px;
+		}
+		.tools .btn {
+			padding: 0 6px;
 		}
 		.panel {
 			grid-column: 1 / -1;
