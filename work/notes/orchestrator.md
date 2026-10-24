@@ -211,3 +211,5 @@ an artifact for the person to open on phone and desktop).
 - Rebase+wire brief M-2026-10-24-bfabed75 (enqueueFetch in create, poll GET, fixture e2e with narrow test-only SSRF allowance, E2E_PORT). Then verifiers: security (opus) + tests (opus) on the rebased HEAD; scratch copies without bonsai.yaml/CLAUDE.md/work.
 - 11:11 T-0007 rebased+wired, report M-2026-10-24-a23a6a3b, HEAD a66660d on main cfffb0e, ladder green (329 unit, 11 e2e, 40.33 KB). onCreated hook → enqueueFetch; poll 1 s × 10; TEST_ONLY_FETCH_ALLOW only with MAIL_TRANSPORT=console; E2E_PORT. Touched T-0006 files: patchLink 400 on unknown source (FK), one setup line in links.spec.
 - Verifiers: M-2026-10-24-3e2e851c security (opus), M-2026-10-24-f74a408b tests (opus). Waiting.
+- 11:15 Person couldn't confirm sign-up in dev: the console mail went to an earlier dev run's terminal; unverified account blocks sign-up and login with no resend. Told them to reset the dev DB (0 links). Bug to fix before T-0005: emailVerification.sendOnSignIn true + login page message + e2e (fold into T-0008's start or a light task).
+- 11:17 The person closed T-0006 (done) after using it.

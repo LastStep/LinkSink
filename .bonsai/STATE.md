@@ -24,7 +24,7 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
 
 ## Next
 
-1. T-0006 (links API, paste, duplicates, undo) landed at 8ce031c and reads `verify` (the person closes it). T-0007
+1. T-0006 (links API, paste, duplicates, undo) is done (landed 8ce031c). T-0007
    (fetcher) is building; once it lands, rebased on T-0006 with `enqueueFetch` wired into POST /api/links, T-0008
    (organising + Ledger screens, approved) starts. QA now has WebKit (playwright webkit-2287) as well as Chromium.
 2. T-0005 (deploy) waits for the person's VPS facts (Open questions); HTTPS only (Caddy redirect, HSTS, secure
