@@ -135,10 +135,9 @@ test('the picker sets tags (find or create), projects, status, priority, source 
 		'aria-selected',
 		'true'
 	);
-	// Type part of a project's name, arrow to it and toggle it with Enter.
+	// Type part of a project's name: the match is highlighted (Create comes last), and Enter toggles it.
 	await find.fill('picker pro');
-	await expect(picker.getByRole('listbox').getByRole('option')).toHaveCount(2); // "Create tag …" and the project
-	await page.keyboard.press('ArrowDown');
+	await expect(picker.getByRole('listbox').getByRole('option')).toHaveCount(2); // the project and "Create tag …"
 	await page.keyboard.press('Enter');
 	await expect(picker.getByRole('option', { name: /Picker project/ })).toHaveAttribute(
 		'aria-selected',
@@ -220,6 +219,8 @@ test('bulk select with x, shift-click and long-press sets tags, projects, status
 	await expect(page.getByRole('toolbar', { name: 'Selected links' })).toContainText('1 selected');
 	await clickRow(page, row(page, 'bulk.example.com', '/c'), ['Shift']);
 	await expect(page.getByRole('toolbar', { name: 'Selected links' })).toContainText('3 selected');
+	// The shift-click range drags no text selection across the rows.
+	expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
 
 	const before = (await api<{ links: Link[] }>(page, '/api/links')).links;
 	void before;
@@ -275,11 +276,13 @@ test('bulk select with x, shift-click and long-press sets tags, projects, status
 	await page.setViewportSize({ width: 390, height: 844 });
 	await ready(page, '/');
 	for (const x of ['a', 'b']) {
-		const target = row(page, 'bulk.example.com', `/${x}`);
-		await target.locator('time').dispatchEvent('pointerdown', { pointerType: 'touch' });
+		const target = row(page, 'bulk.example.com', `/${x}`).locator('time');
+		await target.dispatchEvent('pointerdown', { pointerType: 'touch', clientX: 100, clientY: 100 });
+		// a finger drifts a little while it holds: 6 px still counts as a long-press
+		await target.dispatchEvent('pointermove', { pointerType: 'touch', clientX: 104, clientY: 104 });
 		await page.waitForTimeout(600);
-		await target.locator('time').dispatchEvent('pointerup', { pointerType: 'touch' });
-		await target.locator('time').dispatchEvent('click');
+		await target.dispatchEvent('pointerup', { pointerType: 'touch', clientX: 104, clientY: 104 });
+		await target.dispatchEvent('click');
 	}
 	await expect(page.getByRole('toolbar', { name: 'Selected links' })).toContainText('2 selected');
 	await page
@@ -506,4 +509,153 @@ test('a link shows when it was saved and edited, and opening it records opened_a
 	await expect(detail.locator('[data-field="opened"]')).not.toHaveText('Not yet');
 	await expect(detail.locator('[data-field="saved"]')).not.toBeEmpty();
 	await expect(detail.locator('[data-field="edited"]')).not.toBeEmpty();
+});
+
+test('in the organiser Enter picks the highlighted match, Create needs its own row, and Tab stays inside', async ({
+	page
+}) => {
+	const [link] = await save(page, ['https://enter.example.com/one']);
+	await page.request.post('/api/tags', { data: { name: 'recommendations' } });
+	await page.request.post('/api/projects', { data: { name: 'LinkSink enter project' } });
+	const before = (await organise(page)).tags.length;
+	await ready(page, '/');
+	await row(page, 'enter.example.com').focus();
+	await page.keyboard.press('Enter');
+	await page.getByRole('button', { name: 'Organise', exact: true }).click();
+	const picker = page.getByRole('dialog', { name: /^Organise/ });
+	const find = picker.getByRole('combobox', { name: 'Find or create a tag' });
+	await expect(find).toBeFocused();
+
+	// "rec" + Enter picks "recommendations"; no tag is made.
+	await page.keyboard.type('rec');
+	await page.keyboard.press('Enter');
+	const recId = (await organise(page)).tags.find((t) => t.name === 'recommendations')!.id;
+	await expect.poll(async () => (await linkById(page, link.id)).tagIds).toEqual([recId]);
+	// "linksink enter" + Enter picks the project.
+	await find.fill('linksink enter');
+	await page.keyboard.press('Enter');
+	await expect.poll(async () => (await linkById(page, link.id)).projectIds.length).toBe(1);
+	expect((await organise(page)).tags.length).toBe(before);
+	// Arrowing down to "Create …" and pressing Enter makes the tag.
+	await find.fill('rec');
+	await page.keyboard.press('End');
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('ArrowDown');
+	await expect(picker.getByRole('option', { name: /Create tag “rec”/ })).toHaveClass(/active/);
+	await page.keyboard.press('Enter');
+	await expect.poll(async () => (await organise(page)).tags.map((t) => t.name)).toContain('rec');
+
+	// Tab and Shift+Tab never leave the organiser.
+	for (let i = 0; i < 25; i++) {
+		await page.keyboard.press(i % 5 === 4 ? 'Shift+Tab' : 'Tab');
+		expect(await picker.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+	}
+});
+
+test('in Select mode a click on a row, its title too, selects it and opens nothing (1440, mouse)', async ({
+	page,
+	context
+}) => {
+	await save(page, ['https://select.example.com/one', 'https://select.example.com/two']);
+	await ready(page, '/');
+	let opened = 0;
+	context.on('page', () => opened++);
+	await page.getByRole('button', { name: 'Select', exact: true }).click();
+	const bar = page.getByRole('toolbar', { name: 'Selected links' });
+	await expect(bar).toContainText('0 selected');
+	await row(page, 'select.example.com', '/one').locator('a.t').click();
+	await expect(bar).toContainText('1 selected');
+	await row(page, 'select.example.com', '/two').locator('a.t').click();
+	await expect(bar).toContainText('2 selected');
+	await row(page, 'select.example.com', '/one').locator('a.t').click();
+	await expect(bar).toContainText('1 selected');
+	await page.waitForTimeout(300);
+	expect(opened).toBe(0);
+	expect(page.url()).toBe(`${origin}/`);
+	await page.screenshot({ path: test.info().outputPath('select-click-1440.png') });
+});
+
+test('in Select mode a tap on a row, its title too, selects it and opens nothing (390, touch)', async ({
+	browser
+}) => {
+	const context = await browser.newContext({
+		baseURL: origin,
+		storageState: state,
+		viewport: { width: 390, height: 844 },
+		hasTouch: true,
+		isMobile: true
+	});
+	const page = await context.newPage();
+	await save(page, ['https://tap.example.com/one', 'https://tap.example.com/two']);
+	await ready(page, '/');
+	let opened = 0;
+	context.on('page', () => opened++);
+	await page.getByRole('button', { name: 'Select', exact: true }).tap();
+	const bar = page.getByRole('toolbar', { name: 'Selected links' });
+	await row(page, 'tap.example.com', '/one').locator('a.t').tap();
+	await expect(bar).toContainText('1 selected');
+	await row(page, 'tap.example.com', '/two').locator('a.t').tap();
+	await expect(bar).toContainText('2 selected');
+	await page.waitForTimeout(300);
+	expect(opened).toBe(0);
+	expect(page.url()).toBe(`${origin}/`);
+	await page.screenshot({ path: test.info().outputPath('select-tap-selected-390.png') });
+	// Only selected rows look selected: end Select mode, tap a row open and closed, and it is not left grey.
+	await bar.getByRole('button', { name: 'Done' }).tap();
+	const one = row(page, 'tap.example.com', '/one');
+	await one.locator('time').tap();
+	await page.getByRole('button', { name: 'Close details' }).tap();
+	// (after the 180 ms fade of the open state)
+	await expect
+		.poll(() => one.evaluate((el) => getComputedStyle(el, '::after').backgroundColor))
+		.toBe('rgba(0, 0, 0, 0)');
+	await page.waitForTimeout(1000);
+	expect(await one.evaluate((el) => getComputedStyle(el, '::after').backgroundColor)).toBe(
+		'rgba(0, 0, 0, 0)'
+	);
+	await page.screenshot({ path: test.info().outputPath('select-tap-390.png') });
+	await context.close();
+});
+
+test('with the details open at 1440 the row buttons never cover the status or priority', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	const [link] = await save(page, ['https://clip.example.com/one']);
+	await page.request.patch(`/api/links/${link.id}`, {
+		data: { status: 'in_progress', priority: 3 }
+	});
+	await ready(page, '/');
+	const r = row(page, 'clip.example.com');
+	await r.focus();
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('complementary', { name: 'Link details' })).toBeVisible();
+	await r.hover();
+	const prio = (await r.locator('.prio').boundingBox())!;
+	const pill = (await r.locator('.pill').boundingBox())!;
+	const act = (await r.locator('.c-act').boundingBox())!;
+	expect(prio.x + prio.width).toBeLessThanOrEqual(act.x);
+	expect(pill.x + pill.width).toBeLessThanOrEqual(act.x);
+	expect(await r.locator('.prio').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+	await expect(r.locator('.prio')).toHaveText('High');
+	await page.screenshot({ path: test.info().outputPath('details-open-1440.png') });
+});
+
+test('on a phone every tag on the Tags screen opens its links', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	const [link] = await save(page, ['https://phonetag.example.com/one']);
+	const tag = (await (await page.request.post('/api/tags', { data: { name: 'phone-tag' } })).json())
+		.tag;
+	await page.request.patch(`/api/links/${link.id}`, { data: { tagIds: [tag.id] } });
+	await ready(page, '/tags');
+	const count = page
+		.getByRole('list', { name: 'Tags' })
+		.getByRole('listitem')
+		.filter({ has: page.getByLabel('Name of phone-tag') })
+		.getByRole('link', { name: '1 link' });
+	await expect(count).toBeVisible();
+	await page.screenshot({ path: test.info().outputPath('tags-390.png') });
+	await count.click();
+	await expect(page).toHaveURL(new RegExp(`/tags/${tag.id}$`));
+	await expect(row(page, 'phonetag.example.com')).toHaveCount(1);
 });
