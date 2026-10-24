@@ -1,3 +1,4 @@
+import { parseTestFetchAllow } from './fetch/allow.ts';
 import { consoleMailer, resendMailer, type Mailer } from './mail.ts';
 
 export interface RawEnv {
@@ -7,6 +8,7 @@ export interface RawEnv {
 	MAIL_FROM?: string;
 	MAIL_TRANSPORT?: string;
 	MAIL_OUTBOX?: string;
+	TEST_ONLY_FETCH_ALLOW?: string;
 }
 
 export interface RuntimeConfig {
@@ -41,6 +43,11 @@ export function loadRuntimeConfig(env: RawEnv, { dev }: { dev: boolean }): Runti
 		if (!env.RESEND_API_KEY)
 			problems.push('RESEND_API_KEY must be set (or MAIL_TRANSPORT=console outside production)');
 		if (!env.MAIL_FROM) problems.push('MAIL_FROM must be set when mail goes through Resend');
+	}
+	try {
+		parseTestFetchAllow(env.TEST_ONLY_FETCH_ALLOW, env.MAIL_TRANSPORT);
+	} catch (error) {
+		problems.push((error as Error).message);
 	}
 	if (problems.length) {
 		throw new Error(`LinkSink cannot start:\n- ${problems.join('\n- ')}`);

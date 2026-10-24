@@ -31,6 +31,11 @@ export const variables = defineEnvVars({
 			'`resend` or `console`. Default: console under `vite dev`, resend everywhere else. Checked at server start.',
 		schema: optional
 	},
+	TEST_ONLY_FETCH_ALLOW: {
+		description:
+			'e2e server only: `127.0.0.1:<port>` of its local fixture site, the one address the fetch guard lets through. The server refuses to start with it unless MAIL_TRANSPORT=console.',
+		schema: optional
+	},
 	MAIL_OUTBOX: {
 		description:
 			'Dev and tests only: a file the console mailer also appends each message to, one JSON per line.',

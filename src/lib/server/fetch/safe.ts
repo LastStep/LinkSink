@@ -62,6 +62,12 @@ export interface SafeFetchConfig {
 	userAgent: string;
 	resolve?: Resolver;
 	ports?: ReadonlySet<number>;
+	/**
+	 * The e2e server only (TEST_ONLY_FETCH_ALLOW, refused at startup unless MAIL_TRANSPORT=console): one exact
+	 * 127.0.0.1 address and port the guard lets through, for a local fixture site. Every other private address
+	 * and port is refused as always.
+	 */
+	allow?: TestAllowance | null;
 	timeoutMs?: number;
 	maxRedirects?: number;
 	/**
@@ -98,14 +104,29 @@ function effectivePort(url: URL): number {
 	return url.protocol === 'https:' ? 443 : 80;
 }
 
+/** An exact address and port the e2e server lets through (see `SafeFetchConfig.allow`). */
+export interface TestAllowance {
+	address: '127.0.0.1';
+	port: number;
+}
+
+function allowed(host: string, port: number, allow: TestAllowance | null | undefined): boolean {
+	return !!allow && host === allow.address && port === allow.port;
+}
+
 /** Check (a): scheme, port and IP-literal host, before any connection is made. Throws FetchRefused. */
-export function checkUrl(url: URL, ports: ReadonlySet<number> = DEFAULT_PORTS): void {
+export function checkUrl(
+	url: URL,
+	ports: ReadonlySet<number> = DEFAULT_PORTS,
+	allow: TestAllowance | null = null
+): void {
 	if (url.protocol !== 'http:' && url.protocol !== 'https:') {
 		throw new FetchRefused('scheme', `only http and https are fetched, not ${url.protocol}`);
 	}
 	const port = effectivePort(url);
-	if (!ports.has(port)) throw new FetchRefused('port', `port ${port} is not fetched`);
 	const host = unbracket(url.hostname);
+	if (allowed(host, port, allow)) return;
+	if (!ports.has(port)) throw new FetchRefused('port', `port ${port} is not fetched`);
 	if (isIP(host) && !isPublicAddress(host)) {
 		throw new FetchRefused('address', `${url.hostname} is not a public address`);
 	}
@@ -115,9 +136,14 @@ export function checkUrl(url: URL, ports: ReadonlySet<number> = DEFAULT_PORTS): 
 }
 
 /** Check (b): the address to connect to for `hostname`, every resolved address having been checked. */
-export async function pickAddress(hostname: string, resolve: Resolver): Promise<string> {
+export async function pickAddress(
+	hostname: string,
+	resolve: Resolver,
+	allowedHere = false
+): Promise<string> {
 	const host = unbracket(hostname);
 	if (isIP(host)) {
+		if (allowedHere) return host;
 		if (!isPublicAddress(host))
 			throw new FetchRefused('address', `${host} is not a public address`);
 		return host;
@@ -184,9 +210,9 @@ export function createSafeFetch(config: SafeFetchConfig): SafeFetch {
 
 	const connect: buildConnector.connector = (options, callback) => {
 		const hostname = unbracket(options.hostname);
-		pickAddress(hostname, resolve).then(
+		const port = Number(options.port) || (options.protocol === 'https:' ? 443 : 80);
+		pickAddress(hostname, resolve, allowed(hostname, port, config.allow)).then(
 			(address) => {
-				const port = Number(options.port) || (options.protocol === 'https:' ? 443 : 80);
 				let target = { host: address, port };
 				try {
 					if (config.dialFor) target = config.dialFor(address, port);
@@ -255,7 +281,7 @@ export function createSafeFetch(config: SafeFetchConfig): SafeFetch {
 		if (!url) throw new FetchRefused('url', 'not a URL');
 		try {
 			for (;;) {
-				checkUrl(url, ports);
+				checkUrl(url, ports, config.allow ?? null);
 				hops.push(url.href);
 				const response = await agent.request({
 					origin: url.origin,
