@@ -18,6 +18,7 @@ Object.assign(process.env, {
 	DATABASE_PATH: resolve(dir, 'e2e.db'),
 	MAIL_OUTBOX: resolve(dir, 'outbox.jsonl'),
 	BETTER_AUTH_SECRET: 'e2e-only-secret-not-used-anywhere-else-0123456789',
+	MAIL_TRANSPORT: 'console',
 	RESEND_API_KEY: ''
 });
 

@@ -33,15 +33,3 @@ export function resendMailer(apiKey: string, from: string): Mailer {
 		}
 	};
 }
-
-export function createMailer(env: {
-	RESEND_API_KEY?: string;
-	MAIL_FROM?: string;
-	MAIL_OUTBOX?: string;
-}) {
-	if (env.RESEND_API_KEY) {
-		if (!env.MAIL_FROM) throw new Error('MAIL_FROM must be set when RESEND_API_KEY is');
-		return resendMailer(env.RESEND_API_KEY, env.MAIL_FROM);
-	}
-	return consoleMailer(env.MAIL_OUTBOX);
-}
