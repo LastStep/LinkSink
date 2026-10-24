@@ -52,6 +52,8 @@ export function createAuth({ db, secret, baseURL, mailer, plugins = [] }: AuthDe
 		},
 		emailVerification: {
 			sendOnSignUp: true,
+			// A correct password on an unconfirmed account sends a fresh link (never on a wrong one); the sign-in rate limit applies.
+			sendOnSignIn: true,
 			autoSignInAfterVerification: false,
 			sendVerificationEmail: async ({ user, url }) => {
 				await mailer.send({

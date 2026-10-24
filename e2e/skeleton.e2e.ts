@@ -24,8 +24,9 @@ test('sign up, confirm the email, log in, save links and search them', async ({ 
 	await expect(page.getByRole('alert')).toContainText(/not verified/i);
 
 	const mail = sentMail().filter((m) => m.to === email);
-	expect(mail).toHaveLength(1);
-	expect(mail[0].subject).toBe('Confirm your LinkSink email');
+	// The sign-up mail, then the fresh one the refused log-in sent (T-0014).
+	expect(mail).toHaveLength(2);
+	expect(mail.map((m) => m.subject)).toEqual(Array(2).fill('Confirm your LinkSink email'));
 	await page.goto(linkIn(mail[0]));
 	await expect(page).toHaveURL(/\/login\?verified=1$/);
 	await expect(page.getByRole('status')).toContainText('Your email is confirmed');
@@ -83,7 +84,7 @@ test('a second sign-up is refused once the account exists', async ({ page, reque
 	});
 	expect(res.status()).toBe(403);
 	expect(await res.text()).toContain('Sign-up is closed');
-	expect(sentMail().map((m) => m.to)).toEqual(['person@example.com']);
+	expect(sentMail().map((m) => m.to)).toEqual(Array(2).fill('person@example.com')); // sign-up mail + the log-in resend (T-0014)
 });
 
 test('the login form is rate-limited like the API: wrong passwords soon get "too many tries"', async ({

@@ -13,8 +13,15 @@ export const actions: Actions = {
 		const form = await event.request.formData();
 		const email = String(form.get('email') ?? '').trim();
 		const password = String(form.get('password') ?? '');
-		const res = await authPost(auth, event, '/sign-in/email', { email, password });
-		if (!res.ok) return fail(res.status, { email, message: res.message });
+		const res = await authPost(auth, event, '/sign-in/email', {
+			email,
+			password,
+			// Where the fresh confirmation link leads, as the sign-up mail's does.
+			callbackURL: '/login?verified=1'
+		});
+		if (!res.ok && res.code === 'EMAIL_NOT_VERIFIED')
+			return fail(res.status, { email, message: res.message, resent: true });
+		if (!res.ok) return fail(res.status, { email, message: res.message, resent: false });
 		redirect(303, '/');
 	}
 };

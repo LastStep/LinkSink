@@ -25,6 +25,9 @@
 		</label>
 		<button type="submit">Log in</button>
 	</form>
+	{#if form?.resent}<p class="note" role="status">
+			This email is not confirmed yet. We sent a new link to {form.email}. Open it, then log in.
+		</p>{/if}
 	{#if form?.message}<p class="error" role="alert">{form.message}</p>{/if}
 	<p class="note">No account yet? <a href={resolve('/signup')}>Sign up</a></p>
 </AuthCard>
