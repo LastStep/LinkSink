@@ -13,7 +13,10 @@
 	import { store, StoreError, type BulkInput, type LinkChanges } from '#lib/store/index.ts';
 	import Icon from './Icon.svelte';
 
-	let { ids, onclose }: { ids: string[]; onclose: () => void } = $props();
+	// `kind` narrows the organiser to one thing: "Add tag" opens the tags, "Add to project" the projects (and a new name
+	// makes a project). Without it, everything shows, and a new name makes a tag.
+	let { ids, kind, onclose }: { ids: string[]; kind?: 'tag' | 'project'; onclose: () => void } =
+		$props();
 
 	const links = $derived($store.links.filter((l) => ids.includes(l.id)));
 	const single = $derived(ids.length === 1 ? (links[0] ?? null) : null);
@@ -24,11 +27,30 @@
 	let input = $state<HTMLInputElement | null>(null);
 
 	const needle = $derived(q.trim().toLowerCase().replace(/\s+/g, ' '));
-	const tags = $derived(needle ? $store.tags.filter((t) => t.name.includes(needle)) : $store.tags);
-	const projects = $derived(
-		needle ? $store.projects.filter((p) => p.name.toLowerCase().includes(needle)) : $store.projects
+	const tags = $derived(
+		kind === 'project'
+			? []
+			: needle
+				? $store.tags.filter((t) => t.name.includes(needle))
+				: $store.tags
 	);
-	const canCreate = $derived(needle.length > 0 && !$store.tags.some((t) => t.name === needle));
+	const projects = $derived(
+		kind === 'tag'
+			? []
+			: needle
+				? $store.projects.filter((p) => p.name.toLowerCase().includes(needle))
+				: $store.projects
+	);
+	const creates = $derived(kind === 'project' ? 'project' : 'tag');
+	const canCreate = $derived(
+		needle.length > 0 &&
+			(creates === 'project'
+				? !$store.projects.some((p) => p.name.toLowerCase() === needle)
+				: !$store.tags.some((t) => t.name === needle))
+	);
+	const findLabel = $derived(
+		kind === 'project' ? 'Find or create a project' : 'Find or create a tag'
+	);
 
 	type Option =
 		| { kind: 'create'; name: string }
@@ -84,9 +106,12 @@
 	async function choose(option: Option) {
 		if (option.kind === 'create') {
 			await run(async () => {
-				const tag = await store.createTag(option.name);
+				const made =
+					creates === 'project'
+						? await store.createProject({ name: option.name })
+						: await store.createTag(option.name);
 				q = '';
-				await toggle('tag', tag.id);
+				await toggle(creates, made.id);
 			});
 		} else await toggle(option.kind, option.id);
 		input?.focus();
@@ -189,8 +214,8 @@
 				aria-expanded="true"
 				aria-controls="pk-options"
 				aria-activedescendant={options.length ? `pk-opt-${active}` : undefined}
-				aria-label="Find or create a tag"
-				placeholder="Find or create a tag"
+				aria-label={findLabel}
+				placeholder={findLabel}
 				autocomplete="off"
 			/>
 		</label>
@@ -199,15 +224,15 @@
 			class="options"
 			role="listbox"
 			aria-multiselectable="true"
-			aria-label="Tags and projects"
+			aria-label={kind === 'tag' ? 'Tags' : kind === 'project' ? 'Projects' : 'Tags and projects'}
 		>
 			{#each options as option, i (option.kind + ('id' in option ? option.id : option.name))}
 				{#if option.kind === 'project' && (i === 0 || options[i - 1].kind !== 'project')}
 					<p class="group" role="presentation">Projects</p>
 				{:else if option.kind === 'create' && i > 0}
-					<p class="group" role="presentation">New tag</p>
+					<p class="group" role="presentation">New {creates}</p>
 				{:else if option.kind !== 'project' && i === 0}
-					<p class="group" role="presentation">Tags</p>
+					<p class="group" role="presentation">{kind === 'project' ? 'Projects' : 'Tags'}</p>
 				{/if}
 				{@const s = option.kind === 'create' ? 'none' : coverage(option.kind, option.id)}
 				<div
@@ -227,7 +252,7 @@
 				>
 					{#if option.kind === 'create'}
 						<Icon name="plus" />
-						<span>Create tag “{option.name}”</span>
+						<span>Create {creates} “{option.name}”</span>
 					{:else}
 						<span class="box" aria-hidden="true">
 							{#if s === 'all'}<Icon name="check" size={12} />{:else if s === 'some'}<span
@@ -241,76 +266,84 @@
 					{/if}
 				</div>
 			{:else}
-				<p class="none muted">No tags or projects yet. Type a name to make a tag.</p>
+				<p class="none muted">
+					{kind === 'project'
+						? 'No projects yet. Type a name to make one.'
+						: kind === 'tag'
+							? 'No tags yet. Type a name to make one.'
+							: 'No tags or projects yet. Type a name to make a tag.'}
+				</p>
 			{/each}
 		</div>
 
-		<div class="values">
-			<p class="group">Status</p>
-			<div class="seg" role="radiogroup" aria-label="Status">
-				<button
-					type="button"
-					role="radio"
-					aria-checked={statusValue === null}
-					onclick={() => change({ status: null }, { status: null })}>None</button
-				>
-				{#each STATUSES as status (status)}
+		{#if !kind}
+			<div class="values">
+				<p class="group">Status</p>
+				<div class="seg" role="radiogroup" aria-label="Status">
 					<button
 						type="button"
 						role="radio"
-						aria-checked={statusValue === status}
-						onclick={() => change({ status }, { status })}>{STATUS_LABEL[status]}</button
+						aria-checked={statusValue === null}
+						onclick={() => change({ status: null }, { status: null })}>None</button
 					>
-				{/each}
-			</div>
-			<p class="group">Priority</p>
-			<div class="seg" role="radiogroup" aria-label="Priority">
-				<button
-					type="button"
-					role="radio"
-					aria-checked={priorityValue === null}
-					onclick={() => change({ priority: null }, { priority: null })}>None</button
-				>
-				{#each PRIORITIES as priority (priority)}
-					<button
-						type="button"
-						role="radio"
-						aria-checked={priorityValue === priority}
-						onclick={() => change({ priority }, { priority })}>{PRIORITY_LABEL[priority]}</button
-					>
-				{/each}
-			</div>
-			{#if single}
-				<div class="two">
-					<label>
-						<span class="group">Source</span>
-						<select
-							class="field-input select"
-							value={single.sourceId ?? ''}
-							onchange={(e) => change({ sourceId: e.currentTarget.value || null }, {})}
+					{#each STATUSES as status (status)}
+						<button
+							type="button"
+							role="radio"
+							aria-checked={statusValue === status}
+							onclick={() => change({ status }, { status })}>{STATUS_LABEL[status]}</button
 						>
-							<option value="" disabled>None yet</option>
-							{#each $store.sources as source (source.id)}
-								<option value={source.id}>{source.name}</option>
-							{/each}
-						</select>
-					</label>
-					<label>
-						<span class="group">Media</span>
-						<select
-							class="field-input select"
-							value={single.media ?? ''}
-							onchange={(e) => change({ media: e.currentTarget.value }, {})}
-						>
-							<option value="" disabled>Not known yet</option>
-							{#each MEDIA as media (media)}
-								<option value={media}>{MEDIA_LABEL[media]}</option>
-							{/each}
-						</select>
-					</label>
+					{/each}
 				</div>
-			{/if}
-		</div>
+				<p class="group">Priority</p>
+				<div class="seg" role="radiogroup" aria-label="Priority">
+					<button
+						type="button"
+						role="radio"
+						aria-checked={priorityValue === null}
+						onclick={() => change({ priority: null }, { priority: null })}>None</button
+					>
+					{#each PRIORITIES as priority (priority)}
+						<button
+							type="button"
+							role="radio"
+							aria-checked={priorityValue === priority}
+							onclick={() => change({ priority }, { priority })}>{PRIORITY_LABEL[priority]}</button
+						>
+					{/each}
+				</div>
+				{#if single}
+					<div class="two">
+						<label>
+							<span class="group">Source</span>
+							<select
+								class="field-input select"
+								value={single.sourceId ?? ''}
+								onchange={(e) => change({ sourceId: e.currentTarget.value || null }, {})}
+							>
+								<option value="" disabled>None yet</option>
+								{#each $store.sources as source (source.id)}
+									<option value={source.id}>{source.name}</option>
+								{/each}
+							</select>
+						</label>
+						<label>
+							<span class="group">Media</span>
+							<select
+								class="field-input select"
+								value={single.media ?? ''}
+								onchange={(e) => change({ media: e.currentTarget.value }, {})}
+							>
+								<option value="" disabled>Not known yet</option>
+								{#each MEDIA as media (media)}
+									<option value={media}>{MEDIA_LABEL[media]}</option>
+								{/each}
+							</select>
+						</label>
+					</div>
+				{/if}
+			</div>
+		{/if}
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
 	</div>
 	<div class="foot">

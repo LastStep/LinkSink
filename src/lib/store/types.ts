@@ -76,6 +76,25 @@ export type View =
 	| { kind: 'project'; id: string }
 	| { kind: 'tag'; id: string };
 
+/**
+ * Whether a link belongs in a view, on what the store can see: Archive holds archived links; the rest hold unarchived
+ * ones, narrowed to one tag, one project, or (Unsorted) links with neither. A deleted link belongs nowhere.
+ */
+export function belongsToView(view: View, link: LinkJson): boolean {
+	if (link.deletedAt !== null) return false;
+	if ((view.kind === 'archive') !== (link.archivedAt !== null)) return false;
+	switch (view.kind) {
+		case 'unsorted':
+			return link.tagIds.length === 0 && link.projectIds.length === 0;
+		case 'tag':
+			return link.tagIds.includes(view.id);
+		case 'project':
+			return link.projectIds.includes(view.id);
+		default:
+			return true;
+	}
+}
+
 /** A link in the store. `pending` is true while it is an optimistic row the server has not confirmed yet. */
 export type StoreLink = LinkJson & { pending: boolean };
 
@@ -149,6 +168,11 @@ export interface LinkStore {
 	list(q?: string | null, view?: View): Promise<LinkJson[]>;
 	/** Loads the tags, projects, sources and counts. */
 	refresh(): Promise<void>;
+	/**
+	 * Links the screen has open (details, organiser) stay in the store even when a change takes them out of the view,
+	 * so the open panel keeps working. Replaces the earlier set; links no longer held and out of the view go.
+	 */
+	hold(ids: string[]): void;
 	/** One change to many links in one write; the links leave a view they no longer belong in. */
 	bulk(change: BulkInput): Promise<LinkJson[]>;
 	/** Records that the person opened a link. */

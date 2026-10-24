@@ -12,6 +12,7 @@ import {
 	type ViewCounts,
 	type LinkJson,
 	type LinkStore,
+	belongsToView,
 	type NewLinkInput,
 	type PutResult,
 	type StoreLink,
@@ -56,13 +57,6 @@ function optimistic(id: string, input: NewLinkInput): StoreLink {
 		projectIds: [],
 		pending: true
 	};
-}
-
-/** Whether a link belongs in a view, on what the store can see: Archive holds archived links, the rest the others. */
-function belongs(view: View, link: LinkJson) {
-	if (link.deletedAt !== null) return false;
-	if ((view.kind === 'archive') !== (link.archivedAt !== null)) return false;
-	return true;
 }
 
 /** Query string for a view. */
@@ -112,12 +106,14 @@ export function createApiStore(
 		emit({ links, loading });
 	}
 	const confirmed = (link: LinkJson): StoreLink => ({ ...link, pending: false });
+	const held = new Set<string>();
+	/** A held link stays while it is open, even out of the view; a deleted one never does. */
+	const belongs = (link: LinkJson) =>
+		link.deletedAt === null && (held.has(link.id) || belongsToView(state.view, link));
 	const without = (id: string) => state.links.filter((l) => l.id !== id);
 	/** The list with `link` put in (or taken out, when it no longer belongs in the view). */
 	const withLink = (link: LinkJson) =>
-		belongs(state.view, link)
-			? [...without(link.id), confirmed(link)].sort(newestFirst)
-			: without(link.id);
+		belongs(link) ? [...without(link.id), confirmed(link)].sort(newestFirst) : without(link.id);
 
 	async function request<T>(
 		path: string,
@@ -267,6 +263,13 @@ export function createApiStore(
 
 		refresh,
 
+		hold(ids) {
+			held.clear();
+			for (const id of ids) held.add(id);
+			const kept = state.links.filter((l) => l.pending || belongs(l));
+			if (kept.length !== state.links.length) set(kept);
+		},
+
 		async bulk(input: BulkInput) {
 			const { body } = await request<{ ids: string[]; links: LinkJson[] }>(
 				'/api/links/bulk',
@@ -276,7 +279,7 @@ export function createApiStore(
 			if (input.deleted) next = next.filter((l) => !input.ids.includes(l.id));
 			for (const link of body.links) {
 				next = next.filter((l) => l.id !== link.id);
-				if (belongs(state.view, link)) next = [...next, confirmed(link)];
+				if (belongs(link)) next = [...next, confirmed(link)];
 			}
 			set(next.sort(newestFirst));
 			scheduleRefresh();
