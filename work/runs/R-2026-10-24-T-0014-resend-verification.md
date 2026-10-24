@@ -42,7 +42,8 @@ An unconfirmed account that logs in with the right password now gets a fresh con
 
 Two first climbs failed: a type error (`resent` missing on one return) and the resend link from the API flood having no
 callbackURL; fixed by passing `callbackURL: '/login?verified=1'` from the form. One climb failed with connection
-refused because I started two climbs back to back by mistake; the rerun was green.
+refused (ECONNREFUSED on 4173): the orchestrator says another agent's pkill of the e2e server may have killed it; it was
+not my code, and the rerun was green. (I had also started two climbs back to back by mistake.)
 
 ## Processes left running
 
