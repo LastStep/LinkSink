@@ -1,5 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+	index,
+	integer,
+	primaryKey,
+	sqliteTable,
+	text,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
 import { user } from './auth.schema.ts';
 
 export * from './auth.schema.ts';
@@ -84,6 +91,96 @@ export const links = sqliteTable(
 		index('links_user_archived').on(t.userId, t.archivedAt),
 		index('links_user_source').on(t.userId, t.sourceId),
 		index('links_user_version').on(t.userId, t.version)
+	]
+);
+
+/** A free word the person files links under. `name` is stored lower-case and trimmed. */
+export const tags = sqliteTable(
+	'tags',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		color: text('color'),
+		createdAt: integer('created_at').notNull(),
+		...syncColumns
+	},
+	(t) => [
+		uniqueIndex('tags_user_name_live')
+			.on(t.userId, t.name)
+			.where(sql`${t.deletedAt} IS NULL`),
+		index('tags_user_version').on(t.userId, t.version)
+	]
+);
+
+/** A collection the person makes and names; `position` orders them in the sidebar. */
+export const projects = sqliteTable(
+	'projects',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		color: text('color').notNull(),
+		description: text('description'),
+		position: integer('position').notNull(),
+		createdAt: integer('created_at').notNull(),
+		...syncColumns
+	},
+	(t) => [
+		uniqueIndex('projects_user_name_live')
+			.on(t.userId, t.name)
+			.where(sql`${t.deletedAt} IS NULL`),
+		index('projects_user_version').on(t.userId, t.version)
+	]
+);
+
+/** A tag on a link. Removing it soft-deletes the row; adding it again clears `deleted_at`. */
+export const linkTags = sqliteTable(
+	'link_tags',
+	{
+		linkId: text('link_id')
+			.notNull()
+			.references(() => links.id),
+		tagId: text('tag_id')
+			.notNull()
+			.references(() => tags.id),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: integer('created_at').notNull(),
+		...syncColumns
+	},
+	(t) => [
+		primaryKey({ columns: [t.linkId, t.tagId] }),
+		index('link_tags_tag').on(t.tagId),
+		index('link_tags_user_version').on(t.userId, t.version)
+	]
+);
+
+/** A link in a project; as `link_tags`. */
+export const linkProjects = sqliteTable(
+	'link_projects',
+	{
+		linkId: text('link_id')
+			.notNull()
+			.references(() => links.id),
+		projectId: text('project_id')
+			.notNull()
+			.references(() => projects.id),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: integer('created_at').notNull(),
+		...syncColumns
+	},
+	(t) => [
+		primaryKey({ columns: [t.linkId, t.projectId] }),
+		index('link_projects_project').on(t.projectId),
+		index('link_projects_user_version').on(t.userId, t.version)
 	]
 );
 

@@ -1,10 +1,11 @@
 import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { MEDIA, PRIORITIES, STATUSES, type SavedVia, type UserSetField } from '../fields.ts';
-import type { LinkJson } from '../store/types.ts';
+import type { LinkJson, View } from '../store/types.ts';
 import { ULID_PATTERN } from '../ulid.ts';
 import { cleanUrl, displayHost, normalise } from '../url.ts';
 import type { DB } from './db/open.ts';
-import { links, sources } from './db/schema.ts';
+import { linkProjects, links, linkTags, sources } from './db/schema.ts';
+import { organisingOf, setOrganising, unsortedSql } from './organise.ts';
 import type { SyncWrite } from './sync/write.ts';
 import { ulid } from './ulid.ts';
 
@@ -24,9 +25,51 @@ export function toFtsQuery(input: string): string | null {
 	return words.map((w) => `"${w.replaceAll('"', '""')}"*`).join(' ');
 }
 
-/** The user's live links, newest first; with `q`, only those matching it in the full-text index, best first. */
-export function listLinks(db: DB, userId: string, q?: string | null, limit = 200): Link[] {
-	const live = and(eq(links.userId, userId), isNull(links.deletedAt));
+/** The SQL condition for the links a view shows (archived links only in Archive). */
+function viewSql(view: View) {
+	switch (view.kind) {
+		case 'archive':
+			return isNotNull(links.archivedAt);
+		case 'unsorted':
+			return and(isNull(links.archivedAt), unsortedSql);
+		case 'project':
+			return and(
+				isNull(links.archivedAt),
+				sql`EXISTS (SELECT 1 FROM ${linkProjects} lp WHERE lp.link_id = "links"."id" AND lp.project_id = ${view.id} AND lp.deleted_at IS NULL)`
+			);
+		case 'tag':
+			return and(
+				isNull(links.archivedAt),
+				sql`EXISTS (SELECT 1 FROM ${linkTags} lt WHERE lt.link_id = "links"."id" AND lt.tag_id = ${view.id} AND lt.deleted_at IS NULL)`
+			);
+		default:
+			return isNull(links.archivedAt);
+	}
+}
+
+/** Reads a view from a list request's query: `view=unsorted|archive`, `project=<id>` or `tag=<id>`. */
+export function parseView(params: URLSearchParams): View {
+	const project = params.get('project');
+	if (project) return { kind: 'project', id: project };
+	const tag = params.get('tag');
+	if (tag) return { kind: 'tag', id: tag };
+	const view = params.get('view');
+	if (view === 'unsorted' || view === 'archive') return { kind: view };
+	return { kind: 'all' };
+}
+
+/**
+ * The user's live links in a view (every unarchived link by default), newest first; with `q`, only those matching
+ * it in the full-text index.
+ */
+export function listLinks(
+	db: DB,
+	userId: string,
+	q?: string | null,
+	limit = 200,
+	view: View = { kind: 'all' }
+): Link[] {
+	const live = and(eq(links.userId, userId), isNull(links.deletedAt), viewSql(view));
 	const match = q ? toFtsQuery(q) : null;
 	if (!match) {
 		return db
@@ -179,6 +222,10 @@ export interface LinkPatch {
 	status?: string | null;
 	priority?: number | null;
 	archived?: boolean;
+	/** The whole set of the link's tags, by id. */
+	tagIds?: string[];
+	/** The whole set of the link's projects, by id. */
+	projectIds?: string[];
 }
 
 /** A request the person (or a client) got wrong; its message is safe to send back. */
@@ -236,6 +283,17 @@ export function parsePatch(body: unknown): LinkPatch {
 				if (typeof value !== 'boolean') throw new BadPatchError('archived must be true or false.');
 				patch.archived = value;
 				break;
+			case 'tagIds':
+			case 'projectIds':
+				if (
+					!Array.isArray(value) ||
+					value.length > 200 ||
+					value.some((v) => typeof v !== 'string' || v.length > 64)
+				) {
+					throw new BadPatchError(`${field} must be a list of ids.`);
+				}
+				patch[field] = [...new Set(value as string[])];
+				break;
 			default:
 				throw new BadPatchError(`${field} cannot be changed.`);
 		}
@@ -279,22 +337,27 @@ export function patchLink(
 
 	const set: Partial<typeof links.$inferInsert> = {};
 	const userSet = new Set<string>(JSON.parse(link.userSet) as string[]);
-	for (const [field, value] of Object.entries(patch) as [keyof LinkPatch, unknown][]) {
+	const { tagIds, projectIds, ...fields } = patch;
+	for (const [field, value] of Object.entries(fields) as [keyof LinkPatch, unknown][]) {
 		if (field === 'archived') {
 			if ((link.archivedAt !== null) !== value) set.archivedAt = value ? Date.now() : null;
 			continue;
 		}
-		if (link[field] === value) continue;
+		if (link[field as keyof Link] === value) continue;
 		(set as Record<string, unknown>)[field] = value;
 		const mark = USER_SET[field];
 		if (mark) userSet.add(mark);
 	}
-	if (Object.keys(set).length === 0) return link;
-	set.userSet = JSON.stringify([...userSet]);
+	const joins = tagIds !== undefined || projectIds !== undefined;
+	if (Object.keys(set).length === 0 && !joins) return link;
+	if (Object.keys(set).length) set.userSet = JSON.stringify([...userSet]);
 
 	syncWrite(userId, (w) => {
 		if (set.archivedAt) set.archivedAt = w.now;
-		w.update(links, and(eq(links.id, id), isNull(links.deletedAt))!, set);
+		if (Object.keys(set).length) {
+			w.update(links, and(eq(links.id, id), isNull(links.deletedAt))!, set);
+		}
+		if (joins) setOrganising(w, id, { tagIds, projectIds });
 	});
 	return getLink(db, userId, id);
 }
@@ -324,9 +387,25 @@ export function restoreLink(db: DB, syncWrite: SyncWrite, userId: string, id: st
 	return getLink(db, userId, id);
 }
 
-/** The link as the API sends it: every column but the owner. */
-export function linkJson(link: Link): LinkJson {
-	const { userId, userSet, ...rest } = link;
-	void userId;
-	return { ...rest, userSet: JSON.parse(userSet) as LinkJson['userSet'] };
+/** The links as the API sends them: every column but the owner, with their tag and project ids. */
+export function linksJson(db: DB, userId: string, rows: Link[]): LinkJson[] {
+	const org = organisingOf(
+		db,
+		userId,
+		rows.map((l) => l.id)
+	);
+	return rows.map((link) => {
+		const { userId: owner, userSet, ...rest } = link;
+		void owner;
+		return {
+			...rest,
+			userSet: JSON.parse(userSet) as LinkJson['userSet'],
+			...(org.get(link.id) ?? { tagIds: [], projectIds: [] })
+		};
+	});
+}
+
+/** One link as the API sends it. */
+export function linkJson(db: DB, link: Link): LinkJson {
+	return linksJson(db, link.userId, [link])[0];
 }

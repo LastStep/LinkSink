@@ -9,13 +9,34 @@ import {
 	getLink,
 	InvalidLinkError,
 	linkJson,
+	linksJson,
 	listLinks,
 	parsePatch,
+	parseView,
 	patchLink,
 	restoreLink,
 	RestoreConflictError,
 	saveLink
 } from '../links.ts';
+import {
+	bulkChange,
+	ConflictError,
+	createProject,
+	createTag,
+	deleteProject,
+	deleteTag,
+	listProjects,
+	listSources,
+	listTags,
+	markOpened,
+	mergeTags,
+	parseBulk,
+	renameSource,
+	reorderProjects,
+	updateProject,
+	updateTag,
+	viewCounts
+} from '../organise.ts';
 import type { SyncWrite } from '../sync/write.ts';
 
 /** Who is calling: the signed-in user's id, or null. */
@@ -40,6 +61,13 @@ async function readJson(request: Request): Promise<unknown> {
 }
 class UnsupportedBody extends Error {}
 
+function objectBody(body: unknown): Record<string, unknown> {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) {
+		throw new BadPatchError('Send a JSON object.');
+	}
+	return body as Record<string, unknown>;
+}
+
 function guard(fn: () => Promise<Response> | Response): Promise<Response> {
 	return Promise.resolve()
 		.then(fn)
@@ -48,7 +76,9 @@ function guard(fn: () => Promise<Response> | Response): Promise<Response> {
 			if (error instanceof BadPatchError || error instanceof InvalidLinkError) {
 				return problem(400, error.message);
 			}
-			if (error instanceof RestoreConflictError) return problem(409, error.message);
+			if (error instanceof RestoreConflictError || error instanceof ConflictError) {
+				return problem(409, error.message);
+			}
 			console.error('[api/links] failed', error);
 			return problem(500, 'Something went wrong. Try again.');
 		});
@@ -67,12 +97,19 @@ export function createLinksApi({
 	const signedIn = (caller: Caller) => (caller ? null : problem(401, 'Sign in first.'));
 
 	return {
-		/** GET /api/links?q= : the live links, newest first (search with q). */
+		/**
+		 * GET /api/links?q=&view=unsorted|archive&project=<id>&tag=<id> : the live links in a view (every unarchived
+		 * link by default), newest first (search with q), with each view's count.
+		 */
 		list(caller: Caller, url: URL) {
 			return guard(() => {
 				if (!caller) return signedIn(caller)!;
 				const q = url.searchParams.get('q')?.trim() || null;
-				return json({ links: listLinks(db, caller.id, q).map(linkJson) });
+				const view = parseView(url.searchParams);
+				return json({
+					links: linksJson(db, caller.id, listLinks(db, caller.id, q, 200, view)),
+					counts: viewCounts(db, caller.id)
+				});
 			});
 		},
 
@@ -97,7 +134,7 @@ export function createLinksApi({
 					via
 				});
 				if (!duplicate) onCreated(link.id);
-				return json({ link: linkJson(link), duplicate }, duplicate ? 200 : 201);
+				return json({ link: linkJson(db, link), duplicate }, duplicate ? 200 : 201);
 			});
 		},
 
@@ -107,7 +144,7 @@ export function createLinksApi({
 				if (!caller) return signedIn(caller)!;
 				const link = getLink(db, caller.id, id);
 				if (!link || link.deletedAt !== null) return problem(404, 'No such link.');
-				return json({ link: linkJson(link) });
+				return json({ link: linkJson(db, link) });
 			});
 		},
 
@@ -118,7 +155,7 @@ export function createLinksApi({
 				const patch = parsePatch(await readJson(request));
 				const link = patchLink(db, syncWrite, caller.id, id, patch);
 				if (!link) return problem(404, 'No such link.');
-				return json({ link: linkJson(link) });
+				return json({ link: linkJson(db, link) });
 			});
 		},
 
@@ -137,7 +174,149 @@ export function createLinksApi({
 				if (!caller) return signedIn(caller)!;
 				const link = restoreLink(db, syncWrite, caller.id, id);
 				if (!link) return problem(404, 'No such link.');
-				return json({ link: linkJson(link) });
+				return json({ link: linkJson(db, link) });
+			});
+		},
+
+		/** POST /api/links/:id/opened : records that the person opened the link now. */
+		opened(caller: Caller, id: string) {
+			return guard(() => {
+				if (!caller) return signedIn(caller)!;
+				const at = markOpened(db, syncWrite, caller.id, id);
+				if (at === null) return problem(404, 'No such link.');
+				return json({ openedAt: at });
+			});
+		},
+
+		/**
+		 * POST /api/links/bulk {ids, addTagIds?, removeTagIds?, addProjectIds?, removeProjectIds?, status?,
+		 * priority?, archived?, deleted?} : one change to many links in one write; answers with the changed links.
+		 */
+		bulk(caller: Caller, request: Request) {
+			return guard(async () => {
+				if (!caller) return signedIn(caller)!;
+				const change = parseBulk(await readJson(request));
+				const ids = bulkChange(db, syncWrite, caller.id, change);
+				const rows = ids
+					.map((id) => getLink(db, caller.id, id))
+					.filter((l): l is NonNullable<typeof l> => l !== null);
+				return json({ ids, links: linksJson(db, caller.id, rows) });
+			});
+		},
+
+		/** GET /api/organise : the tags, projects and sources, and each view's count. */
+		organise(caller: Caller) {
+			return guard(() => {
+				if (!caller) return signedIn(caller)!;
+				return json({
+					tags: listTags(db, caller.id),
+					projects: listProjects(db, caller.id),
+					sources: listSources(db, caller.id),
+					counts: viewCounts(db, caller.id)
+				});
+			});
+		},
+
+		/** POST /api/tags {name, id?, color?} : 201 with a new tag, or 200 with the live tag of that name. */
+		createTag(caller: Caller, request: Request) {
+			return guard(async () => {
+				if (!caller) return signedIn(caller)!;
+				const body = (await readJson(request)) as Record<string, unknown>;
+				const { tag, existing } = createTag(db, syncWrite, caller.id, body ?? {});
+				return json({ tag, existing }, existing ? 200 : 201);
+			});
+		},
+
+		/** PATCH /api/tags/:id {name?, color?} ; 409 when the name is another tag's. */
+		updateTag(caller: Caller, id: string, request: Request) {
+			return guard(async () => {
+				if (!caller) return signedIn(caller)!;
+				const tag = updateTag(db, syncWrite, caller.id, id, objectBody(await readJson(request)));
+				return tag ? json({ tag }) : problem(404, 'No such tag.');
+			});
+		},
+
+		/** DELETE /api/tags/:id : the tag leaves every link; the links stay. */
+		deleteTag(caller: Caller, id: string) {
+			return guard(() => {
+				if (!caller) return signedIn(caller)!;
+				return deleteTag(syncWrite, caller.id, id)
+					? json({ deleted: id })
+					: problem(404, 'No such tag.');
+			});
+		},
+
+		/** POST /api/tags/:id/merge {into} : the tag's links get `into`, and the tag goes. */
+		mergeTag(caller: Caller, id: string, request: Request) {
+			return guard(async () => {
+				if (!caller) return signedIn(caller)!;
+				const body = objectBody(await readJson(request));
+				if (typeof body.into !== 'string') throw new BadPatchError('Send {"into": "<tag id>"}.');
+				const tag = mergeTags(db, syncWrite, caller.id, id, body.into);
+				return tag ? json({ tag }) : problem(404, 'No such tag.');
+			});
+		},
+
+		/** POST /api/projects {name, color?, description?, id?} */
+		createProject(caller: Caller, request: Request) {
+			return guard(async () => {
+				if (!caller) return signedIn(caller)!;
+				const project = createProject(
+					db,
+					syncWrite,
+					caller.id,
+					objectBody(await readJson(request))
+				);
+				return json({ project }, 201);
+			});
+		},
+
+		/** PATCH /api/projects/:id {name?, color?, description?} */
+		updateProject(caller: Caller, id: string, request: Request) {
+			return guard(async () => {
+				if (!caller) return signedIn(caller)!;
+				const project = updateProject(
+					db,
+					syncWrite,
+					caller.id,
+					id,
+					objectBody(await readJson(request))
+				);
+				return project ? json({ project }) : problem(404, 'No such project.');
+			});
+		},
+
+		/** DELETE /api/projects/:id : the project leaves its links; the links stay. */
+		deleteProject(caller: Caller, id: string) {
+			return guard(() => {
+				if (!caller) return signedIn(caller)!;
+				return deleteProject(syncWrite, caller.id, id)
+					? json({ deleted: id })
+					: problem(404, 'No such project.');
+			});
+		},
+
+		/** PUT /api/projects/order {ids} : every project's id once, in the new order. */
+		reorderProjects(caller: Caller, request: Request) {
+			return guard(async () => {
+				if (!caller) return signedIn(caller)!;
+				const body = objectBody(await readJson(request));
+				return json({ projects: reorderProjects(db, syncWrite, caller.id, body) });
+			});
+		},
+
+		/** PATCH /api/sources/:id {name} : later links from its hosts take the new name. */
+		renameSource(caller: Caller, id: string, request: Request) {
+			return guard(async () => {
+				if (!caller) return signedIn(caller)!;
+				const source = renameSource(
+					db,
+					syncWrite,
+					caller.id,
+					id,
+					objectBody(await readJson(request))
+				);
+				return source ? json({ source }) : problem(404, 'No such source.');
 			});
 		}
 	};

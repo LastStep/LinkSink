@@ -26,3 +26,37 @@ export type SavedVia = (typeof SAVED_VIA)[number];
 /** The fields a hand edit protects from the metadata fetcher (the link's `user_set`). */
 export const USER_SET_FIELDS = ['title', 'description', 'source', 'media'] as const;
 export type UserSetField = (typeof USER_SET_FIELDS)[number];
+
+/**
+ * The colours a project or a tag may take: muted dots, the only colour the chrome carries (ADR-0003). Each name is
+ * a token in design/tokens.css (`--dot-<name>`), so light and dark each get their own shade.
+ */
+export const COLORS = [
+	'green',
+	'teal',
+	'blue',
+	'violet',
+	'rose',
+	'orange',
+	'amber',
+	'grey'
+] as const;
+export type Color = (typeof COLORS)[number];
+
+/** Words for the fixed values, as the screens show them. */
+export const STATUS_LABEL: Record<Status, string> = {
+	to_read: 'To read',
+	in_progress: 'In progress',
+	done: 'Done'
+};
+export const PRIORITY_LABEL: Record<Priority, string> = { 1: 'Low', 2: 'Medium', 3: 'High' };
+export const MEDIA_LABEL: Record<Media, string> = {
+	video: 'Video',
+	article: 'Article',
+	post: 'Post',
+	repo: 'Repo',
+	podcast: 'Podcast',
+	image: 'Image',
+	pdf: 'PDF',
+	page: 'Page'
+};
