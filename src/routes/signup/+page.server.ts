@@ -17,9 +17,12 @@ export const actions: Actions = {
 		const password = String(form.get('password') ?? '');
 		const name = String(form.get('name') ?? '').trim() || email;
 		try {
-			await auth.api.signUpEmail({ body: { email, password, name, callbackURL: '/login?verified=1' } });
+			await auth.api.signUpEmail({
+				body: { email, password, name, callbackURL: '/login?verified=1' }
+			});
 		} catch (error) {
-			if (error instanceof APIError) return fail(error.statusCode, { email, message: error.message });
+			if (error instanceof APIError)
+				return fail(error.statusCode, { email, message: error.message });
 			throw error;
 		}
 		return { sent: true, email };

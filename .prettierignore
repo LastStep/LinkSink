@@ -8,3 +8,18 @@ bun.lockb
 # Miscellaneous
 /static/
 /drizzle/
+
+# Reference and generated files kept as they are
+/design/reference/
+/work/
+/data/
+/build/
+/test-results/
+/playwright-report/
+src/lib/server/db/auth.schema.ts
+
+# Bonsai's and the person's files: never reformatted by this project's tools
+/.bonsai/
+/.claude/
+/CLAUDE.md
+/bonsai.yaml

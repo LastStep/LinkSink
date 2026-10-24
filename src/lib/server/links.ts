@@ -25,7 +25,13 @@ export function listLinks(db: DB, userId: string, q?: string | null, limit = 200
 	const live = and(eq(links.userId, userId), isNull(links.deletedAt));
 	const match = q ? toFtsQuery(q) : null;
 	if (!match) {
-		return db.select().from(links).where(live).orderBy(desc(links.createdAt), desc(links.id)).limit(limit).all();
+		return db
+			.select()
+			.from(links)
+			.where(live)
+			.orderBy(desc(links.createdAt), desc(links.id))
+			.limit(limit)
+			.all();
 	}
 	return db
 		.select()
@@ -50,7 +56,8 @@ export function addLink(
 	input: { url: string; title?: string | null }
 ): string {
 	const parsed = new URL(input.url.trim());
-	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('Only http and https links');
+	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+		throw new Error('Only http and https links');
 	const id = ulid();
 	syncWrite(userId, (w) => {
 		w.insert(links, {

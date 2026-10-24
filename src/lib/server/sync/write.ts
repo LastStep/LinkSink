@@ -49,12 +49,16 @@ export function createSyncWrite(db: DB) {
 				const [meta] = tx
 					.insert(syncMeta)
 					.values({ userId, version: 1 })
-					.onConflictDoUpdate({ target: syncMeta.userId, set: { version: sql`${syncMeta.version} + 1` } })
+					.onConflictDoUpdate({
+						target: syncMeta.userId,
+						set: { version: sql`${syncMeta.version} + 1` }
+					})
 					.returning({ version: syncMeta.version })
 					.all();
 				const version = meta.version;
 				const now = Date.now();
-				const mine = (table: SyncedTable, where: SQL) => and(where, sql`${table.userId} = ${userId}`);
+				const mine = (table: SyncedTable, where: SQL) =>
+					and(where, sql`${table.userId} = ${userId}`);
 
 				const writer: SyncWriter = {
 					tx,
@@ -65,7 +69,9 @@ export function createSyncWrite(db: DB) {
 						const values: Record<string, unknown> = { ...row, userId, version, deletedAt: null };
 						if (hasColumn(table, 'createdAt')) values.createdAt ??= now;
 						if (hasColumn(table, 'updatedAt')) values.updatedAt ??= now;
-						tx.insert(table).values(values as never).run();
+						tx.insert(table)
+							.values(values as never)
+							.run();
 					},
 					update(table, where, patch) {
 						const set: Record<string, unknown> = { ...patch, version };

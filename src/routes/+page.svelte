@@ -10,14 +10,28 @@
 <main class="page">
 	<header class="top">
 		<p class="brand">LinkSink</p>
-		<form method="post" action="?/signOut"><button class="ghost" type="submit">Log out</button></form>
+		<form method="post" action="?/signOut">
+			<button class="ghost" type="submit">Log out</button>
+		</form>
 	</header>
 
 	<h1>Links</h1>
 
 	<form class="add" method="post" action="?/add">
-		<input name="url" type="url" placeholder="Paste a link" aria-label="Link" required value={form?.url ?? ''} />
-		<input name="title" placeholder="Title (optional)" aria-label="Title" value={form?.title ?? ''} />
+		<input
+			name="url"
+			type="url"
+			placeholder="Paste a link"
+			aria-label="Link"
+			required
+			value={form?.url ?? ''}
+		/>
+		<input
+			name="title"
+			placeholder="Title (optional)"
+			aria-label="Title"
+			value={form?.title ?? ''}
+		/>
 		<button type="submit">Save</button>
 	</form>
 	{#if form?.message}<p class="error" role="alert">{form.message}</p>{/if}
@@ -27,12 +41,17 @@
 	</form>
 
 	{#if data.links.length === 0}
-		<p class="empty">{data.q ? `Nothing matches “${data.q}”.` : 'No links yet. Paste one above.'}</p>
+		<p class="empty">
+			{data.q ? `Nothing matches “${data.q}”.` : 'No links yet. Paste one above.'}
+		</p>
 	{:else}
 		<ul class="list" aria-label="Links">
 			{#each data.links as link (link.id)}
 				<li class="row">
-					<a class="t" href={link.url} rel="noopener noreferrer" target="_blank">{link.title || link.url}</a>
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a saved link points off-site -->
+					<a class="t" href={link.url} rel="noopener noreferrer" target="_blank"
+						>{link.title || link.url}</a
+					>
 					<span class="meta">{host(link.url)}</span>
 					<time class="meta num" datetime={new Date(link.createdAt).toISOString()}>
 						{time.format(link.createdAt)}

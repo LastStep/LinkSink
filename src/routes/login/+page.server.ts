@@ -16,7 +16,8 @@ export const actions: Actions = {
 		try {
 			await auth.api.signInEmail({ body: { email, password } });
 		} catch (error) {
-			if (error instanceof APIError) return fail(error.statusCode, { email, message: error.message });
+			if (error instanceof APIError)
+				return fail(error.statusCode, { email, message: error.message });
 			throw error;
 		}
 		redirect(303, '/');
