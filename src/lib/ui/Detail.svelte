@@ -23,7 +23,7 @@
 	}: {
 		link: StoreLink;
 		onclose: () => void;
-		onorganise: () => void;
+		onorganise: (kind?: 'tag' | 'project') => void;
 		onarchive: () => void;
 		ondelete: () => void;
 	} = $props();
@@ -180,7 +180,7 @@
 						>
 					</span>
 				{/each}
-				<button class="chip add" type="button" onclick={onorganise}>
+				<button class="chip add" type="button" onclick={() => onorganise('tag')}>
 					<Icon name="plus" size={12} />Add tag
 				</button>
 			</div>
@@ -199,7 +199,7 @@
 						>
 					</span>
 				{/each}
-				<button class="chip add" type="button" onclick={onorganise}>
+				<button class="chip add" type="button" onclick={() => onorganise('project')}>
 					<Icon name="plus" size={12} />Add to project
 				</button>
 			</div>
@@ -295,7 +295,9 @@
 		</dl>
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
 		<div class="foot">
-			<button class="btn sm" type="button" onclick={onorganise}><Icon name="tag" />Organise</button>
+			<button class="btn sm" type="button" onclick={() => onorganise()}
+				><Icon name="tag" />Organise</button
+			>
 			<button class="btn sm" type="button" onclick={onarchive}>
 				<Icon name="archive" />{link.archivedAt ? 'Restore' : 'Archive'}
 			</button>

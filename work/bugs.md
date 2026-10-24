@@ -11,13 +11,13 @@ The defects someone has seen or proven and nobody has fixed yet. How to add or f
 
 | Id | What goes wrong | Where | Found by |
 |---|---|---|---|
-| **BUG-001** | In a link's details, "Add to project" opens the tag picker instead of the projects one, and a project cannot be created from there | `src/lib/ui/Detail.svelte` (the "Add to project" button, line 203) and `src/lib/ui/Picker.svelte`, at b0354f2 | The person's test notes, 2026-10-24 14:01 UTC |
-| **BUG-002** | On a tag's page (`/tags/<id>`), removing that tag from a link in its details leaves the link in the tag's list until a reload: the list does not follow the store | `src/routes/tags/[id]/+page.server.ts` and `+page.svelte` (list loaded once on the server, not from the store), at b0354f2 | The person's test notes, 2026-10-24 14:01 UTC |
 
 ## Fixed
 
 | Id | What went wrong | Fixed in | Task |
 |---|---|---|---|
+| **BUG-001** | In a link's details, "Add to project" opened the tag picker, and a project could not be made from there | 90334de: the picker opens on tags only or projects only ("Add to project" makes a project from a new name) | T-0015 |
+| **BUG-002** | A list did not follow the store: a link stayed on a tag's page (and on a project's page and Unsorted) after a change took it out | 90334de: every list keeps only the links that fit its view; the open link stays reachable until its panel closes | T-0015 |
 
 ## Known, not bugs
 

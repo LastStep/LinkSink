@@ -6,7 +6,7 @@
 	import { page } from '$app/state';
 	import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '#lib/fields.ts';
 	import { listenForPastes } from '#lib/paste.ts';
-	import { store, StoreError, type StoreLink, type View } from '#lib/store/index.ts';
+	import { belongsToView, store, StoreError, type StoreLink, type View } from '#lib/store/index.ts';
 	import { displayHost } from '#lib/url.ts';
 	import { byDay, plural, timeOf } from './format.ts';
 	import Icon from './Icon.svelte';
@@ -41,12 +41,18 @@
 
 	let openId = $state<string | null>(null);
 	let pickerIds = $state<string[] | null>(null);
+	let pickerKind = $state<'tag' | 'project' | undefined>(undefined);
 	let selecting = $state(false);
 	const selected = new SvelteSet<string>();
 	let anchor = $state<string | null>(null);
 
-	const links = $derived($store.links);
-	const open = $derived(openId ? (links.find((l) => l.id === openId) ?? null) : null);
+	// The rows follow the store: a link whose tags, projects or archive state no longer fit this view leaves the list at
+	// once. The link that is open stays in the store (hold), so its details and organiser keep working.
+	const links = $derived($store.links.filter((l) => l.pending || belongsToView(view, l)));
+	const open = $derived(openId ? ($store.links.find((l) => l.id === openId) ?? null) : null);
+	$effect(() => {
+		store.hold([...(openId ? [openId] : []), ...(pickerIds ?? [])]);
+	});
 	const days = $derived(byDay(links, (l) => l.createdAt));
 	const tagById = $derived(new Map($store.tags.map((t) => [t.id, t])));
 	const projectById = $derived(new Map($store.projects.map((p) => [p.id, p])));
@@ -299,7 +305,8 @@
 		else if (selecting) endSelect();
 	}
 
-	async function organise(ids: string[]) {
+	async function organise(ids: string[], kind?: 'tag' | 'project') {
+		pickerKind = kind;
 		pickerIds = ids;
 	}
 	async function closePicker() {
@@ -526,7 +533,7 @@
 				<Detail
 					link={open}
 					onclose={() => (openId = null)}
-					onorganise={() => organise([open.id])}
+					onorganise={(kind) => organise([open.id], kind)}
 					onarchive={() => archive(open)}
 					ondelete={() => remove(open)}
 				/>
@@ -537,7 +544,7 @@
 
 {#if pickerIds}
 	{#await loadPicker() then { default: Picker }}
-		<Picker ids={pickerIds} onclose={closePicker} />
+		<Picker ids={pickerIds} kind={pickerKind} onclose={closePicker} />
 	{/await}
 {/if}
 
