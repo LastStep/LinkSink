@@ -201,3 +201,5 @@ an artifact for the person to open on phone and desktop).
 - Verifiers: M-2026-10-24-0fe20bcb tests (opus), M-2026-10-24-3efe2314 QA (sonnet). Waiting.
 - Person 10:26: "we should only be serving https". → T-0005: HTTPS only (Caddy redirects http→https, HSTS header, secure cookies, ORIGIN https). Saved-link http vs https duplicate question still open (recommended: same key, address kept as given).
 - Person 10:27: http and https of the same address = one link (url_key ignores scheme; address kept as given). Goes in T-0006's fix round. "Keep building the app."
+- QA M-2026-10-24-8e222395: FAIL, 1 blocking, held (I saw the screenshot): duplicate flash row uses --mark (= --text), title unreadable (black bar light / white dark), +page.svelte:293-297. Non-blocking: bodiless Bearer DELETE w/o JSON content-type → 403 (SvelteKit CSRF). Waiting on tests verifier.
+- Person 10:31: approved T-0008 (starts after T-0006 and T-0007 land).
