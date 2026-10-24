@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { linkIn, sentMail } from './outbox.ts';
@@ -20,6 +21,7 @@ test.afterAll(async () => {
 	} finally {
 		db.close();
 	}
+	rmSync(resolve('data/e2e/outbox.jsonl'), { force: true }); // the next file reads the outbox whole
 	await new Promise((r) => setTimeout(r, 11_000));
 });
 

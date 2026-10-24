@@ -84,7 +84,7 @@ test('a second sign-up is refused once the account exists', async ({ page, reque
 	});
 	expect(res.status()).toBe(403);
 	expect(await res.text()).toContain('Sign-up is closed');
-	expect(sentMail().map((m) => m.to)).toEqual(['person@example.com']);
+	expect(sentMail().map((m) => m.to)).toEqual(Array(2).fill('person@example.com')); // sign-up mail + the log-in resend (T-0014)
 });
 
 test('the login form is rate-limited like the API: wrong passwords soon get "too many tries"', async ({
