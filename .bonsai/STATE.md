@@ -14,8 +14,8 @@ Rewritten whole whenever where the project stands changes; never appended to. A 
 
 The walking skeleton (T-0003) is merged into main at 8d49111. It is a SvelteKit 3.1 app with Better Auth (works on kit
 3, proved end to end), single-user sign-up, argon2id, SQLite WAL + FTS5 with the sync base (`syncWrite`), Ledger
-tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz first load). T-0003 reads `verify`: the
-person closes it (full lane). Builder worktree `../LinkSink-t0003` still exists (branch merged; safe to remove).
+tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz first load). T-0003 is done; the ladder
+(rungs 0–5, floor all six) is in `bonsai.yaml` and climbs green on main. Builder worktree `../LinkSink-t0003` still exists (branch merged; safe to remove).
 
 - One-pager `work/features/F-web-mvp.md` and plan `work/plans/P-T-0002.md` (T-0003 to T-0013): approved.
 - T-0003 run report with verdicts and the ladder lines: `work/runs/R-2026-10-24-T-0003-walking-skeleton.md`.
@@ -24,9 +24,8 @@ person closes it (full lane). Builder worktree `../LinkSink-t0003` still exists 
 
 ## Next
 
-1. The person pastes the ladder lines (run report, "The ladder lines for bonsai.yaml") into `bonsai.yaml` and
-   closes T-0003 (`done`).
-2. Then T-0005 (deploy), T-0006 (links + paste) and T-0007 (metadata fetcher), at most two builders at once; each
+1. T-0006 (paste) and T-0007 (fetcher) are written (todo), waiting for the person's approval; then two builders.
+2. T-0005 (deploy), T-0006 (links + paste) and T-0007 (metadata fetcher), at most two builders at once; each
    task written and approved first (full lane). T-0005 carries: rate-limit client IP behind Caddy (Better Auth
    `advanced.ipAddress`; a direct caller can set x-forwarded-for), FTS5 rowid vs `VACUUM INTO`, building in CI with
    ORIGIN set (`kit.paths.origin` is build-time), drizzle-kit audit findings (moderate, dev only).

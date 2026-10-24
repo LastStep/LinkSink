@@ -341,3 +341,4 @@ known to me; the hours are T-0003's rows in `.bonsai/sessions.md`.
 - Blocking findings that held: 1 of 1.
 - Orchestrator's own proof at 8d49111, from a `git archive` copy with no `.env` and ORIGIN/BETTER_AUTH_SECRET unset: npm ci 0, check 0, lint 0, unit 29 passed, e2e 3 passed, build+size 0 (36.4 / 36.26 / 36.41 kB gz, limit 60 kB). No ladder climb: bonsai.yaml has no rungs yet.
 - Landed: main fast-forwarded to 8d49111. Task to verify; the full lane is closed by the person.
+- 2026-10-24 09:59 UTC: the person committed the ladder (e15441f); `bonsai ladder --task T-0003` green at e15441f, rungs 0–5 (unit 29, ratchet 29 → 29; e2e 3; result `.bonsai/local/ladder/T-0003.json`). Closed `done` on the person's "you can continue". A `npm run dev` the person started was left alone.
