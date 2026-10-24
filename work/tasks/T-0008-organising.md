@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0008
 title: Organising and the Ledger screens — tags, projects, status, priority, archive, bulk edit, Unsorted, source rename
-status: approved
+status: running
 lane: full
 done_when:
   - "tags, projects, link_tags and link_projects exist per the plan's Data model (partial unique indexes among live rows, version and deleted_at), and every write to them goes through syncWrite"
@@ -17,7 +17,7 @@ done_when:
 depends_on: [T-0006, T-0007]
 blocked_by: null
 created: 2026-10-24
-started: null
+started: 2026-10-24
 finished: null
 labels:
   bonsai.branch: t0008-organising
