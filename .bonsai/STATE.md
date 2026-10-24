@@ -24,7 +24,9 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
 
 ## Next
 
-1. T-0006 (paste) and T-0007 (fetcher) are written (todo), waiting for the person's approval; then two builders.
+1. T-0006 (links API, paste, duplicates, undo) landed at 8ce031c and reads `verify` (the person closes it). T-0007
+   (fetcher) is building; once it lands, rebased on T-0006 with `enqueueFetch` wired into POST /api/links, T-0008
+   (organising + Ledger screens, approved) starts. QA now has WebKit (playwright webkit-2287) as well as Chromium.
 2. T-0005 (deploy), T-0006 (links + paste) and T-0007 (metadata fetcher), at most two builders at once; each
    task written and approved first (full lane). T-0005 carries: rate-limit client IP behind Caddy (Better Auth
    `advanced.ipAddress`; a direct caller can set x-forwarded-for), FTS5 rowid vs `VACUUM INTO`, building in CI with

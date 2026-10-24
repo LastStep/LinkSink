@@ -203,3 +203,7 @@ an artifact for the person to open on phone and desktop).
 - Person 10:27: http and https of the same address = one link (url_key ignores scheme; address kept as given). Goes in T-0006's fix round. "Keep building the app."
 - QA M-2026-10-24-8e222395: FAIL, 1 blocking, held (I saw the screenshot): duplicate flash row uses --mark (= --text), title unreadable (black bar light / white dark), +page.svelte:293-297. Non-blocking: bodiless Bearer DELETE w/o JSON content-type → 403 (SvelteKit CSRF). Waiting on tests verifier.
 - Person 10:31: approved T-0008 (starts after T-0006 and T-0007 land).
+- Tests M-2026-10-24-2c4ae866: PASS (18/19 unit mutants, 6/6 e2e caught; the survivor is equivalent). Note: the guard refused its tools in a scratchpad copy, so it re-extracted without bonsai.yaml/CLAUDE.md/work — told the person.
+- Fix brief M-2026-10-24-42114003 to builder@T-0006: flash contrast (blocking), http/https one key.
+- 10:40 WebKit 26.4 (playwright webkit-2287, matching @playwright/test 1.60.0) installed and launches; system deps installed by the person. QA from T-0008 on also runs WebKit. Verifier briefs: make scratch copies without bonsai.yaml/CLAUDE.md/work from the start.
+- 10:48 T-0006 landed (merge 8ce031c, ladder green on main, 102 unit / 10 e2e), to verify. Next: resume T-0007 to rebase on main and wire enqueueFetch into create() in src/lib/server/api/links.ts once it reports.
