@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0017
 title: A link pasted on a tag's or a project's page joins that tag or project
-status: running
+status: done
 lane: light
 done_when:
   - "Pasting or adding a new link on /tags/<id> saves it with that tag, and its row stays in the list; same for /projects/<id> with that project (e2e for each)"
@@ -14,7 +14,7 @@ depends_on: [T-0015]
 blocked_by: null
 created: 2026-10-24
 started: 2026-10-24
-finished: null
+finished: 2026-10-24
 labels:
   bonsai.branch: t0017-paste-into-view
   bonsai.ladder: []

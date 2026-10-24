@@ -36,3 +36,16 @@ saved." Paused by the person before the final proof.
 ## Processes left running
 
 none; the cancelled climb's processes are gone (ps checked).
+
+## Landing (orchestrator, 2026-10-24 20:10 UTC)
+
+- Brief M-2026-10-24-28056afb; pause brief M-2026-10-24-02caf2bf; builder report M-2026-10-24-bf4d5461 (blocked:
+  paused, HEAD 995d80c, climb at HEAD not run).
+- Light lane: no verifiers. The orchestrator read the diff. The tag and project ids join in the same sync write;
+  setOrganising and patchLink check ownership (checkOwned); a duplicate gets the union of what it had and the view's
+  tag or project. API tests cover one version, refusal of unknown or another user's ids, and the duplicate.
+- Merged no-ff into main as 8ded31c. The first climb there went red at lint, on the orchestrator's own unformatted
+  design/options/T-0016/measures-rows.json (not T-0017's code). Formatted in 1b0add0.
+- `bonsai ladder --task T-0017` on main at 1b0add0 (clean): rungs 0-5 green, unit 367, e2e 38, 0 skipped; first
+  load `/` 52.04 KB gzipped (limit 60). Leftovers named (pids 1696, 1753, 1754) are the Notion MCP server, not ours.
+- T-0017 → done (light lane).

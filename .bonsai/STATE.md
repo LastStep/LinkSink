@@ -24,17 +24,14 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
 
 ## Next
 
-1. Paused by the person at 17:33 UTC; resume when they are back. T-0006, T-0007, T-0008 have landed; T-0007 and
+1. T-0006, T-0007, T-0008 have landed; T-0007 and
    T-0008 read `verify` (the person closes them). T-0014 and T-0015 (BUG-001, BUG-002, at 96062ea) are done.
    - T-0016 (director lane): options write-up `work/options/OPT-0003-row-and-controls.md`, shots in
      `design/options/T-0016/`. Recommended: rows A (columns) and controls C (segments with marks). Waiting on the
      person's pick. Then a decision record and a light build task, which also fixes the hover-Archive trap on the
      time cell and GitHub's black favicon in dark mode. T-0009 (written, not approved) starts after that.
-   - T-0017 (light lane, running, paused): a link pasted on a tag's or project's page joins that tag or project
-     (the person's word, 17:28); a duplicate gets it too (the orchestrator's reading, said to the person). Code is
-     committed at 995d80c on t0017-paste-into-view (worktree ../LinkSink-t0017); report M-2026-10-24-bf4d5461. Last
-     climb green on the same code before the commit (367 unit, 38 e2e). Left: the ladder at HEAD, the first-load
-     size, the orchestrator's read of the diff, then land.
+   - T-0017 (a link pasted on a tag's or project's page joins it; a duplicate gets it too) landed at 8ded31c and is
+     done; ladder green on main at 1b0add0 (367 unit, 38 e2e, 52.04 KB).
 2. T-0005 (deploy) is a Docker Compose setup (ADR-0004, the person's word) and waits for the person's VPS facts
    (Open questions); HTTPS only (Caddy redirect, HSTS, secure
    cookies), the person's word. T-0005 also carries: rate-limit client IP behind Caddy (Better Auth
