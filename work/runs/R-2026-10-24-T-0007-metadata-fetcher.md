@@ -104,6 +104,14 @@ labels: {}
 
 Local, before the climb: unit `329 passed` (20 files), check 0 errors, lint clean, e2e 11 passed.
 
+**Climb after the rebase:** `bonsai ladder --task T-0007 --json` at **dfca1e8** (clean): `"green": true`, 11:09:48Z to
+11:10:27Z. Rung 0 guard green; 1 types green (6.5 s); 2 lint green (6.0 s); 3 unit green, `tests.seen` 329, ratchet
+29 -> 329; 4 e2e green, `tests.seen` 11 (16.0 s); 5 budget green, `/` 40.33 kB, `/login` 37.32 kB, `/signup` 37.46 kB
+gzipped of 60 kB. The rise from 36.4 kB came with T-0006's list page, already on main. A last climb follows this
+doc-only commit; its sha is in the report to the orchestrator. Processes: none left (`ps -eo pid,cmd | grep -E
+"LinkSink-t0007|e2e-server|e2e-fixtures"` empty at 11:11; the fixture site runs inside the e2e server process and
+stops with it).
+
 ## What is different now
 
 LinkSink can now fill in a saved link's details by itself, safely: given a link, it fetches the page openly as
