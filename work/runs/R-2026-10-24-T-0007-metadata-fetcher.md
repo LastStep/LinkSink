@@ -6,7 +6,7 @@ role: builder
 model: opus
 started: 2026-10-24 10:01
 finished: 2026-10-24 11:50
-outcome: needs-verifier
+outcome: merged
 commits: ["f01a89d", "80ab189", "9514d43", "693b41a", "556689f", "4635238", "9096974", "3076609", "6c622fe", "d99b380", "9b4d8bb", "4968956", "72a4930", "b8fafc4", "6d48862", "e50c750", "27baa40", "12a2347", "6e070b0", "0f16111", "dc779b9"]
 labels: {}
 ---
@@ -318,3 +318,11 @@ on opus, brief M-2026-10-24-afebfbe1. Spend not known to me; the hours are T-000
 ## Verifier
 
 > Added by the verifier, in a fresh context. Pass or fail, with reasons.
+
+## Landing (orchestrator, 2026-10-24 11:55 UTC)
+
+- Brief M-2026-10-24-afebfbe1; reports M-2026-10-24-c9013291, after rebase brief M-2026-10-24-bfabed75 M-2026-10-24-a23a6a3b, after fix brief M-2026-10-24-4402dc7f M-2026-10-24-8e70bc6f (all done).
+- Security verifier (M-2026-10-24-3e2e851c → M-2026-10-24-8e907844): "PASS", 0 blocking. Trap listener 0 connections across 52 IP-literal spellings, real DNS, resolver stubs incl. rebinding, redirects; limits, image bombs, /media, stored XSS checked.
+- Tests verifier (M-2026-10-24-f74a408b → M-2026-10-24-73559a62): "PASS", 0 blocking; risks fixed in the last round: orphan source_id migration failure, surviving mutants pinned (14 tests), 8 s deadline test on the monotonic clock (the ~11 s reading was WSL's wall clock jumping), allowance refused under NODE_ENV=production.
+- Blocking findings: 0. Process notes: the tests verifier edited files inside its own scratch copy and ran a pattern pkill that killed T-0014's e2e server once; briefs now exclude Bonsai files from copies and forbid pattern kills.
+- Ladder green at the branch HEAD bd56037 (346 unit, 14 e2e); merged into main; climbed again on main after this record.
