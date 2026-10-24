@@ -2,8 +2,9 @@
 // each first screen. Read from the build's own records, so it follows the real chunks:
 // - Vite's client manifest (.svelte-kit/output/client/.vite/manifest.json) gives every chunk's static imports;
 // - SvelteKit's generated client app (.svelte-kit/generated/build/client-optimized/app.js) maps routes to nodes.
-// First load = the start entry, the client runtime it always loads, the app entry, the root layout (node 0) and the
-// route's page node, each with everything they statically import. Fails loudly if either record is missing.
+// First load = the start entry, the client runtime it always loads, the app entry, the root layout (node 0), every
+// other layout on the route's chain and its page node, each with everything they statically import (code loaded with
+// import() on first use is not first load). Fails loudly if either record is missing.
 import { readFileSync } from 'node:fs';
 
 const LIMIT = '60 KB';
@@ -13,8 +14,20 @@ const out = '.svelte-kit/output/client';
 const manifest = JSON.parse(readFileSync(`${out}/.vite/manifest.json`, 'utf8'));
 const app = readFileSync('.svelte-kit/generated/build/client-optimized/app.js', 'utf8');
 
+// Each route's entry is [page, [layouts], [errors]] (a "~" marks a node with a server load); the root layout, node 0,
+// is not listed and is always loaded. Every layout on the chain counts, so a route group's layout cannot hide JS.
 const dictionary = Object.fromEntries(
-	[...app.matchAll(/"(\/[^"]*)":\s*\[~?(\d+)/g)].map((m) => [m[1], Number(m[2])])
+	[...app.matchAll(/"(\/[^"]*)":\s*\[~?(\d+)(?:,\s*\[([^\]]*)\])?/g)].map((m) => [
+		m[1],
+		{
+			page: Number(m[2]),
+			layouts: (m[3] ?? '')
+				.split(',')
+				.map((n) => n.trim().replace(/^~/, ''))
+				.filter((n) => /^\d+$/.test(n))
+				.map(Number)
+		}
+	])
 );
 
 const key = (suffix) => {
@@ -45,12 +58,13 @@ const always = [
 ];
 
 export default ROUTES.map((route) => {
-	const node = dictionary[route];
-	if (node === undefined)
+	const entry = dictionary[route];
+	if (entry === undefined)
 		throw new Error(`size-limit: no route ${route} in the generated client app`);
+	const nodes = [...entry.layouts.filter((n) => n !== 0), entry.page];
 	return {
 		name: `first load JS, ${route}`,
-		path: closure([...always, key(`client-optimized/nodes/${node}.js`)]),
+		path: closure([...always, ...nodes.map((n) => key(`client-optimized/nodes/${n}.js`))]),
 		limit: LIMIT,
 		gzip: true
 	};
