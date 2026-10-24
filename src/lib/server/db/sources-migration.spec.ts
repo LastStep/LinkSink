@@ -76,4 +76,37 @@ describe('the sources migration on a database with links in it', () => {
 		expect(after.$client.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
 		after.$client.close();
 	});
+
+	it('a link whose source_id names no source survives: the server starts and the row keeps everything else', () => {
+		dir = mkdtempSync(join(tmpdir(), 'linksink-migrate-'));
+		const path = join(dir, 'test.db');
+		const before = openDatabase(path, migrationsUpTo(2));
+		addUser(before, 'u1');
+		createSyncWrite(before)('u1', (w) => {
+			w.insert(links, {
+				id: 'orphan',
+				url: 'https://o.example/',
+				urlKey: 'o',
+				title: 'Orphaned source',
+				savedVia: 'paste',
+				sourceId: 'no-such-source'
+			});
+		});
+		before.$client.close();
+
+		const after = openDatabase(path); // threw "FOREIGN KEY constraint failed" before the fix
+		const row = after.$client.prepare("SELECT * FROM links WHERE id = 'orphan'").get() as {
+			source_id: string | null;
+			title: string;
+			url: string;
+		};
+		expect(row).toMatchObject({
+			source_id: null,
+			title: 'Orphaned source',
+			url: 'https://o.example/'
+		});
+		expect(listLinks(after, 'u1', 'orphaned').map((l) => l.id)).toEqual(['orphan']);
+		expect(after.$client.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+		after.$client.close();
+	});
 });

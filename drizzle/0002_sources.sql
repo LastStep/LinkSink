@@ -12,6 +12,10 @@ CREATE TABLE `sources` (
 CREATE UNIQUE INDEX `sources_user_name_live` ON `sources` (`user_id`,`name`) WHERE "sources"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE INDEX `sources_user_version` ON `sources` (`user_id`,`version`);--> statement-breakpoint
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
+-- Hand-added: drizzle runs migrations in a transaction, where the PRAGMA above does nothing, so a source_id that names
+-- no source would fail the foreign key below and stop the server starting. Before this migration there was no
+-- sources table, so every source_id is such an orphan: clear it (the link stays; the fetcher fills its source).
+UPDATE `links` SET `source_id` = NULL WHERE `source_id` IS NOT NULL;--> statement-breakpoint
 CREATE TABLE `__new_links` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
