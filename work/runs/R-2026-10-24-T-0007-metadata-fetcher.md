@@ -5,9 +5,9 @@ task: T-0007
 role: builder
 model: opus
 started: 2026-10-24 10:01
-finished: 2026-10-24 10:55
+finished: 2026-10-24 11:10
 outcome: needs-verifier
-commits: ["42dbafe", "f1b9198", "fe9181a", "665abe9", "ccc4fdc", "b3f6944", "7ca23b4", "96d6dc3"]
+commits: ["e553f42", "57ebbac", "51908cb", "750f084", "72636ff", "01ddeef", "308067c", "8c44336", "cd30be3", "0e2a6a5", "fcbfe35", "9eb6af9", "2c9b04a", "534351a"]
 labels: {}
 ---
 
@@ -50,6 +50,60 @@ labels: {}
   `http://127.0.0.1:4173/login is already used` - another builder's e2e server (T-0006's `node
   scripts/e2e-server.js`, not mine, left alone) held the port. Once it ended, `npm run test:e2e` -> `3 passed`.
 
+## Rebase and wiring (brief M-2026-10-24-bfabed75)
+
+- 11:03 Brief read. Rebased onto main (T-0006 merged at 8ce031c, then cfffb0e): no conflicts. T-0006 added no
+  migration, so mine stay 0002 and 0003 as generated: nothing regenerated, the hand-fixed index line unchanged, the
+  migration test kept. The commit ids above are the rebased ones (the first session's 42dbafe..c43c739 became
+  e553f42..cd30be3).
+- **Wired:** `createLinksApi` takes `onCreated(id)`, called in `create()` after the insert when the answer is not a
+  duplicate; `src/lib/server/api/index.ts` passes `enqueueFetch`. An injected hook rather than an import, so
+  `api/links.ts` stays free of SvelteKit imports and its unit tests do not start the app's queue. Proof (*ran*):
+  `wiring.spec.ts` "for a new link, after its insert, and not for a duplicate".
+- **GET /api/links/:id** already sent every column through T-0006's `linkJson` (metaState, title, description,
+  siteName, author, publishedAt, durationS, faviconPath, imagePath, sourceId, media, metaFetchedAt): no change to
+  its route; `wiring.spec.ts` asserts the fields are there.
+- **Polling through the store:** `createApiStore(fetcher, { pollEveryMs = 1000, pollForMs = 10000 })`. After a save
+  that is not a duplicate and is pending, it asks `GET /api/links/:id` every second and puts each answer in the row,
+  until `meta_state` is not pending, 10 s pass, or the link is gone (404). It updates only a row still on screen.
+  `src/lib/store/api.spec.ts` (5, fake timers): polls at 1 s, 2 s, 3 s and stops on `ok`; 10 polls then stops; stops
+  on `failed`; no poll for a duplicate; a deleted link never comes back.
+- **The row** (`src/routes/+page.svelte`): a 16 px icon before the title (`/media/<faviconPath>`), a 64x36 preview
+  (`/media/<sha>-320.webp`), `data-meta` = meta_state. Same layout otherwise; at phone width the row keeps title,
+  preview, host and delete.
+- **MEDIA and UserSetField** now come from `src/lib/fields.ts`; my copies are gone.
+- **e2e against a local fixture site** (`scripts/e2e-fixtures.js`, started by `scripts/e2e-server.js` on
+  E2E_FIXTURE_PORT, default E2E_PORT + 1): `e2e/t0007-fetch.e2e.ts`. It pastes `http://127.0.0.1:<fixture>/article.html`.
+  The row first reads `127.0.0.1`, then "Fixture article for LinkSink" with `data-meta="ok"`, without a reload.
+  The icon is 64 px, the preview 320 px. The served image is `image/webp` with `nosniff`, and a context without
+  cookies gets 401. *Ran:* `E2E_PORT=4273 npx playwright test` -> `11 passed (16.9s)`.
+- **The guard's test-only hole, kept narrow:** `TEST_ONLY_FETCH_ALLOW=127.0.0.1:<port>` (declared in `src/env.ts`).
+  It is parsed by `fetch/allow.ts`, only that exact form (127.0.0.1, port 1024 and up). `loadRuntimeConfig` refuses
+  to start with it unless `MAIL_TRANSPORT=console`, which only the e2e server sets. In `safe.ts` it lets that one
+  address and port pass checks (a) and (b), nothing else. With it set, the app's queue also gets a resolver that
+  refuses every hostname. So the e2e server fetches its fixture site and nothing on the internet: T-0006's e2e
+  links (svelte.dev, example.org...) end as `failed`, titled by their host, as the server log shows
+  ("svelte.dev did not resolve"). Proof (*ran*), `wiring.spec.ts`:
+  - "a production server refuses to start with it": no MAIL_TRANSPORT, resend, and under dev without console;
+  - eight malformed values refused;
+  - with it set, the guard reaches the fixture port, and still refuses 127.0.0.1 on the trap's port, localhost,
+    127.0.0.2, [::1], 2130706433, a name, and 169.254.169.254, with the trap at 0.
+- **E2E_PORT** (default 4173) in `playwright.config.ts`, `scripts/e2e-server.js` and the two e2e files' origin
+  constants. The ladder's own climb uses the default; another checkout sets `E2E_PORT` to run beside it.
+
+**Changed in T-0006's files, and why:**
+- `src/lib/server/api/links.ts`: the `onCreated` hook (the brief's wiring point).
+- `src/lib/server/api/index.ts`: passes `enqueueFetch`.
+- `src/lib/server/links.ts` `patchLink`: a PATCH whose `sourceId` is not the person's live source is now a 400
+  ("No such source."). Before, my foreign key turned it into a 500 FOREIGN KEY error.
+- `src/lib/server/api/links.spec.ts`: its PATCH test set `sourceId: 'S1'` with no such source, which the foreign
+  key now refuses. The test now inserts source S1 first (one line of setup); its assertions are unchanged.
+- `src/lib/store/api.ts`: the polling.
+- `src/routes/+page.svelte`: icon, preview, `data-meta`.
+- `e2e/t0006-links.e2e.ts` and `e2e/skeleton.e2e.ts`: the origin from E2E_PORT.
+
+Local, before the climb: unit `329 passed` (20 files), check 0 errors, lint clean, e2e 11 passed.
+
 ## What is different now
 
 LinkSink can now fill in a saved link's details by itself, safely: given a link, it fetches the page openly as
@@ -59,8 +113,8 @@ server, and works out the link's Source (YouTube for youtube.com and youtu.be, a
 else its domain) and Media (Video, Repo, Post, PDF, Article, Image, Podcast or Page). Anything the person typed by
 hand (title, description, source, media) is never overwritten. A site that refuses LinkSink leaves the link saved,
 marked failed, titled by its address. It refuses to fetch anything on the server's own machine or private network,
-however the address is disguised. Not yet visible in the app: the save path (T-0006's API) does not call it until
-T-0006 lands and this branch is rebased and wired.
+however the address is disguised. Since the rebase it is wired in: after a paste the row shows the address, and
+within a second or two the page's title, icon and preview fill in without a reload.
 
 ## Deviations from the plan
 
@@ -164,7 +218,8 @@ The earlier climb at 7ca23b4 was red on rung 4 only (port 4173 held by another b
 
 ## Evidence for a human
 
-Nothing to click yet: it shows once T-0006's paste box calls it. To see the guard: in the worktree, `npx vitest --run
+In the worktree: `npm run test:e2e` pastes a link to the local fixture site and watches its title, icon and preview
+fill in. To try it by hand: `npm run dev`, sign in, paste any public link. To see the guard, `npx vitest --run
 src/lib/server/fetch/safe.spec.ts` lists each refused address by name.
 
 ## Files changed
@@ -198,11 +253,7 @@ on opus, brief M-2026-10-24-afebfbe1. Spend not known to me; the hours are T-000
 
 ## Left for next time
 
-- Rebase onto T-0006 when it lands: renumber my migrations after its own (drizzle-kit generate again; re-check the
-  index line it writes), wire `enqueueFetch(id)` after the insert in `POST /api/links`, confirm its `GET
-  /api/links/:id` returns `meta_state` and the fetched fields, move `MEDIA` into `src/lib/fields.ts` if it exists.
 - The security-lens verifier the plan names for T-0007.
-- Proposed task: e2e port per worktree (Playwright's 4173 is shared by every builder's climb).
 - Proposed task: the mailer's Resend call sends Node's default User-Agent; give it LinkSink's if wanted.
 - T-0005: sharp ships prebuilt binaries for linux-x64 (`@img/sharp-linux-x64`); `npm ci --omit=dev` on the VPS
   needs no compiler, unverified there. The plan's manual check of 10 real URLs from the VPS.
