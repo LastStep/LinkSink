@@ -43,21 +43,36 @@ test('a pasted link shows its host, then the page’s title, icon and preview fi
 	const row = page.locator('li.row', { has: page.locator(`a[href="${url}"]`) });
 	// first the host, before the page is read
 	await expect(row.locator('a.t')).toHaveText('127.0.0.1');
+	// open its details now, before the page is read: the preview fills in there as the store polls
+	await expect(row).toHaveAttribute('data-state', 'saved');
+	await row.focus();
+	await page.keyboard.press('Enter');
+	const details = page.getByRole('complementary', { name: 'Link details' });
+	await expect(details).toBeVisible();
 	// then the fixture page's own title, its icon and its preview, as the store polls
 	await expect(row.locator('a.t')).toHaveText('Fixture article for LinkSink', { timeout: 10_000 });
 	await expect(row).toHaveAttribute('data-meta', 'ok');
 	const icon = row.locator('img.icon');
-	const preview = row.locator('img.preview');
 	await expect(icon).toHaveAttribute('src', /^\/media\/[0-9a-f]{64}\.webp$/);
-	await expect(preview).toHaveAttribute('src', /^\/media\/[0-9a-f]{64}-320\.webp$/);
 	expect(await icon.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(64);
-	expect(await preview.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(
-		320
-	);
+	// the preview shows in the link's details (the ledger row carries no picture, ADR-0003): the 320 or 640 px WebP
+	// from /media, loaded, without a reload
+	const preview = details.locator('img.preview');
+	await expect(preview).toHaveAttribute('src', /^\/media\/[0-9a-f]{64}\.webp$/);
+	await expect
+		.poll(() => preview.evaluate((img: HTMLImageElement) => (img.complete ? img.naturalWidth : 0)))
+		.toBeGreaterThan(0);
+	// with srcset, naturalWidth is scaled by `sizes`, so the file's own width is read from the file the browser chose
+	const shown = await preview.evaluate(async (img: HTMLImageElement) => {
+		const bitmap = await createImageBitmap(await (await fetch(img.currentSrc)).blob());
+		return { src: new URL(img.currentSrc).pathname, width: bitmap.width };
+	});
+	expect(shown.src).toMatch(/^\/media\/[0-9a-f]{64}(-320)?\.webp$/);
+	expect(shown.width).toBe(shown.src.endsWith('-320.webp') ? 320 : 640);
 	expect(reloads).toBe(0);
 
 	// the cached image is served as WebP with nosniff, and only to the signed-in person
-	const src = (await preview.getAttribute('src'))!;
+	const src = shown.src;
 	const served = await page.request.get(src);
 	expect(served.headers()['content-type']).toBe('image/webp');
 	expect(served.headers()['x-content-type-options']).toBe('nosniff');

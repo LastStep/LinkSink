@@ -110,12 +110,16 @@
 	<div class="body">
 		{#if link.imagePath}
 			<img
-				class="hero"
+				class="hero preview"
 				src="/media/{link.imagePath}"
+				srcset="/media/{link.imagePath.replace(
+					/\.webp$/,
+					'-320.webp'
+				)} 320w, /media/{link.imagePath} 640w"
+				sizes="(max-width: 759px) 100vw, 360px"
 				alt=""
-				width="1200"
-				height="630"
-				loading="lazy"
+				width="640"
+				height="336"
 			/>
 		{/if}
 		<label class="field title">
