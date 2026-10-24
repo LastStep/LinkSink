@@ -4,11 +4,12 @@
 	import { page } from '$app/state';
 	import { afterNavigate } from '$app/navigation';
 	import { store } from '#lib/store/index.ts';
-	import Icon from '#lib/ui/Icon.svelte';
-	import Mark from '#lib/ui/Mark.svelte';
-	import type { LayoutProps } from './$types';
+	import Icon from './Icon.svelte';
+	import Mark from './Mark.svelte';
+	import type { Snippet } from 'svelte';
 
-	let { children }: LayoutProps = $props();
+	// The signed-in screens' frame: the sidebar on a wide screen, a top bar and a menu sheet on a phone.
+	let { children }: { children: Snippet } = $props();
 
 	let menuOpen = $state(false);
 	afterNavigate(() => (menuOpen = false));
@@ -36,41 +37,41 @@
 
 {#snippet nav()}
 	<nav class="nav" aria-label="Lists">
-		<a class="nav-item" class:on={path === '/'} href={resolve('/(app)')}>
+		<a class="nav-item" class:on={path === '/'} href={resolve('/')}>
 			<Icon name="link" /><span>Links</span>
 		</a>
-		<a class="nav-item" class:on={path === '/unsorted'} href={resolve('/(app)/unsorted')}>
+		<a class="nav-item" class:on={path === '/unsorted'} href={resolve('/unsorted')}>
 			<Icon name="inbox" /><span>Unsorted</span>
 			{#if $store.counts.unsorted}<span class="n num">{$store.counts.unsorted}</span>{/if}
 		</a>
-		<a class="nav-item" class:on={path === '/archive'} href={resolve('/(app)/archive')}>
+		<a class="nav-item" class:on={path === '/archive'} href={resolve('/archive')}>
 			<Icon name="archive" /><span>Archive</span>
 		</a>
-		<a class="nav-item" class:on={path.startsWith('/tags')} href={resolve('/(app)/tags')}>
+		<a class="nav-item" class:on={path.startsWith('/tags')} href={resolve('/tags')}>
 			<Icon name="tag" /><span>Tags</span>
 			{#if $store.tags.length}<span class="n num">{$store.tags.length}</span>{/if}
 		</a>
 	</nav>
 	<p class="group-label">
-		<a href={resolve('/(app)/projects')} class:on={path === '/projects'}>Projects</a>
+		<a href={resolve('/projects')} class:on={path === '/projects'}>Projects</a>
 	</p>
 	<nav class="nav" aria-label="Projects">
 		{#each $store.projects as project (project.id)}
 			<a
 				class="nav-item"
 				class:on={projectId === project.id}
-				href={resolve('/(app)/projects/[id]', { id: project.id })}
+				href={resolve('/projects/[id]', { id: project.id })}
 			>
 				<span class="dot" style:--c="var(--dot-{project.color})"></span><span>{project.name}</span>
 				{#if project.count}<span class="n num">{project.count}</span>{/if}
 			</a>
 		{/each}
-		<a class="nav-item faint" href="{resolve('/(app)/projects')}?new=1">
+		<a class="nav-item faint" href="{resolve('/projects')}?new=1">
 			<Icon name="plus" /><span>New project</span>
 		</a>
 	</nav>
 	<div class="side-foot">
-		<a class="nav-item" class:on={path === '/settings'} href={resolve('/(app)/settings')}>
+		<a class="nav-item" class:on={path === '/settings'} href={resolve('/settings')}>
 			<Icon name="settings" /><span>Settings</span>
 		</a>
 		<form method="post" action="/logout">
@@ -81,7 +82,7 @@
 
 <div class="app">
 	<aside class="side">
-		<a class="brand" href={resolve('/(app)')}><Mark /><span>LinkSink</span></a>
+		<a class="brand" href={resolve('/')}><Mark /><span>LinkSink</span></a>
 		{@render nav()}
 	</aside>
 
@@ -97,7 +98,7 @@
 		></button>
 		<div class="menu-sheet" role="dialog" aria-modal="true" aria-label="Menu">
 			<div class="menu-head">
-				<a class="brand" href={resolve('/(app)')}><Mark /><span>LinkSink</span></a>
+				<a class="brand" href={resolve('/')}><Mark /><span>LinkSink</span></a>
 				<button
 					class="icon-btn"
 					type="button"

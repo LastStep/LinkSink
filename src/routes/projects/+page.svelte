@@ -149,7 +149,7 @@
 							onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
 						/>
 					</div>
-					<a class="count muted num" href={resolve('/(app)/projects/[id]', { id: project.id })}
+					<a class="count muted num" href={resolve('/projects/[id]', { id: project.id })}
 						>{plural(project.count, 'link')}</a
 					>
 					<div class="tools">

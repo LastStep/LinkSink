@@ -98,7 +98,7 @@
 						onchange={(e) => rename(tag, e.currentTarget)}
 						onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
 					/>
-					<a class="count muted num" href={resolve('/(app)/tags/[id]', { id: tag.id })}
+					<a class="count muted num" href={resolve('/tags/[id]', { id: tag.id })}
 						>{plural(tag.count, 'link')}</a
 					>
 					<div class="tools">
