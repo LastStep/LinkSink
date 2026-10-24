@@ -223,3 +223,4 @@ an artifact for the person to open on phone and desktop).
 - 11:55 T-0007 landed (merge into main), to verify. Next: T-0008 builder.
 - 11:58 T-0007 ladder green on main 5e9fc85 (346 unit, 14 e2e) after npm ci (main's node_modules lacked T-0007 deps). T-0008 running.
 - 12:00 T-0008 brief M-2026-10-24-1ce98ac1 builder@T-0008 (opus, E2E_PORT=4600), ordered so a budget cut leaves usable work. Verifiers when done: tests + QA (Chromium + WebKit, 390/1440, light/dark), then the person looks.
+- 12:45 T-0008 report M-2026-10-24-454f54a8: done at 40ab5cc (363 unit, 22 e2e, WebKit 22/22 too; `/` 56.22 KB). I viewed detail-1440-light and links-390-dark-webkit: Ledger look holds. Found: invisible 1 px img.preview kept to satisfy T-0007's e2e (gaming) → fix round M-2026-10-24-15deecb5 (+ lazy-load organiser/details/bulk, size-limit all layouts, taste-skill placeholder). Then tests + QA verifiers, then the person looks.
