@@ -200,7 +200,9 @@ test('the same address pasted again with utm and www variants stays one row', as
 	const variants = [
 		address,
 		'https://www.dup.example.com/story/?utm_source=twitter&utm_medium=social',
-		'https://dup.example.com/story?utm_campaign=x#comments'
+		'https://dup.example.com/story?utm_campaign=x#comments',
+		// http and https of one address are one link (the person, 2026-10-24)
+		'http://dup.example.com/story'
 	];
 	for (const [i, text] of variants.entries()) {
 		await pasteAndTime(page, text);
@@ -214,6 +216,54 @@ test('the same address pasted again with utm and www variants stays one row', as
 	await page.reload();
 	await expect(rows(page).filter({ hasText: 'dup.example.com' })).toHaveCount(1);
 });
+
+/** WCAG contrast ratio between the flashed row's title and the row's own background. */
+function flashContrast(page: Page) {
+	return page.evaluate(() => {
+		const row = document.querySelector('li.flash');
+		const title = row?.querySelector('a.t');
+		if (!row || !title) return 0;
+		const rgb = (css: string) => {
+			const [r, g, b, a = 1] = css.match(/[\d.]+/g)!.map(Number);
+			return { r, g, b, a };
+		};
+		const bg = rgb(getComputedStyle(row).backgroundColor);
+		if (bg.a < 1) return 0; // the row must carry its own opaque tint
+		const fg = rgb(getComputedStyle(title).color);
+		const lum = ({ r, g, b }: { r: number; g: number; b: number }) => {
+			const c = [r, g, b].map((v) => {
+				const x = v / 255;
+				return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+			});
+			return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+		};
+		const [hi, lo] = [lum(fg), lum(bg)].sort((a, b) => b - a);
+		return (hi + 0.05) / (lo + 0.05);
+	});
+}
+
+for (const scheme of ['light', 'dark'] as const) {
+	test(`the row an "Already saved" paste points at stays readable (${scheme})`, async ({
+		page
+	}, testInfo) => {
+		await page.emulateMedia({ colorScheme: scheme });
+		await page.goto('/');
+		await expect(page.locator('main')).toHaveAttribute('data-ready', 'true');
+		const address = `https://flash-${scheme}.example.com/page`;
+		await pasteAndTime(page, address);
+		const row = rows(page).filter({ hasText: `flash-${scheme}.example.com` });
+		await expect(row).toHaveAttribute('data-state', 'saved');
+
+		await pasteAndTime(page, `http://www.flash-${scheme}.example.com/page/`);
+		await expect(page.getByRole('status')).toContainText('Already saved');
+		await expect(row).toHaveClass(/flash/);
+		await expect(row.locator('a.t')).toBeVisible();
+		// Polled past the background's short transition; the flash lasts 2 s.
+		await expect.poll(() => flashContrast(page), { timeout: 1500 }).toBeGreaterThanOrEqual(4.5);
+		console.log(`flash contrast (${scheme}): ${(await flashContrast(page)).toFixed(2)}:1`);
+		await page.screenshot({ path: testInfo.outputPath(`flash-${scheme}.png`) });
+	});
+}
 
 test('delete shows a 5-second undo that brings the link back', async ({ page }) => {
 	await page.goto('/');

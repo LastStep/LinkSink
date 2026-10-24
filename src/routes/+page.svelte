@@ -290,10 +290,16 @@
 	.row.pending .t {
 		color: var(--muted);
 	}
+	/* The existing row a duplicate paste points at: a tint (not a text colour) with the accent hue at its edge,
+	   "the one hue marks the link arriving now" (direction A); the title keeps --text on it. */
 	.row.flash {
-		background: var(--mark);
+		background: var(--active);
+		box-shadow: inset 2px 0 0 var(--accent);
 		border-radius: var(--radius-control);
 		transition: background var(--t-ui) var(--ease-out);
+	}
+	.row.flash .t {
+		color: var(--text);
 	}
 	button.del {
 		height: 28px;
