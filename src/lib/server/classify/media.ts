@@ -1,15 +1,4 @@
-/** A link's media type: one per link, automatic and editable (F-web-mvp). */
-export const MEDIA = [
-	'video',
-	'article',
-	'post',
-	'repo',
-	'podcast',
-	'image',
-	'pdf',
-	'page'
-] as const;
-export type Media = (typeof MEDIA)[number];
+import type { Media } from '../../fields.ts';
 
 export interface MediaEvidence {
 	/** The link's URL after redirects (or as saved, when the page could not be fetched). */

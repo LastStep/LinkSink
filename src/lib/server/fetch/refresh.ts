@@ -1,4 +1,5 @@
 import { and, eq, isNull } from 'drizzle-orm';
+import type { UserSetField } from '../../fields.ts';
 import { classifyMedia } from '../classify/media.ts';
 import { resolveSource } from '../classify/source.ts';
 import type { DB } from '../db/open.ts';
@@ -7,9 +8,6 @@ import type { SyncWrite, SyncWriter } from '../sync/write.ts';
 import { fetchImage } from './images.ts';
 import { fetchMeta, type PageMeta } from './meta.ts';
 import type { SafeFetch } from './safe.ts';
-
-/** The fields a person can set by hand; a refetch never writes one that is in the link's `user_set`. */
-export type UserSetField = 'title' | 'description' | 'source' | 'media';
 
 export interface FetchDeps {
 	db: DB;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFixture } from '../fetch/test/fixtures.ts';
-import { classifyMedia, MEDIA } from './media.ts';
+import { MEDIA } from '../../fields.ts';
+import { classifyMedia } from './media.ts';
 
 const evidence = (m: ReturnType<typeof readFixture>) => ({
 	url: m.finalUrl,
