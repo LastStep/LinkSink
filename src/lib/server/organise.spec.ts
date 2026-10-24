@@ -275,6 +275,22 @@ describe('bulk', () => {
 		expect((await list('view=unsorted')).body.links).toHaveLength(1);
 	});
 
+	it('keeps tags_text and projects_text in step with a bulk change of tags and projects', async () => {
+		const ids: string[] = [];
+		for (let i = 0; i < 2; i++) ids.push((await save(`https://t.example/${i}`)).body.link.id);
+		const ai = (await tag('ai')).body.tag;
+		const ml = (await tag('ml')).body.tag;
+		const p = (await project({ name: 'Reading' })).body.project;
+		const text = async (id: string) => {
+			const l = (await call(() => api.get(me, id))).body.link;
+			return [l.tagsText, l.projectsText];
+		};
+		await bulk({ ids, addTagIds: [ai.id, ml.id], addProjectIds: [p.id] });
+		for (const id of ids) expect(await text(id)).toEqual(['ai ml', 'Reading']);
+		await bulk({ ids, removeTagIds: [ai.id], removeProjectIds: [p.id] });
+		for (const id of ids) expect(await text(id)).toEqual(['ml', '']);
+	});
+
 	it('deletes many in one write, skipping ids that are not the caller’s', async () => {
 		const mine = (await save('https://c.example/1')).body.link.id;
 		const theirs = (await save('https://c.example/1', other)).body.link.id;
