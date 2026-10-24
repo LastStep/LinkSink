@@ -17,6 +17,8 @@ bun.lockb
 /test-results/
 /playwright-report/
 src/lib/server/db/auth.schema.ts
+# Recorded pages, kept byte for byte
+src/lib/server/fetch/fixtures/
 
 # Bonsai's and the person's files: never reformatted by this project's tools
 /.bonsai/
