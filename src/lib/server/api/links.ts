@@ -54,7 +54,16 @@ function guard(fn: () => Promise<Response> | Response): Promise<Response> {
 		});
 }
 
-export function createLinksApi({ db, syncWrite }: { db: DB; syncWrite: SyncWrite }) {
+export function createLinksApi({
+	db,
+	syncWrite,
+	onCreated = () => {}
+}: {
+	db: DB;
+	syncWrite: SyncWrite;
+	/** Called with a new link's id after its insert (not for a duplicate): the app queues its page details fetch. */
+	onCreated?: (linkId: string) => void;
+}) {
 	const signedIn = (caller: Caller) => (caller ? null : problem(401, 'Sign in first.'));
 
 	return {
@@ -87,6 +96,7 @@ export function createLinksApi({ db, syncWrite }: { db: DB; syncWrite: SyncWrite
 					id,
 					via
 				});
+				if (!duplicate) onCreated(link.id);
 				return json({ link: linkJson(link), duplicate }, duplicate ? 200 : 201);
 			});
 		},

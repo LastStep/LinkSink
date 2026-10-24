@@ -5,7 +5,7 @@ import { linkIn, sentMail } from './outbox.ts';
 // itself when run alone.
 const email = 'person@example.com';
 const password = 'correct horse battery staple';
-const origin = 'http://127.0.0.1:4173';
+const origin = `http://127.0.0.1:${process.env.E2E_PORT || 4173}`;
 
 test.describe.configure({ mode: 'serial' });
 

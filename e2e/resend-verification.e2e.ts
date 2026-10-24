@@ -60,7 +60,7 @@ test('repeated log-in tries do not flood the inbox: the sign-in rate limit answe
 	for (let i = 0; i < 8; i++) {
 		const res = await request.post('/api/auth/sign-in/email', {
 			data: { email, password },
-			headers: { origin: 'http://127.0.0.1:4173' }
+			headers: { origin: `http://127.0.0.1:${process.env.E2E_PORT || 4173}` }
 		});
 		statuses.push(res.status());
 	}

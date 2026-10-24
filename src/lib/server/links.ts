@@ -4,7 +4,7 @@ import type { LinkJson } from '../store/types.ts';
 import { ULID_PATTERN } from '../ulid.ts';
 import { cleanUrl, displayHost, normalise } from '../url.ts';
 import type { DB } from './db/open.ts';
-import { links } from './db/schema.ts';
+import { links, sources } from './db/schema.ts';
 import type { SyncWrite } from './sync/write.ts';
 import { ulid } from './ulid.ts';
 
@@ -265,6 +265,17 @@ export function patchLink(
 ): Link | null {
 	const link = getLink(db, userId, id);
 	if (!link || link.deletedAt !== null) return null;
+	if (typeof patch.sourceId === 'string') {
+		// links.source_id references sources (T-0007): a source that is not the person's live one is a bad request.
+		const source = db
+			.select({ id: sources.id })
+			.from(sources)
+			.where(
+				and(eq(sources.id, patch.sourceId), eq(sources.userId, userId), isNull(sources.deletedAt))
+			)
+			.get();
+		if (!source) throw new BadPatchError('No such source.');
+	}
 
 	const set: Partial<typeof links.$inferInsert> = {};
 	const userSet = new Set<string>(JSON.parse(link.userSet) as string[]);

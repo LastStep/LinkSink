@@ -79,7 +79,7 @@ test('a second sign-up is refused once the account exists', async ({ page, reque
 
 	// The same through Better Auth's own endpoint, as a script or the iOS app would call it.
 	const res = await request.post('/api/auth/sign-up/email', {
-		headers: { Origin: 'http://127.0.0.1:4173' },
+		headers: { Origin: `http://127.0.0.1:${process.env.E2E_PORT || 4173}` },
 		data: { email: 'third@example.com', password: 'yet another password', name: 'x' }
 	});
 	expect(res.status()).toBe(403);

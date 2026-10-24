@@ -50,7 +50,17 @@ function optimistic(id: string, input: NewLinkInput): StoreLink {
 	};
 }
 
-export function createApiStore(fetcher: typeof fetch = (...args) => fetch(...args)): LinkStore {
+export interface ApiStoreOptions {
+	/** How often a new link's details are asked for while the server fetches them (1 s). */
+	pollEveryMs?: number;
+	/** How long to keep asking before the row stays as it is (10 s). */
+	pollForMs?: number;
+}
+
+export function createApiStore(
+	fetcher: typeof fetch = (...args) => fetch(...args),
+	{ pollEveryMs = 1_000, pollForMs = 10_000 }: ApiStoreOptions = {}
+): LinkStore {
 	let state: StoreState = { links: [], loading: true };
 	const subscribers = new Set<(state: StoreState) => void>();
 	let listCall = 0;
@@ -95,11 +105,45 @@ export function createApiStore(fetcher: typeof fetch = (...args) => fetch(...arg
 			// The optimistic row becomes the server's (the same id), or gives way to the existing link.
 			state = { ...state, links: without(id) };
 			set(withLink(body.link));
+			if (!body.duplicate && body.link.metaState === 'pending') watchDetails(body.link.id);
 			return body;
 		} catch (error) {
 			set(without(id));
 			throw error;
 		}
+	}
+
+	async function getLink(id: string): Promise<LinkJson | null> {
+		try {
+			const { body } = await request<{ link: LinkJson }>(`/api/links/${encodeURIComponent(id)}`);
+			return body.link;
+		} catch (error) {
+			if (error instanceof StoreError && error.status === 404) return null;
+			throw error;
+		}
+	}
+
+	/**
+	 * After a save, the server fetches the page's details in the background: ask for the link every second, up to
+	 * 10 s or until `meta_state` is no longer pending, and put each answer in the row (title, icon, preview).
+	 */
+	function watchDetails(id: string) {
+		let waited = 0;
+		const tick = async () => {
+			waited += pollEveryMs;
+			let link: LinkJson | null | undefined;
+			try {
+				link = await getLink(id);
+			} catch {
+				// a missed poll (offline, a server error): try again on the next tick
+			}
+			if (link === null) return; // deleted meanwhile
+			// Only a row still on screen is updated (not one deleted here, or out of this view).
+			if (link && state.links.some((l) => l.id === id && !l.pending)) set(withLink(link));
+			if (link && link.metaState !== 'pending') return;
+			if (waited < pollForMs) setTimeout(tick, pollEveryMs);
+		};
+		setTimeout(tick, pollEveryMs);
 	}
 
 	async function change({ id, ...fields }: LinkChanges): Promise<PutResult> {
@@ -126,15 +170,7 @@ export function createApiStore(fetcher: typeof fetch = (...args) => fetch(...arg
 			return body.links;
 		},
 
-		async get(id) {
-			try {
-				const { body } = await request<{ link: LinkJson }>(`/api/links/${encodeURIComponent(id)}`);
-				return body.link;
-			} catch (error) {
-				if (error instanceof StoreError && error.status === 404) return null;
-				throw error;
-			}
-		},
+		get: getLink,
 
 		put(input) {
 			return 'id' in input && input.id ? change(input) : create(input as NewLinkInput);

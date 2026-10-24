@@ -1,0 +1,17 @@
+<!-- hand-written: details only in JSON-LD (an @graph, a broken block first) -->
+<!DOCTYPE html>
+<html><head>
+<script type="application/ld+json">{ this is not json </script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"WebSite","name":"Example Site","url":"https://news.example.org/"},
+ {"@type":["NewsArticle"],"headline":"Headline from JSON-LD & friends",
+  "description":"Summary from JSON-LD.","datePublished":"2025-03-14T09:26:53Z",
+  "author":[{"@type":"Person","name":"Ada Lovelace"}],
+  "publisher":{"@type":"Organization","name":"Example News"},
+  "image":{"@type":"ImageObject","url":"https://cdn.example.org/lead.jpg"},
+  "duration":"PT1H2M3S"}
+]}
+</script>
+<title>Title tag loses to JSON-LD</title>
+</head><body></body></html>

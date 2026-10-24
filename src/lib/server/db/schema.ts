@@ -13,6 +13,30 @@ const syncColumns = {
 	deletedAt: integer('deleted_at')
 };
 
+/**
+ * Where links come from (YouTube, GitHub, a blog), one per link. `hosts` is a JSON array of host suffixes: a link's
+ * host matches the source with the longest suffix it ends with (src/lib/server/classify/source.ts).
+ */
+export const sources = sqliteTable(
+	'sources',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		hosts: text('hosts').notNull().default('[]'),
+		createdAt: integer('created_at').notNull(),
+		...syncColumns
+	},
+	(t) => [
+		uniqueIndex('sources_user_name_live')
+			.on(t.userId, t.name)
+			.where(sql`${t.deletedAt} IS NULL`),
+		index('sources_user_version').on(t.userId, t.version)
+	]
+);
+
 /** A saved link. Times are integer milliseconds since the epoch. */
 export const links = sqliteTable(
 	'links',
@@ -27,8 +51,8 @@ export const links = sqliteTable(
 		title: text('title'),
 		description: text('description'),
 		notes: text('notes'),
-		// organising (sources arrive with T-0006/T-0008)
-		sourceId: text('source_id'),
+		// organising
+		sourceId: text('source_id').references(() => sources.id),
 		media: text('media'),
 		status: text('status'),
 		priority: integer('priority'),
