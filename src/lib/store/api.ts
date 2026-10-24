@@ -98,7 +98,8 @@ export function createApiStore(
 		tags: [],
 		projects: [],
 		sources: [],
-		counts: { links: 0, unsorted: 0, archive: 0 }
+		counts: { links: 0, unsorted: 0, archive: 0 },
+		organised: false
 	};
 	const subscribers = new Set<(state: StoreState) => void>();
 	let listCall = 0;
@@ -232,7 +233,7 @@ export function createApiStore(
 			sources: SourceJson[];
 			counts: ViewCounts;
 		}>('/api/organise');
-		emit(body);
+		emit({ ...body, organised: true });
 	}
 
 	const path = (kind: string, id: string, rest = '') =>

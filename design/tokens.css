@@ -48,6 +48,16 @@
 	--pill-neutral-bg: #eceef2;
 	--pill-neutral-ink: #3d3d3d;
 
+	/* project and tag dots: the only colour a person adds (fields.ts COLORS) */
+	--dot-green: #1f8a4c;
+	--dot-teal: #0f7f7a;
+	--dot-blue: #2457c5;
+	--dot-violet: #6b4fc8;
+	--dot-rose: #c23a64;
+	--dot-orange: #c2570c;
+	--dot-amber: #a87a00;
+	--dot-grey: #7a7f87;
+
 	/* shape and spacing */
 	--radius-card: 8px;
 	--radius-control: 6px;
@@ -104,6 +114,14 @@
 	--pill-warning-ink: #e5a93b;
 	--pill-neutral-bg: #262626;
 	--pill-neutral-ink: #ffffff;
+	--dot-green: #3fbf7a;
+	--dot-teal: #2fb8b0;
+	--dot-blue: #6f9cff;
+	--dot-violet: #a58cff;
+	--dot-rose: #f06b93;
+	--dot-orange: #f08a3c;
+	--dot-amber: #e0b23a;
+	--dot-grey: #9aa0a8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -134,6 +152,14 @@
 		--pill-warning-ink: #e5a93b;
 		--pill-neutral-bg: #262626;
 		--pill-neutral-ink: #ffffff;
+		--dot-green: #3fbf7a;
+		--dot-teal: #2fb8b0;
+		--dot-blue: #6f9cff;
+		--dot-violet: #a58cff;
+		--dot-rose: #f06b93;
+		--dot-orange: #f08a3c;
+		--dot-amber: #e0b23a;
+		--dot-grey: #9aa0a8;
 	}
 }
 

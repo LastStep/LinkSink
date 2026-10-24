@@ -1,6 +1,16 @@
 @import 'tailwindcss';
 @import '../../design/tokens.css';
 
+/* Geist (OFL, static/fonts/Geist-LICENSE.txt), one variable file for every weight; the system face shows until it
+   arrives. */
+@font-face {
+	font-family: 'Geist';
+	src: url('/fonts/Geist-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
 @layer base {
 	html,
 	body {
@@ -21,5 +31,260 @@
 	}
 	.num {
 		font-variant-numeric: tabular-nums;
+	}
+}
+
+/* Shared pieces of the Ledger screens (ADR-0003): controls, chips, pills, overlays. Screen layout lives in each
+   component. Colour stays out of the chrome: the dots are the person's, the accent marks focus and arrivals. */
+@layer components {
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		height: var(--control-height);
+		padding: 0 12px;
+		border: 1px solid var(--control);
+		border-radius: var(--radius-control);
+		background: var(--surface);
+		color: var(--text);
+		font-weight: 500;
+		white-space: nowrap;
+		cursor: pointer;
+		transition:
+			background-color var(--t-hover) var(--ease-out),
+			color var(--t-hover) var(--ease-out),
+			transform var(--t-press) var(--ease-out);
+	}
+	.btn:hover {
+		background: var(--raised);
+	}
+	.btn.primary {
+		background: var(--primary);
+		color: var(--primary-ink);
+		border-color: transparent;
+	}
+	.btn.primary:hover {
+		background: var(--primary);
+		opacity: 0.9;
+	}
+	.btn.ghost {
+		background: transparent;
+		border-color: transparent;
+		color: var(--muted);
+	}
+	.btn.ghost:hover {
+		background: var(--raised);
+		color: var(--text);
+	}
+	.btn.negative {
+		color: var(--negative);
+	}
+	.btn.sm {
+		height: 28px;
+		padding: 0 8px;
+		font-size: 13px;
+	}
+	.btn:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+	.icon-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex: none;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--radius-control);
+		color: var(--muted);
+		cursor: pointer;
+		transition:
+			background-color var(--t-hover) var(--ease-out),
+			color var(--t-hover) var(--ease-out);
+	}
+	.icon-btn:hover {
+		background: var(--active);
+		color: var(--text);
+	}
+	.field-input {
+		width: 100%;
+		height: var(--control-height);
+		padding: 0 10px;
+		border: 1px solid var(--control);
+		border-radius: var(--radius-control);
+		background: var(--surface);
+		color: var(--text);
+		outline: none;
+	}
+	.field-input:focus {
+		border-color: var(--text);
+	}
+	textarea.field-input {
+		height: auto;
+		padding: 8px 10px;
+		resize: vertical;
+		line-height: 20px;
+	}
+	.tag-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		height: 20px;
+		padding: 0 6px;
+		border-radius: var(--radius-chip);
+		background: var(--raised);
+		color: var(--muted);
+		font-size: var(--fs-small);
+		white-space: nowrap;
+	}
+	.dot {
+		display: inline-block;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--c, var(--dot-grey));
+		flex: none;
+	}
+	.pill {
+		display: inline-flex;
+		align-items: center;
+		height: 20px;
+		padding: 0 7px;
+		border-radius: 999px;
+		font-size: var(--fs-small);
+		font-weight: 500;
+		white-space: nowrap;
+		background: var(--pill-neutral-bg);
+		color: var(--pill-neutral-ink);
+	}
+	.pill.done {
+		background: var(--pill-positive-bg);
+		color: var(--pill-positive-ink);
+	}
+	.pill.in_progress {
+		background: var(--pill-warning-bg);
+		color: var(--pill-warning-ink);
+	}
+	.prio {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		font-size: var(--fs-small);
+		color: var(--muted);
+		white-space: nowrap;
+	}
+	.prio.p3 {
+		color: var(--negative);
+	}
+	.seg {
+		display: inline-flex;
+		flex-wrap: wrap;
+		gap: 2px;
+		padding: 2px;
+		background: var(--raised);
+		border-radius: var(--radius-control);
+	}
+	.seg button {
+		height: 28px;
+		padding: 0 10px;
+		border-radius: 4px;
+		color: var(--muted);
+		white-space: nowrap;
+		cursor: pointer;
+	}
+	.seg button:hover {
+		color: var(--text);
+	}
+	.seg button[aria-checked='true'] {
+		background: var(--surface);
+		color: var(--text);
+		font-weight: 500;
+	}
+	.select {
+		appearance: none;
+		background-image: none;
+		padding-right: 28px;
+	}
+	.muted {
+		color: var(--muted);
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+		border: 0;
+	}
+	.toast {
+		position: fixed;
+		z-index: 40;
+		left: 50%;
+		bottom: 24px;
+		translate: -50% 0;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-height: 44px;
+		padding: 0 6px 0 14px;
+		background: var(--text);
+		color: var(--ground);
+		border-radius: var(--radius-control);
+		max-width: calc(100vw - 32px);
+	}
+	.toast span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.toast button {
+		color: var(--ground);
+		font-weight: 600;
+		padding: 4px 8px;
+		border-radius: 4px;
+		cursor: pointer;
+	}
+	.toast button:hover {
+		background: color-mix(in srgb, var(--ground) 18%, transparent);
+	}
+	.scrim {
+		position: fixed;
+		inset: 0;
+		z-index: 30;
+		background: rgb(0 0 0 / 0.34);
+	}
+	.empty-card {
+		padding: 40px 24px;
+		background: var(--surface);
+		border-radius: var(--radius-card);
+		color: var(--muted);
+	}
+	.card {
+		background: var(--surface);
+		border-radius: var(--radius-card);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.btn:active,
+	.icon-btn:active,
+	.seg button:active {
+		transform: scale(0.97);
+	}
+	.toast {
+		animation: ls-rise var(--t-rise) var(--ease-out) both;
+	}
+	.scrim {
+		animation: ls-fade var(--t-ui) var(--ease-out) both;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.toast,
+	.scrim {
+		animation: ls-fade var(--t-fade-reduced) both;
 	}
 }

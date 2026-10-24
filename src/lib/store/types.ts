@@ -89,6 +89,8 @@ export interface StoreState {
 	projects: ProjectJson[];
 	sources: SourceJson[];
 	counts: ViewCounts;
+	/** True once the tags, projects, sources and counts have arrived. */
+	organised: boolean;
 }
 
 /** A new link: no id the store knows. The store makes its id, so the optimistic row keeps it. */
