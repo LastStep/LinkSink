@@ -72,7 +72,7 @@ test('repeated log-in tries do not flood the inbox: the sign-in rate limit answe
 test('the new link confirms the account and login then works', async ({ page }) => {
 	await new Promise((r) => setTimeout(r, 11_000));
 	const mails = sentMail().filter((m) => m.to === email);
-	await page.goto(linkIn(mails[mails.length - 1]));
+	await page.goto(linkIn(mails[1]) /* the one the log-in form sent */);
 	await expect(page).toHaveURL(/\/login\?verified=1$/);
 	await page.getByLabel('Email').fill(email);
 	await page.getByLabel('Password').fill(password);
