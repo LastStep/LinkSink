@@ -24,13 +24,16 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
 
 ## Next
 
-1. T-0006, T-0007, T-0008 have landed. T-0007 and T-0008 read `verify` (the person closes them). T-0014 is done.
-   T-0015 (BUG-001 Add to project picker, BUG-002 lists follow the store, on every view) landed at 96062ea, done,
-   ladder green on main. T-0016 (director lane): a spike outside the repo draws row layouts and status/priority
-   controls on the person's own links; next the options write-up in work/options/, then the person picks.
-   T-0009 (search as you type) is written, not approved, and waits for that pick (same list screen).
-   Open from T-0015: pasting on a tag or project page saves the link, but its row leaves at once (no tag or project
-   yet). Ask the person: add the link to that tag or project automatically, or show a note.
+1. Paused by the person at 17:33 UTC; resume when they are back. T-0006, T-0007, T-0008 have landed; T-0007 and
+   T-0008 read `verify` (the person closes them). T-0014 and T-0015 (BUG-001, BUG-002, at 96062ea) are done.
+   - T-0016 (director lane): options write-up `work/options/OPT-0003-row-and-controls.md`, shots in
+     `design/options/T-0016/`. Recommended: rows A (columns) and controls C (segments with marks). Waiting on the
+     person's pick. Then a decision record and a light build task, which also fixes the hover-Archive trap on the
+     time cell and GitHub's black favicon in dark mode. T-0009 (written, not approved) starts after that.
+   - T-0017 (light lane, running): a link pasted on a tag's or project's page joins that tag or project (the person's
+     word, 17:28); a duplicate gets it too (the orchestrator's reading, said to the person). Its builder was told to
+     pause, commit work in progress on t0017-paste-into-view (worktree ../LinkSink-t0017) and report (thread
+     M-2026-10-24-28056afb). Resume with a newer brief in that thread.
 2. T-0005 (deploy) is a Docker Compose setup (ADR-0004, the person's word) and waits for the person's VPS facts
    (Open questions); HTTPS only (Caddy redirect, HSTS, secure
    cookies), the person's word. T-0005 also carries: rate-limit client IP behind Caddy (Better Auth
