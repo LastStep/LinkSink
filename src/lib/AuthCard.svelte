@@ -1,12 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Mark from './ui/Mark.svelte';
 
 	let { title, children }: { title: string; children: Snippet } = $props();
 </script>
 
 <main class="wrap">
 	<section class="card">
-		<p class="brand">LinkSink</p>
+		<p class="brand"><Mark />LinkSink</p>
 		<h1>{title}</h1>
 		{@render children()}
 	</section>
@@ -30,6 +31,9 @@
 		gap: 16px;
 	}
 	.brand {
+		display: flex;
+		align-items: center;
+		gap: 8px;
 		font-weight: 600;
 		letter-spacing: -0.01em;
 		margin: 0;

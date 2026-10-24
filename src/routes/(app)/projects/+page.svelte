@@ -213,7 +213,6 @@
 <style>
 	.page {
 		padding: 0 var(--pad) 64px;
-		max-width: 960px;
 	}
 	.title-row {
 		padding-top: 32px;

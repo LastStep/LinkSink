@@ -185,7 +185,7 @@
 				{@const s = option.kind === 'create' ? 'none' : coverage(option.kind, option.id)}
 				<div
 					id="pk-opt-{i}"
-					class="opt {s}"
+					class="opt s-{s}"
 					class:active={i === active}
 					role="option"
 					tabindex="-1"
@@ -218,7 +218,7 @@
 			{/each}
 		</div>
 
-		<div class="fixed">
+		<div class="values">
 			<p class="group">Status</p>
 			<div class="seg" role="radiogroup" aria-label="Status">
 				<button
@@ -394,7 +394,7 @@
 		border-radius: 4px;
 		flex: none;
 	}
-	.opt.all .box {
+	.opt.s-all .box {
 		background: var(--text);
 		border-color: var(--text);
 		color: var(--ground);
@@ -417,14 +417,14 @@
 	.none {
 		margin: 8px 6px;
 	}
-	.fixed {
+	.values {
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
 		border-top: 1px solid var(--rule);
 		padding-top: 4px;
 	}
-	.fixed .seg {
+	.values .seg {
 		margin: 0 6px;
 		align-self: flex-start;
 	}

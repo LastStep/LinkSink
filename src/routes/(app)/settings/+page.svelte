@@ -75,7 +75,6 @@
 <style>
 	.page {
 		padding: 0 var(--pad) 64px;
-		max-width: 860px;
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
