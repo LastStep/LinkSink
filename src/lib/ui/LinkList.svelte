@@ -222,18 +222,37 @@
 	let pressed = false;
 
 	function rowClick(event: MouseEvent, link: StoreLink) {
+		const target = event.target as Element;
 		if (pressed) {
+			// The click that ends a long-press: the press already selected the row.
 			pressed = false;
+			event.preventDefault();
 			return;
 		}
-		if ((event.target as Element).closest('a, button, input')) return;
+		// The checkbox and the row's buttons do their own work.
+		if (target.closest('button, input')) return;
+		if (selecting) {
+			// While selecting, a click or tap anywhere on the row, its title too, selects it and opens nothing.
+			event.preventDefault();
+			if (!link.pending) toggleSelect(link.id, event.shiftKey);
+			return;
+		}
+		// Outside Select mode the title is a plain link (a modified click opens it as the browser does).
+		if (target.closest('a')) return;
 		if (link.pending) return;
-		if (selecting || event.shiftKey || event.metaKey || event.ctrlKey) {
+		if (event.shiftKey || event.metaKey || event.ctrlKey) {
 			event.preventDefault();
 			toggleSelect(link.id, event.shiftKey);
 			return;
 		}
 		openId = openId === link.id ? null : link.id;
+	}
+
+	/** A shift-click range or a click while selecting must not drag a text selection across rows. */
+	function rowMouseDown(event: MouseEvent) {
+		if (!(event.shiftKey || selecting)) return;
+		if ((event.target as Element).closest('input, button')) return;
+		event.preventDefault();
 	}
 
 	function rowKey(event: KeyboardEvent, link: StoreLink) {
@@ -254,9 +273,14 @@
 		}
 	}
 
+	/** How far a finger may drift before a press stops counting as a long-press. */
+	const PRESS_SLOP = 10;
+	let pressFrom = { x: 0, y: 0 };
+
 	function pressStart(event: PointerEvent, link: StoreLink) {
 		if (event.pointerType !== 'touch' || link.pending) return;
 		clearTimeout(pressTimer);
+		pressFrom = { x: event.clientX, y: event.clientY };
 		pressTimer = setTimeout(() => {
 			pressed = true;
 			navigator.vibrate?.(10);
@@ -264,6 +288,10 @@
 		}, 450);
 	}
 	const pressEnd = () => clearTimeout(pressTimer);
+	function pressMove(event: PointerEvent) {
+		if (Math.hypot(event.clientX - pressFrom.x, event.clientY - pressFrom.y) > PRESS_SLOP)
+			pressEnd();
+	}
 
 	function onwindowkey(event: KeyboardEvent) {
 		if (event.key !== 'Escape' || pickerIds) return;
@@ -374,7 +402,8 @@
 							onpointerdown={(e) => pressStart(e, link)}
 							onpointerup={pressEnd}
 							onpointercancel={pressEnd}
-							onpointermove={pressEnd}
+							onpointermove={pressMove}
+							onmousedown={rowMouseDown}
 							oncontextmenu={(e) => pressed && e.preventDefault()}
 						>
 							{#if selecting}
@@ -405,7 +434,8 @@
 									href={link.url}
 									rel="noopener noreferrer"
 									target="_blank"
-									onclick={() => !link.pending && store.opened(link.id).catch(() => {})}
+									onclick={() =>
+										!selecting && !link.pending && store.opened(link.id).catch(() => {})}
 									>{link.title || link.url}</a
 								>
 								<!-- eslint-enable svelte/no-navigation-without-resolve -->
@@ -653,11 +683,19 @@
 		font-size: 13px;
 		font-weight: 400;
 	}
+	.ledger {
+		--act-width: 88px;
+	}
+	.selecting .row {
+		user-select: none;
+		-webkit-user-select: none;
+		-webkit-touch-callout: none;
+	}
 	.row {
 		position: relative;
 		isolation: isolate;
 		display: grid;
-		grid-template-columns: 16px minmax(0, 1fr) auto auto auto 44px 0;
+		grid-template-columns: 16px minmax(0, 1fr) auto auto auto var(--act-width) 0;
 		align-items: center;
 		gap: 14px;
 		min-height: var(--row-height);
@@ -672,7 +710,7 @@
 		border-radius: 0 0 var(--radius-card) var(--radius-card);
 	}
 	.selecting .row {
-		grid-template-columns: 16px 16px minmax(0, 1fr) auto auto auto 44px 0;
+		grid-template-columns: 16px 16px minmax(0, 1fr) auto auto auto var(--act-width) 0;
 	}
 	/* the ruled line between rows of a day */
 	.row:not(.day-h + .row)::before {
@@ -697,16 +735,18 @@
 	.row.last::after {
 		bottom: 4px;
 	}
-	.row:hover::after,
-	.row:focus-within::after {
+	.row:focus-visible::after {
 		background: var(--raised);
+	}
+	@media (hover: hover) {
+		.row:hover::after {
+			background: var(--raised);
+		}
 	}
 	.row.open::after,
 	.row.selected::after {
 		background: var(--active);
 	}
-	.row:hover::before,
-	.row:hover + .row::before,
 	.row.open::before,
 	.row.open + .row::before,
 	.row.selected::before,
@@ -771,23 +811,32 @@
 		text-align: right;
 		font-size: 13px;
 	}
+	/* The row's buttons cover the time column only (it is as wide as they are), so a status or priority is never cut. */
 	.c-act {
 		position: absolute;
-		right: 6px;
+		right: 14px;
+		width: var(--act-width);
 		top: 50%;
 		translate: 0 -50%;
 		display: flex;
+		justify-content: flex-end;
 		gap: 2px;
-		padding-left: 8px;
 		background: var(--raised);
 		border-radius: 4px;
 		opacity: 0;
 		transition: opacity var(--t-hover) var(--ease-out);
 	}
-	.row:hover .c-act,
 	.row:focus-within .c-act,
 	.row.open .c-act {
 		opacity: 1;
+	}
+	@media (hover: hover) {
+		.row:hover .c-act {
+			opacity: 1;
+		}
+	}
+	.selecting .c-act {
+		display: none;
 	}
 	.row.open .c-act,
 	.row.selected .c-act {
