@@ -180,3 +180,17 @@ an artifact for the person to open on phone and desktop).
 - I read every text file and viewed every image (contact sheet) before publishing:
   https://claude.ai/artifact/TMwfMgvW24UQoZcMvevNvZ
 - Next: the person picks (or asks for a mix/revision) → ADR → design/tokens.css + reference screens in repo.
+
+## Build session 1 (2026-10-24 09:05 UTC)
+
+- Person approved T-0003 itself (full lane needs the task's own `approved`; committed 1e31d17), moved to running (fb3726e).
+- Brief M-2026-10-24-b9633541 builder@T-0003 (opus), worktree ../LinkSink-t0003, branch t0003-walking-skeleton. Waiting.
+- Next on its report: read the diff, security + tests-and-correctness verifiers (auth), hand the person the ladder lines.
+- Builder report M-2026-10-24-fdb03267: done, HEAD b742f91 (code 9943d1c). Better Auth 1.7.12 works on kit 3.1.0. 36.4 KB gz first load. 23 unit, 2 e2e. Its own npm-format slip on Bonsai files undone (diff empty, I checked).
+- Verifiers: M-2026-10-24-7180a2a9 security (verifier@T-0003), M-2026-10-24-d3f07f41 tests (verifier@T-0003#2). Waiting.
+- Tests verifier M-2026-10-24-fe575768: FAIL, 1 blocking (held: I confirmed the gitignored .env in the worktree): clean checkout `npm run build` / `test:e2e` exit 1, src/env.ts demands BETTER_AUTH_SECRET + ORIGIN at build; e2e-server.js sets the secret only after the build. Non-blocking: immediate-vs-deferred untested; SyncWriter exposes raw tx; FTS on rowid vs VACUUM (T-0005); build-time secret vs CI build.
+- Waiting on security before one combined fix brief to the builder.
+- Security verifier M-2026-10-24-b0286f15: PASS, 0 blocking. Race test: 2–100 concurrent sign-ups → always 1 user. Risks: form login skips rate limit; console mailer used in prod if no Resend key (tokens in log); losers of race told "sent"; rate-limit IP behind Caddy (T-0005: advanced.ipAddress); drizzle-kit audit (esbuild dev server, moderate); build-time secret; raw error on form.
+- Fix brief M-2026-10-24-a4e59799 (resumed builder): clean-checkout build/e2e (blocking), form rate limit, prod mailer must fail without Resend key, generic form errors.
+- Carry to T-0005: rate-limit IP header, FTS rowid vs VACUUM INTO, CI build env, drizzle-kit audit.
+- Fix report M-2026-10-24-af9dc8b7 done; my clean-copy run at 8d49111 all green (29 unit, 3 e2e, 36.4 KB). Landed ff to main. T-0003 → verify; person to paste ladder and close.

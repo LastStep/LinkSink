@@ -12,25 +12,26 @@ Rewritten whole whenever where the project stands changes; never appended to. A 
 
 ## Now
 
-Planning is finished and approved; no code exists yet. LinkSink is a single-user, self-hosted link hub: paste or
-share a link, it fills in title, source and media; the person adds tags, projects, status, priority, notes; archive;
-full copy on every device with sync; web first, iOS later.
+The walking skeleton (T-0003) is merged into main at 8d49111. It is a SvelteKit 3.1 app with Better Auth (works on kit
+3, proved end to end), single-user sign-up, argon2id, SQLite WAL + FTS5 with the sync base (`syncWrite`), Ledger
+tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz first load). T-0003 reads `verify`: the
+person closes it (full lane). Builder worktree `../LinkSink-t0003` still exists (branch merged; safe to remove).
 
-- One-pager `work/features/F-web-mvp.md`: approved 2026-10-24.
-- Plan `work/plans/P-T-0002.md` (eleven build tasks, T-0003 to T-0013): approved 2026-10-24.
-- Next task written and waiting: `work/tasks/T-0003-walking-skeleton.md` (todo). The person said to start the actual
-  work in the next session.
-- Look: direction A, Ledger; the mockup is in `design/reference/` (reference only, open `a.html`).
-- Orchestrator's working notes, with every research finding and message id: `work/notes/orchestrator.md`.
+- One-pager `work/features/F-web-mvp.md` and plan `work/plans/P-T-0002.md` (T-0003 to T-0013): approved.
+- T-0003 run report with verdicts and the ladder lines: `work/runs/R-2026-10-24-T-0003-walking-skeleton.md`.
+- Look: direction A, Ledger; reference in `design/reference/`.
+- Orchestrator's working notes, with every message id: `work/notes/orchestrator.md`.
 
 ## Next
 
-1. Start T-0003 (walking skeleton) with a builder in its own worktree on branch `t0003-walking-skeleton`; brief it
-   from plan step 1 and the task's `done_when`. Its first commit proves Better Auth on SvelteKit 3.1 end to end; if
-   that fails, it stops blocked and the person picks the fallback (SvelteKit 2 or own auth).
-2. After T-0003 lands: the person adds the ladder lines it hands over to `bonsai.yaml` (their edit), then T-0005
-   (deploy), T-0006 (links + paste) and T-0007 (metadata fetcher) can run, at most two builders at once.
-3. Chromium for browser tests and taste-skill checks: Playwright's copy is at `~/.cache/ms-playwright/chromium-1223`.
+1. The person pastes the ladder lines (run report, "The ladder lines for bonsai.yaml") into `bonsai.yaml` and
+   closes T-0003 (`done`).
+2. Then T-0005 (deploy), T-0006 (links + paste) and T-0007 (metadata fetcher), at most two builders at once; each
+   task written and approved first (full lane). T-0005 carries: rate-limit client IP behind Caddy (Better Auth
+   `advanced.ipAddress`; a direct caller can set x-forwarded-for), FTS5 rowid vs `VACUUM INTO`, building in CI with
+   ORIGIN set (`kit.paths.origin` is build-time), drizzle-kit audit findings (moderate, dev only).
+3. Chromium for browser tests: `~/.cache/ms-playwright/chromium-1223`. Geist font is named in the tokens but not
+   served yet (system font for now).
 
 ## Open questions
 

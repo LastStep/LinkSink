@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0003
 title: Walking skeleton — SvelteKit 3 app with Better Auth sign-up, sync-ready SQLite, Ledger design tokens and the checks
-status: running
+status: verify
 lane: full
 done_when:
   - "A first commit proves sign-up, email verification (console mailer), login, inserting a link and an FTS5 query on SvelteKit 3.1 with Better Auth 1.7.x; if Better Auth fails on SvelteKit 3, the task is blocked with the full error instead"

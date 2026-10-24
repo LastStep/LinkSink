@@ -332,3 +332,12 @@ known to me; the hours are T-0003's rows in `.bonsai/sessions.md`.
 ## Verifier
 
 > Added by the verifier, in a fresh context. Pass or fail, with reasons.
+
+## Landing (orchestrator, 2026-10-24 09:47 UTC)
+
+- Brief M-2026-10-24-b9633541; reports M-2026-10-24-fdb03267 (done) and, after fix brief M-2026-10-24-a4e59799, M-2026-10-24-af9dc8b7 (done).
+- Tests-and-correctness verifier (M-2026-10-24-d3f07f41 → M-2026-10-24-fe575768): "FAIL", 1 blocking: clean checkout without `.env` failed `npm run build` and `npm run test:e2e` (build-time env). Held (the orchestrator saw the untracked `.env`); fixed in 5066f89.
+- Security verifier (M-2026-10-24-7180a2a9 → M-2026-10-24-b0286f15): "PASS", 0 blocking; 7 risks, of which form rate limit, console mail in production and raw form errors were fixed (619cc0e, 5066f89, 740f83c). Carried to T-0005: client IP header for the rate limit behind Caddy (and that a direct caller can set x-forwarded-for), FTS rowid vs `VACUUM INTO`, CI build, drizzle-kit audit (moderate, dev server only).
+- Blocking findings that held: 1 of 1.
+- Orchestrator's own proof at 8d49111, from a `git archive` copy with no `.env` and ORIGIN/BETTER_AUTH_SECRET unset: npm ci 0, check 0, lint 0, unit 29 passed, e2e 3 passed, build+size 0 (36.4 / 36.26 / 36.41 kB gz, limit 60 kB). No ladder climb: bonsai.yaml has no rungs yet.
+- Landed: main fast-forwarded to 8d49111. Task to verify; the full lane is closed by the person.
