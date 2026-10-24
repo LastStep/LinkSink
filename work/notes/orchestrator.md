@@ -194,3 +194,6 @@ an artifact for the person to open on phone and desktop).
 - Fix brief M-2026-10-24-a4e59799 (resumed builder): clean-checkout build/e2e (blocking), form rate limit, prod mailer must fail without Resend key, generic form errors.
 - Carry to T-0005: rate-limit IP header, FTS rowid vs VACUUM INTO, CI build env, drizzle-kit audit.
 - Fix report M-2026-10-24-af9dc8b7 done; my clean-copy run at 8d49111 all green (29 unit, 3 e2e, 36.4 KB). Landed ff to main. T-0003 → verify; person to paste ladder and close.
+- 09:59 ladder committed by the person (e15441f), T-0003 green and done.
+- 10:00 person approved T-0006 and T-0007 (committed), both running at 6c467c4. Briefs: M-2026-10-24-d6363978 builder@T-0006, M-2026-10-24-afebfbe1 builder@T-0007 (both opus). Contract: T-0007 owns fetch/ + classify/, exports enqueueFetch; T-0006 lands first; I resume T-0007 to rebase and wire it. T-0006: PATCH adds to user_set.
+- Verifiers when done: T-0006 tests + QA (screens are plain; QA light); T-0007 security + tests.
