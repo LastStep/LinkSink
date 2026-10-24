@@ -26,6 +26,71 @@ Pictures, in `design/options/T-0016/`:
 
 This page asks two questions. Answer each with a letter, for example "rows A, controls C".
 
+## Second pass: the Fable redesign (added 2026-10-24 20:50 UTC)
+
+At 20:14 you asked for "a fable redesign on this and improve everything if possible". A builder on the Fable model
+ran a second spike on a fresh copy of your dev database (report M-2026-10-24-d34fa073, full text in
+`design/options/T-0016/fable/REPORT.md`, key shots beside it). It keeps Ledger's calm, dense, text-first spirit and
+offers three bundles behind one switch:
+
+- **f1:** row **r1**, columns under a header line, with status and priority as a mark and a word. Control **c1**:
+  property rows, where a click opens a menu.
+- **f2:** row **r2**, state first. A fixed cell at the row's start holds the status word and mark, then the priority
+  bars, then the title, with projects and tags in grey on the right. Control **c2**: a track of three choices with
+  marks, one click to change, and an × to clear.
+- **f3:** row **r3**, two lines, with status over priority in a fixed cell on the right. Control **c3**: radio lists.
+
+Rows and controls mix freely (`?row=r1&ctl=c2`). One shared redesign sits under all three:
+
+- **Marks:** one language everywhere. Status is ○ To read, ◐ In progress, ✓ Done (green) and a dashed circle for
+  none; priority is 1 to 3 bars, with High in red.
+- **Details panel:** the title wraps instead of being cut. Source, Media, Status and Priority are one block of
+  label and value rows. Fields have no borders until you click them. The Organise / Archive / Delete footer is pinned
+  to the bottom of the panel.
+- **The list frame:** day names sit above their card. The search reads "Filter as you type" with a `/` hint, and
+  the count turns into "3 of 12" while you filter (it shows the look; the real search is T-0009).
+- **Hover:** the Archive, Tag and Delete actions get their own slot after the time, so a click on the time never
+  archives.
+- **Selection:** a selected row gets a 2 px accent bar.
+- **Empty states:** written in plain words.
+- **Dark mode:** favicons sit on a pale tile, so GitHub's icon shows.
+- **Phone:** a bottom tab bar (Links · Unsorted · Projects · Tags · More). Rows show the title on up to two lines and
+  a second line where whole items drop when they don't fit, so nothing is cut mid-word.
+
+Where it departs from Ledger:
+
+- Marks beside the words, instead of status pills.
+- Day names outside the card.
+- Borderless fields in the details panel.
+- The accent bar on selected rows.
+- A bottom tab bar on the phone.
+- No counts beside Tags and the projects in the sidebar (Unsorted keeps its count).
+
+| Measured (Chromium, light, your 12 links) | today | f1 (r1) | f2 (r2) | f3 (r3) |
+|---|---|---|---|---|
+| Row height at 1440, px | 44 | 44 | 44 | 56 |
+| Rows per 1440×900 screen | 14 | 14 | 15 | 11 |
+| Different left edges of status | 7 | 1 | 1 | 1 |
+| Rows per 390×844 phone screen | 9 | 10 | 10 | 10 |
+
+Shots, in `design/options/T-0016/fable/`:
+
+- `list-<current|f1|f2|f3>-1440-light.png` and `detail-set-<…>-1440-light.png`: each list and its details panel.
+- `list-f1-390-light.png`: the phone.
+- `hover-f1-1440-light.png`, `search-f1-1440-light.png`, `select-f1-1440-light.png` and
+  `empty-unsorted-f1-1440-light.png`: the hover, search, select-mode and empty-Unsorted states.
+
+**First load:** the spike's build is 55.77 KB against main's 52.04 KB (limit 60). That figure is an upper bound,
+since the spike carries both rows and the switch.
+
+Not run:
+
+- WebKit, apart from four phone shots.
+- The taste skill's inspection gate.
+- The real search.
+
+Known spike shortcuts, not proposals: c1's menu closes only on blur, and r1's header line isn't sticky.
+
 ## What matters here
 
 - **Alignment:** each kind of information sits in the same column on every row. This was your complaint.
@@ -106,7 +171,21 @@ All three are reversible: they change the panel only.
 
 ## Recommendation
 
-**Rows A, controls C.**
+**Updated after the second pass: the Fable redesign with row r1 and control c2, plus its shared redesign of the
+details panel, frame and phone (`?row=r1&ctl=c2`).**
+
+- **r1:** it is the first pass's columns (A), now with the marks and words, and the header line. Status starts on
+  one edge, every column lines up, and it fits as many rows as today. r2 is just as aligned, but its projects and
+  tags are right-aligned, so they start at different places on each row again.
+- **c2:** it is the first pass's segments (C), refined. One click changes a value, every choice shows with its mark,
+  and the × makes clearing plain.
+- **The shared redesign:** it fixes the two traps found (the hover Archive over the time, and GitHub's icon in dark
+  mode) and the phone cut-offs, and it adds the pinned footer and the wrapping title.
+
+What would change it: if you don't want the departures from Ledger listed above (a bottom tab bar on the phone,
+borderless fields, day names outside the card), say which ones to keep as they are. Each can be built either way.
+
+The first pass's reasoning, kept for the record: **Rows A, controls C.**
 
 - **Rows A:** it is the one that fixes what you named, alignment, without costing rows per screen or asking you to
   learn symbols. B is as aligned and quieter, but status and priority become marks you have to decode. C costs four
