@@ -187,7 +187,13 @@ export function createSafeFetch(config: SafeFetchConfig): SafeFetch {
 		pickAddress(hostname, resolve).then(
 			(address) => {
 				const port = Number(options.port) || (options.protocol === 'https:' ? 443 : 80);
-				const target = config.dialFor ? config.dialFor(address, port) : { host: address, port };
+				let target = { host: address, port };
+				try {
+					if (config.dialFor) target = config.dialFor(address, port);
+				} catch (error) {
+					callback(error as Error, null);
+					return;
+				}
 				base(
 					{
 						...options,

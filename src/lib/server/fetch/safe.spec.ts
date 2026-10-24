@@ -76,7 +76,8 @@ beforeAll(async () => {
 		dialFor: (address, port) => {
 			if (address === PUBLIC_STUB_IP && port === stub.port)
 				return { host: '127.0.0.1', port: stub.port };
-			throw new Error(`test dialer: no route for ${address}:${port}`);
+			// Every other address is dialled as it is, so a check that let one through would reach the trap.
+			return { host: address, port };
 		}
 	});
 });

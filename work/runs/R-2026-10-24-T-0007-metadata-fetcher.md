@@ -22,6 +22,14 @@ labels: {}
   moved one notes commit past the brief's 6c467c4). Node v22.21.1.
 - 10:03 Dependencies added, exact pins: undici 8.12.3 (engines node >= 22.19; Node's built-in fetch exposes no
   Agent to plug a connector into), htmlparser2 12.0.0, sharp 0.35.5, tldts 7.4.19. No others.
+- 10:08 safe.ts + addresses.ts, unit and integration tests (110). Check (b) is a custom undici connector (wrapping
+  `buildConnector`) that resolves, checks every address and dials the validated one, rather than a `connect.lookup`
+  option: same effect, and it does not depend on how net's autoSelectFamily calls lookup. First run: discarding a
+  redirect's body threw an uncaught `UND_ERR_ABORTED` (destroyed stream with no error listener); fixed.
+- 10:12 Mutation check: with both IP-literal checks (`checkUrl` and the connector's `pickAddress`) replaced by
+  `false`, 13 SSRF tests fail and the trap counts connections (`expected 1 to be 0`). With only `checkUrl`'s off, all
+  pass (the connector's check holds: defence in depth). First version of the test dialer threw for unmapped
+  addresses, which made "trap never reached" vacuous under that mutation; it now dials every other address unchanged.
 
 ## What is different now
 
