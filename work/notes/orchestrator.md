@@ -228,3 +228,19 @@ an artifact for the person to open on phone and desktop).
 - 13:05 T-0008 tests M-2026-10-24-bbd4e1bc: PASS, 0 blocking (12/13 unit mutants + e2e caught the 13th; scoping, migration, older tests not weakened). Non-blocking: no test for tags_text refresh after bulk tag change (organise.ts:676); no-op calls bump version. Waiting on QA.
 - 13:19 T-0008 QA M-2026-10-24-de86610b: FAIL, 1 blocking (held, confirmed in LinkList.svelte:229): select-mode click/tap on title opens site. Non-blocking N1-N7 folded in. Fix brief M-2026-10-24-300b046f. After it: I check B1 myself (diff + e2e), land, ask the person to look.
 - 13:32 T-0008 landed, to verify; person to look.
+
+## The person's test notes after T-0008 (2026-10-24 14:01 UTC) — noted only, no work started (their word)
+
+1. "add to project, opens the tag menu, not able to create project from there" → BUG-001 (work/bugs.md).
+2. "need better ui components for status and priority in the link view page" → design ask: the details panel's
+   status/priority segmented controls (Detail.svelte). Taste: needs options/mock before building.
+3. "need better way of showing status and priority in the ledger view. current we show link - tags - project dot -
+   status - priority. this makes things kind of misaligned and I don't like that. so I want you to figure out a more
+   intuitive way of doing this" → design ask for the row layout (LinkList.svelte); the person asks me to propose.
+   Likely: options as mockups on real data (workflow:prototype), the person picks.
+4. "the search only applies after hitting enter, I want it to be automatic and fast" → T-0009's search-as-you-type
+   (150 ms) covers it; T-0009 awaits approval.
+5. "opened a tag with 2 links, ... removed the same tag from there, this still showed the link in the tag list. it
+   needs to update in real time" → BUG-002. Same class may hit project pages, Unsorted, Archive: check every list view
+   follows the store.
+- T-0008 not closed yet (the person has notes on the look). T-0009 not approved yet.
