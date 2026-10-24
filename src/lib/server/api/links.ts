@@ -68,6 +68,15 @@ function objectBody(body: unknown): Record<string, unknown> {
 	return body as Record<string, unknown>;
 }
 
+/** An optional list of ids (text) from a body; anything else is a bad request. */
+function idList(value: unknown, field: string): string[] | undefined {
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) {
+		throw new BadPatchError(`${field} must be a list of ids.`);
+	}
+	return value as string[];
+}
+
 function guard(fn: () => Promise<Response> | Response): Promise<Response> {
 	return Promise.resolve()
 		.then(fn)
@@ -114,8 +123,8 @@ export function createLinksApi({
 		},
 
 		/**
-		 * POST /api/links {url, title?, id?, via?}: 201 with the new link, or 200 with the existing one and
-		 * `duplicate: true` when the address is already saved (nothing is written then).
+		 * POST /api/links {url, title?, id?, via?, tagIds?, projectIds?}: 201 with the new link, or 200 with the existing one and
+		 * `duplicate: true` when the address is already saved (then only the given tags and projects are added to it).
 		 */
 		create(caller: Caller, request: Request) {
 			return guard(async () => {
@@ -131,7 +140,9 @@ export function createLinksApi({
 					url: body.url,
 					title,
 					id,
-					via
+					via,
+					tagIds: idList(body.tagIds, 'tagIds'),
+					projectIds: idList(body.projectIds, 'projectIds')
 				});
 				if (!duplicate) onCreated(link.id);
 				return json({ link: linkJson(db, link), duplicate }, duplicate ? 200 : 201);

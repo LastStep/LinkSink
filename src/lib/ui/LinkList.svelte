@@ -108,7 +108,14 @@
 		message = '';
 		notice = '';
 		try {
-			const result = await store.put({ url: link, title: typed || null, via: 'paste' });
+			const result = await store.put({
+				url: link,
+				title: typed || null,
+				via: 'paste',
+				// On a tag's or project's page the link joins it, so its row stays in the list.
+				...(view.kind === 'tag' ? { tagIds: [view.id] } : {}),
+				...(view.kind === 'project' ? { projectIds: [view.id] } : {})
+			});
 			if (result.duplicate) {
 				notice = 'Already saved.';
 				flashed = result.link.id;

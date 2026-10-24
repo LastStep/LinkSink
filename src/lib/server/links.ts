@@ -145,6 +145,9 @@ export interface NewLink {
 	/** An id the device made (a ULID), so its optimistic row keeps its id; ignored if malformed or taken. */
 	id?: string | null;
 	via?: SavedVia;
+	/** Tags and projects (by id) the link joins in the same write that creates it. Must be the user's live ones. */
+	tagIds?: string[];
+	projectIds?: string[];
 }
 
 function isUnique(error: unknown) {
@@ -184,6 +187,9 @@ export function addLink(syncWrite: SyncWrite, userId: string, input: NewLink): s
 			metaState: 'pending',
 			savedVia: input.via ?? 'paste'
 		});
+		if (input.tagIds?.length || input.projectIds?.length) {
+			setOrganising(w, id, { tagIds: input.tagIds, projectIds: input.projectIds });
+		}
 		return id;
 	});
 }
@@ -200,16 +206,38 @@ export function saveLink(
 ): { link: Link; duplicate: boolean } {
 	const key = normalise(input.url);
 	const existing = key ? findByKey(db, userId, key) : null;
-	if (existing) return { link: existing, duplicate: true };
+	if (existing)
+		return { link: joinExisting(db, syncWrite, userId, existing, input), duplicate: true };
 	try {
 		const id = addLink(syncWrite, userId, input);
 		return { link: getLink(db, userId, id)!, duplicate: false };
 	} catch (error) {
 		// Saved by another request between the look-up and the insert.
 		const raced = key && isUnique(error) ? findByKey(db, userId, key) : null;
-		if (raced) return { link: raced, duplicate: true };
+		if (raced) return { link: joinExisting(db, syncWrite, userId, raced, input), duplicate: true };
 		throw error;
 	}
+}
+
+/** A duplicate paste on a tag's or project's page adds that tag or project to the link already saved. */
+function joinExisting(
+	db: DB,
+	syncWrite: SyncWrite,
+	userId: string,
+	link: Link,
+	input: NewLink
+): Link {
+	if (!input.tagIds?.length && !input.projectIds?.length) return link;
+	const org = organisingOf(db, userId, [link.id]).get(link.id) ?? { tagIds: [], projectIds: [] };
+	const union = (have: string[], add: string[] | undefined) => [
+		...new Set([...have, ...(add ?? [])])
+	];
+	return (
+		patchLink(db, syncWrite, userId, link.id, {
+			tagIds: union(org.tagIds, input.tagIds),
+			projectIds: union(org.projectIds, input.projectIds)
+		}) ?? link
+	);
 }
 
 /** What a PATCH may change. `archived` sets or clears `archived_at`. */

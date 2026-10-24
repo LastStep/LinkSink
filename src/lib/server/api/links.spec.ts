@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createAuth, type Auth } from '../auth-config.ts';
 import { links, sources } from '../db/schema.ts';
+import { createProject, createTag } from '../organise.ts';
 import type { Mail } from '../mail.ts';
 import { createSyncWrite } from '../sync/write.ts';
 import { addUser, tempDatabase } from '../test/db.ts';
@@ -186,6 +187,67 @@ describe('POST /api/links', () => {
 		expect(
 			(await post(me, { url: 'https://example.com/i', via: 'import' })).body.link.savedVia
 		).toBe('api');
+	});
+
+	it('creates a link with its tags and projects in one write (one sync version)', async () => {
+		const tag = createTag(t.db, createSyncWrite(t.db), 'u1', { name: 'later' }).tag;
+		const project = createProject(t.db, createSyncWrite(t.db), 'u1', {
+			name: 'Trip',
+			color: 'teal'
+		});
+		const versionBefore = snapshot(t.db).versions.get('u1') ?? 0;
+		const res = await post(me, {
+			url: 'https://example.com/joined',
+			tagIds: [tag.id],
+			projectIds: [project.id]
+		});
+		expect(res.status).toBe(201);
+		expect(res.body.link).toMatchObject({ tagIds: [tag.id], projectIds: [project.id] });
+		expect(res.body.link.tagsText).toBe('later');
+		// The link and both joins are three rows, all written at the one new version.
+		expect(changes.at(-1)).toBe(3);
+		expect(snapshot(t.db).versions.get('u1')).toBe(versionBefore + 1);
+	});
+
+	it("refuses an unknown or another user's tag or project, and saves nothing", async () => {
+		addUser(t.db, 'u2');
+		const theirs = createTag(t.db, createSyncWrite(t.db), 'u2', { name: 'theirs' }).tag;
+		const theirProject = createProject(t.db, createSyncWrite(t.db), 'u2', { name: 'Theirs' });
+		for (const body of [
+			{ tagIds: [theirs.id] },
+			{ tagIds: ['01JBK3ZQ7E8W5V6X9Y0ZABCDEF'] },
+			{ projectIds: [theirProject.id] },
+			{ projectIds: ['nope'] },
+			{ tagIds: 'x' },
+			{ projectIds: [1] }
+		]) {
+			const res = await post(me, { url: 'https://example.com/refused', ...body });
+			expect(res.status).toBe(400);
+		}
+		expect(t.db.select().from(links).all()).toHaveLength(0);
+	});
+
+	it('adds the tag and project to a link that is already saved, keeping what it had', async () => {
+		const a = createTag(t.db, createSyncWrite(t.db), 'u1', { name: 'a' }).tag;
+		const b = createTag(t.db, createSyncWrite(t.db), 'u1', { name: 'b' }).tag;
+		const project = createProject(t.db, createSyncWrite(t.db), 'u1', {
+			name: 'Trip',
+			color: 'teal'
+		});
+		const first = await post(me, { url: 'https://example.com/dup', tagIds: [a.id] });
+		const again = await post(me, {
+			url: 'https://www.example.com/dup/',
+			tagIds: [b.id],
+			projectIds: [project.id]
+		});
+		expect(again.status).toBe(200);
+		expect(again.body.duplicate).toBe(true);
+		expect(again.body.link.id).toBe(first.body.link.id);
+		expect([...again.body.link.tagIds].sort()).toEqual([a.id, b.id].sort());
+		expect(again.body.link.projectIds).toEqual([project.id]);
+		expect(t.db.select().from(links).all()).toHaveLength(1);
+		// A duplicate with an unknown id is refused, not half-applied.
+		expect((await post(me, { url: 'https://example.com/dup', tagIds: ['nope'] })).status).toBe(400);
 	});
 
 	it('searches with q', async () => {
