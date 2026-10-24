@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	plugins: [
 		tailwindcss(),
 		sveltekit({
@@ -20,6 +20,8 @@ export default defineConfig({
 	],
 	test: {
 		expect: { requireAssertions: true },
+		// `--mode junit` (the ladder's unit rung): a JUnit report on standard output and nothing else there.
+		reporters: mode === 'junit' ? [['junit', { stdout: true }]] : ['default'],
 		projects: [
 			{
 				extends: './vite.config.ts',
@@ -32,4 +34,4 @@ export default defineConfig({
 			}
 		]
 	}
-});
+}));
