@@ -8,10 +8,8 @@
 	import { listenForPastes } from '#lib/paste.ts';
 	import { store, StoreError, type StoreLink, type View } from '#lib/store/index.ts';
 	import { displayHost } from '#lib/url.ts';
-	import Detail from './Detail.svelte';
 	import { byDay, plural, timeOf } from './format.ts';
 	import Icon from './Icon.svelte';
-	import Picker from './Picker.svelte';
 
 	let {
 		view,
@@ -19,6 +17,11 @@
 		sub = '',
 		empty
 	}: { view: View; title: string; sub?: string; empty: string } = $props();
+
+	// The details, the organiser and the bulk bar load on first use, not with the list (the first-load budget).
+	const loadDetail = () => import('./Detail.svelte');
+	const loadPicker = () => import('./Picker.svelte');
+	const loadBulkBar = () => import('./BulkBar.svelte');
 
 	/** How long an undo stays offered. */
 	const UNDO_MS = 5000;
@@ -203,6 +206,16 @@
 	}
 
 	// ---------- rows: click, keys, long-press ----------
+	/** Rows already warmed (not shown, so not reactive). */
+	const warmed: Record<string, true> = {};
+	/** On hover or focus of a row: fetch the details' code and picture, so they open at once. */
+	function warm(link: StoreLink) {
+		if (link.pending || warmed[link.id]) return;
+		warmed[link.id] = true;
+		loadDetail();
+		if (link.imagePath) new Image().src = `/media/${link.imagePath}`;
+	}
+
 	let pressTimer: ReturnType<typeof setTimeout> | undefined;
 	let pressed = false;
 
@@ -354,6 +367,8 @@
 							tabindex="0"
 							onclick={(e) => rowClick(e, link)}
 							onkeydown={(e) => rowKey(e, link)}
+							onpointerenter={() => warm(link)}
+							onfocus={() => warm(link)}
 							onpointerdown={(e) => pressStart(e, link)}
 							onpointerup={pressEnd}
 							onpointercancel={pressEnd}
@@ -368,8 +383,9 @@
 									checked={selected.has(link.id)}
 									disabled={link.pending}
 									onclick={(e) => {
-										e.preventDefault();
+										// The box follows the selection (a shift-click can select a range).
 										toggleSelect(link.id, e.shiftKey);
+										e.currentTarget.checked = selected.has(link.id);
 									}}
 								/>
 							{/if}
@@ -401,17 +417,6 @@
 											)}
 								</span>
 							</span>
-							{#if link.imagePath}
-								<!-- the preview, loaded while the row is near the screen so the details open with it -->
-								<img
-									class="preview preload"
-									src="/media/{link.imagePath.replace(/\.webp$/, '-320.webp')}"
-									alt=""
-									width="320"
-									height="180"
-									loading="lazy"
-								/>
-							{/if}
 							<span class="c-tags">
 								{#each rowTags.slice(0, 3) as t (t.id)}<span class="tag-chip">{t.name}</span>{/each}
 								{#if rowTags.length > 3}<span class="tag-chip">+{rowTags.length - 3}</span>{/if}
@@ -469,49 +474,39 @@
 		{/if}
 
 		{#if selecting}
-			<div class="bulkbar" role="toolbar" aria-label="Selected links">
-				<span class="num"><strong>{selected.size}</strong> selected</span>
-				<button
-					class="btn ghost sm"
-					type="button"
-					onclick={() => flat.forEach((l) => !l.pending && selected.add(l.id))}>All</button
-				>
-				<span class="grow"></span>
-				<button
-					class="btn sm"
-					type="button"
-					disabled={selected.size === 0}
-					onclick={() => organise([...selected])}><Icon name="tag" />Organise</button
-				>
-				<button class="btn sm" type="button" disabled={selected.size === 0} onclick={bulkArchive}>
-					<Icon name="archive" />{view.kind === 'archive' ? 'Restore' : 'Archive'}
-				</button>
-				<button
-					class="btn sm negative"
-					type="button"
-					disabled={selected.size === 0}
-					onclick={bulkDelete}><Icon name="trash" />Delete</button
-				>
-				<button class="btn ghost sm" type="button" onclick={endSelect}>Done</button>
-			</div>
+			{#await loadBulkBar() then { default: BulkBar }}
+				<BulkBar
+					count={selected.size}
+					archive={view.kind === 'archive'}
+					onall={() => flat.forEach((l) => !l.pending && selected.add(l.id))}
+					onorganise={() => organise([...selected])}
+					onarchive={bulkArchive}
+					ondelete={bulkDelete}
+					ondone={endSelect}
+				/>
+			{/await}
 		{/if}
 	</main>
 
 	{#if open}
-		{#key open.id}
-			<Detail
-				link={open}
-				onclose={() => (openId = null)}
-				onorganise={() => organise([open.id])}
-				onarchive={() => archive(open)}
-				ondelete={() => remove(open)}
-			/>
-		{/key}
+		{#await loadDetail() then { default: Detail }}
+			{#key open.id}
+				<Detail
+					link={open}
+					onclose={() => (openId = null)}
+					onorganise={() => organise([open.id])}
+					onarchive={() => archive(open)}
+					ondelete={() => remove(open)}
+				/>
+			{/key}
+		{/await}
 	{/if}
 </div>
 
 {#if pickerIds}
-	<Picker ids={pickerIds} onclose={closePicker} />
+	{#await loadPicker() then { default: Picker }}
+		<Picker ids={pickerIds} onclose={closePicker} />
+	{/await}
 {/if}
 
 {#if toast}
@@ -760,17 +755,6 @@
 	.sub-line {
 		display: none;
 	}
-	/* The row's preview picture, fetched while the row is near the screen so the details open with it; the ledger row
-	   itself shows no picture (ADR-0003). Not clipped, so the browser's lazy loading sees it on screen. */
-	.preload {
-		position: absolute;
-		left: 0;
-		top: 0;
-		width: 1px;
-		height: 1px;
-		opacity: 0;
-		pointer-events: none;
-	}
 	.c-tags,
 	.c-proj,
 	.c-status {
@@ -829,26 +813,6 @@
 	.row.flash .t {
 		color: var(--text);
 	}
-	.bulkbar {
-		position: sticky;
-		bottom: 16px;
-		z-index: 10;
-		margin-top: 16px;
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 8px 10px 8px 14px;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-card);
-		box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
-	}
-	.bulkbar .grow {
-		flex: 1;
-	}
-	.bulkbar strong {
-		font-weight: 600;
-	}
 	.empty-card {
 		margin: 20px 0 0;
 	}
@@ -856,13 +820,9 @@
 		.row {
 			animation: ls-rise var(--t-rise) var(--ease-out) both;
 		}
-		.bulkbar {
-			animation: ls-rise var(--t-rise) var(--ease-out) both;
-		}
 	}
 	@media (prefers-reduced-motion: reduce) {
-		.row,
-		.bulkbar {
+		.row {
 			animation: ls-fade var(--t-fade-reduced) both;
 		}
 	}
@@ -975,11 +935,6 @@
 			grid-column: -2;
 			grid-row: 2;
 			align-self: end;
-		}
-		.bulkbar {
-			flex-wrap: wrap;
-			padding: 8px;
-			gap: 6px;
 		}
 		.toolbar .count {
 			display: none;
