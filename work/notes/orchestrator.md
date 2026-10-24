@@ -244,3 +244,10 @@ an artifact for the person to open on phone and desktop).
    needs to update in real time" → BUG-002. Same class may hit project pages, Unsorted, Archive: check every list view
    follows the store.
 - T-0008 not closed yet (the person has notes on the look). T-0009 not approved yet.
+
+## 2026-10-24 17:10 UTC session: bugs + design mockups (the person's choice)
+
+- Person chose: fix bugs and make design mockups first; T-0009 waits for the row-layout pick (same list screen).
+- T-0015 (light lane): BUG-001 + BUG-002, every list view follows the store. Brief M-2026-10-24-e48c9fda builder@T-0015 (sonnet, 90 min), worktree ../LinkSink-t0015, E2E_PORT=4700. Light lane: I read the diff myself, then land.
+- T-0016 (director lane): spike outside the repo (scratchpad T-0016/spike, port 4800, copy of the dev DB via .backup). Brief M-2026-10-24-3a3edefe builder@T-0016 (opus, 90 min). Next: the options write-up in work/options/ with its shots, then the person picks, then a decision record and a build task.
+- The person's own `vite dev` (pid 2511) is running; not ours.
