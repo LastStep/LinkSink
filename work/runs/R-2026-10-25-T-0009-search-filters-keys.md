@@ -7,7 +7,7 @@ model: opus
 started: 2026-10-25 08:04
 finished: 2026-10-25 08:52
 outcome: needs-verifier
-commits: ["ee272b6", "09c7f71", "04d5fcc", "2d1916e", "3e59205", "8d872b7"]
+commits: ["ee272b6", "09c7f71", "04d5fcc", "2d1916e", "3e59205", "8d872b7", "bf5a9fb", "56622eb"]
 labels: {}
 ---
 
@@ -152,6 +152,23 @@ session's spend is in `.bonsai/sessions.md`, not typed here.
   when it runs. Proposed: page through, or ask with `limit=200`.
 - The palette has no button on a phone (the one-pager asks for it on desktop only).
 - An index for sort by edited (`user_id, updated_at`) if T-0013 finds that sort slow at 50,000 links.
+
+## Fix round (brief M-2026-10-25-76c4ef9e)
+
+QA failed one thing (M-2026-10-25-3447f5c0): a click or tap on the `/` hint did nothing. The click focused the hint
+button, the box's `:focus-within` rule then hid the hint, and the click never reached the box. Now the hint's
+mousedown keeps focus off it and puts it in the box; the click does the same for taps. On touch screens and at
+phone width the hint is not shown (no keyboard). Also, from the verifiers:
+
+| Test | What it now proves | Fails when its fix is undone (ran) |
+|---|---|---|
+| e2e "a click on the / hint puts the cursor in the search box; a phone shows no hint" (new) | a click focuses the box and typing lands there; no hint at 390 | at bf5a9fb: "toBeFocused … Received: inactive"; with the phone CSS removed: "toBeHidden … Received: visible" |
+| store "drops an older answer that arrives after a newer search" | answers released newest first, then the old one: the list keeps the newer | with the `call !== listCall` check removed: 1 failed |
+| store "keeps the sort when a link changes" | the fixture's saved order differs from title order | with the comparator forced to date saved: 1 failed |
+| server "pages by keyset…" | every fifth title is "Same title"; the client comparator is checked from reversed input | with the title sort's id tie-break removed: 1 failed |
+| e2e t0018 "…an empty Unsorted say so…" (fetch only; its assertion unchanged) | reads every page of Unsorted before tagging | with t0009's cleanup off (62+ untagged links): old version 1 failed, new version 19 passed |
+
+Playwright runs and the ladder ran under the shared flock (`scratchpad/playwright.lock`).
 
 ## Verifier
 
