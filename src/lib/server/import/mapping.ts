@@ -4,6 +4,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { ImportFormat } from '../../import-format.ts';
 import type { DB } from '../db/open.ts';
+import { cleanUrl, normalise } from '../../url.ts';
 import { links, projects } from '../db/schema.ts';
 import { BadPatchError } from '../links.ts';
 import { displayName, tagName } from '../organise.ts';
@@ -73,6 +74,9 @@ const CONTAINER_NAMES = new Set([
 
 export const folderKey = (path: string[]) => JSON.stringify(path);
 
+/** A link with a web address, as the writer takes it. */
+const readable = (item: ImportItem) => normalise(item.url) !== null && cleanUrl(item.url) !== null;
+
 /** Which segments of a path are the browser's own containers: one that says so, or a known name at the very top. */
 function containers(folder: NonNullable<ImportItem['folder']>): boolean[] {
 	return folder.path.map(
@@ -112,14 +116,14 @@ function liveProjects(db: DB, userId: string) {
 	};
 }
 
-/** Every folder that holds links, in file order, with its count and default choice. */
+/** Every folder that holds a web link, in file order, with its count (copies included) and default choice. */
 export function foldersOf(
 	items: ImportItem[],
 	projectsByName: Map<string, string>
 ): PreviewFolder[] {
 	const byKey = new Map<string, PreviewFolder>();
 	for (const item of items) {
-		if (!item.folder) continue;
+		if (!item.folder || !readable(item)) continue;
 		const key = folderKey(item.folder.path);
 		const known = byKey.get(key);
 		if (known) {
@@ -172,7 +176,7 @@ export function previewImport(db: DB, userId: string, parsed: ParsedFile): Previ
 		adding: unique.length - saved,
 		unreadable: failures.length,
 		failures,
-		loose: parsed.items.filter((i) => !i.folder).length,
+		loose: parsed.items.filter((i) => !i.folder && readable(i)).length,
 		folders: foldersOf(parsed.items, liveProjects(db, userId).byName),
 		tags: [...tags].sort(),
 		pocketRead: parsed.format === 'pocket-csv'

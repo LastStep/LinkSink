@@ -1,0 +1,488 @@
+// T-0019: the import preview (nothing written), each folder's default choice, the two switches, the mapping applied
+// by the writer, and the mapping checked on the server.
+import { readFileSync } from 'node:fs';
+import { and, eq, isNull } from 'drizzle-orm';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { links, syncMeta } from '../db/schema.ts';
+import { linksJson } from '../links.ts';
+import { createProject, listProjects, listTags } from '../organise.ts';
+import { createSyncWrite, type SyncWrite } from '../sync/write.ts';
+import { addUser, tempDatabase } from '../test/db.ts';
+import { snapshot } from '../test/synced.ts';
+import { createImportApi, IMPORT_WITH_OPTIONS, type ImportApi } from './api.ts';
+import { parseImport } from './index.ts';
+import { folderKey, foldersOf, type FolderChoice } from './mapping.ts';
+
+let t: ReturnType<typeof tempDatabase>;
+let syncWrite: SyncWrite;
+let api: ImportApi;
+let alice: { id: string };
+let bob: { id: string };
+
+beforeEach(() => {
+	t = tempDatabase();
+	syncWrite = createSyncWrite(t.db);
+	api = createImportApi({ db: t.db, syncWrite });
+	alice = { id: addUser(t.db, 'alice') };
+	bob = { id: addUser(t.db, 'bob') };
+});
+afterEach(() => t.close());
+
+const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url));
+
+const post = (body: BodyInit, type: string, preview = false) =>
+	new Request(`http://localhost/api/import${preview ? '?preview' : ''}`, {
+		method: 'POST',
+		headers: { 'content-type': type },
+		body
+	});
+
+async function preview(who: { id: string } | null, file: BodyInit) {
+	const res = await api.preview(who, post(file, 'application/octet-stream', true));
+	return { status: res.status, body: await res.json() };
+}
+
+/** The file with its options line in front, as the Settings screen sends it. */
+function withOptions(options: unknown, file: string | Buffer) {
+	return Buffer.concat([
+		Buffer.from(typeof options === 'string' ? options : JSON.stringify(options)),
+		Buffer.from('\n'),
+		typeof file === 'string' ? Buffer.from(file) : file
+	]);
+}
+
+async function importMapped(who: { id: string }, options: unknown, file: string | Buffer) {
+	const res = await api.import(who, post(withOptions(options, file), IMPORT_WITH_OPTIONS));
+	return { status: res.status, body: await res.json() };
+}
+
+/** Every table's row count, and every synced row with its version: equal before and after means nothing was written. */
+function everything() {
+	const names = t.db.$client
+		.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+		.all() as { name: string }[];
+	const counts = Object.fromEntries(
+		names.map(({ name }) => [
+			name,
+			(t.db.$client.prepare(`SELECT count(*) AS n FROM "${name}"`).get() as { n: number }).n
+		])
+	);
+	const snap = snapshot(t.db);
+	return { counts, rows: [...snap.rows.entries()], versions: [...snap.versions.entries()] };
+}
+
+/** The user's links as a person sees them: address, tag and project names, status. */
+function seen(userId: string) {
+	const tagNames = new Map(listTags(t.db, userId).map((x) => [x.id, x.name]));
+	const projectNames = new Map(listProjects(t.db, userId).map((x) => [x.id, x.name]));
+	const rows = t.db
+		.select()
+		.from(links)
+		.where(and(eq(links.userId, userId), isNull(links.deletedAt)))
+		.all();
+	return linksJson(t.db, userId, rows)
+		.map((l) => ({
+			url: l.url,
+			tags: l.tagIds.map((id) => tagNames.get(id)).sort(),
+			projects: l.projectIds.map((id) => projectNames.get(id)).sort(),
+			status: l.status
+		}))
+		.sort((a, b) => a.url.localeCompare(b.url));
+}
+
+const version = (userId: string) =>
+	t.db.select().from(syncMeta).where(eq(syncMeta.userId, userId)).get()?.version ?? 0;
+
+const key = (...path: string[]) => folderKey(path);
+
+describe('defaults', () => {
+	const none = { kind: 'none' };
+	const make = (name: string) => ({ kind: 'new', name });
+	// [fixture, [path, count, default]]: the browser's own top folders start on No project, the rest on New project
+	// named after the folder (nested names joined with " / ", the container left out).
+	const table: [string, [string[], number, FolderChoice][]][] = [
+		[
+			'chrome.html',
+			[
+				[['Bookmarks bar'], 1, none as FolderChoice],
+				[
+					['Bookmarks bar', 'Reading', 'Long reads'],
+					1,
+					make('Reading / Long reads') as FolderChoice
+				],
+				[['Bookmarks bar', 'Reading'], 1, make('Reading') as FolderChoice],
+				// Chrome writes Other bookmarks with no attribute: known by its name at the top.
+				[['Other bookmarks'], 1, none as FolderChoice]
+			]
+		],
+		[
+			'firefox.html',
+			[
+				[['Recipes'], 1, make('Recipes') as FolderChoice],
+				[['Bookmarks Toolbar'], 1, none as FolderChoice],
+				[['Bookmarks Toolbar', 'Tools'], 1, make('Tools') as FolderChoice],
+				[['Other Bookmarks'], 1, none as FolderChoice]
+			]
+		],
+		[
+			'raindrop.html',
+			[
+				[
+					['Parent Folder', 'Child Folder'],
+					2,
+					make('Parent Folder / Child Folder') as FolderChoice
+				],
+				[['Parent Folder'], 1, make('Parent Folder') as FolderChoice],
+				[['Unsorted'], 1, make('Unsorted') as FolderChoice]
+			]
+		]
+	];
+	it.each(table)('%s', (name, want) => {
+		const folders = foldersOf(parseImport(fixture(name)).items, new Map());
+		expect(folders.map((f) => [f.path, f.count, f.suggested])).toEqual(want);
+		expect(folders.map((f) => f.key)).toEqual(want.map(([path]) => folderKey(path)));
+	});
+
+	it('Bookmarks Menu and Mobile bookmarks at the top start on No project; a folder inside one is named without it', () => {
+		const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL><p>
+<DT><H3>Bookmarks Menu</H3>
+<DL><p><DT><A HREF="https://a.example.com">a</A>
+<DT><H3>Mobile</H3><DL><p><DT><A HREF="https://b.example.com">b</A></DL><p>
+</DL><p>
+<DT><H3>Mobile bookmarks</H3>
+<DL><p><DT><A HREF="https://c.example.com">c</A></DL><p>
+<DT><H3>Work</H3>
+<DL><p><DT><H3>Mobile</H3><DL><p><DT><A HREF="https://d.example.com">d</A></DL><p></DL><p>
+</DL><p>`;
+		const folders = foldersOf(parseImport(Buffer.from(file)).items, new Map());
+		expect(folders.map((f) => [f.path.join(' › '), f.suggested, f.container])).toEqual([
+			['Bookmarks Menu', { kind: 'none' }, true],
+			// Only a top folder is a container by name: "Mobile" inside the menu is the person's own.
+			['Bookmarks Menu › Mobile', { kind: 'new', name: 'Mobile' }, false],
+			['Mobile bookmarks', { kind: 'none' }, true],
+			['Work › Mobile', { kind: 'new', name: 'Work / Mobile' }, false]
+		]);
+	});
+
+	it('a folder named as an existing project (any case) starts on that project', async () => {
+		const reading = createProject(t.db, syncWrite, alice.id, { name: 'reading' });
+		createProject(t.db, syncWrite, bob.id, { name: 'Tools' });
+		const { body } = await preview(alice, fixture('chrome.html'));
+		expect(
+			body.folders.find((f: { key: string }) => f.key === key('Bookmarks bar', 'Reading'))
+		).toMatchObject({
+			suggested: { kind: 'existing', projectId: reading.id }
+		});
+		// Bob's project of the same name is never offered to Alice.
+		const ff = await preview(alice, fixture('firefox.html'));
+		expect(
+			ff.body.folders.find((f: { key: string }) => f.key === key('Bookmarks Toolbar', 'Tools'))
+				.suggested
+		).toEqual({ kind: 'new', name: 'Tools' });
+	});
+
+	it('a default name over 64 characters is cut to 64', () => {
+		const long = 'f'.repeat(40);
+		const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>${long}</H3><DL><p><DT><H3>${long}</H3><DL><p><DT><A HREF="https://a.example.com">a</A></DL><p></DL><p></DL><p>`;
+		const [folder] = foldersOf(parseImport(Buffer.from(file)).items, new Map());
+		expect(folder.suggested).toEqual({ kind: 'new', name: `${long} / ${long}`.slice(0, 64) });
+	});
+});
+
+describe('POST /api/import?preview', () => {
+	it('shows links, duplicates, unreadable lines and folders, and writes nothing', async () => {
+		// Alice already has one of the file's links, and a project.
+		await importMapped(
+			alice,
+			{ mapping: {} },
+			'<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><A HREF="https://my-link-1.com">x</A></DL><p>'
+		);
+		createProject(t.db, syncWrite, alice.id, { name: 'Elsewhere' });
+		const before = everything();
+		const { status, body } = await preview(alice, fixture('raindrop.html'));
+		expect(status).toBe(200);
+		expect(everything()).toEqual(before);
+		expect(body).toMatchObject({
+			format: 'netscape',
+			formatLabel: 'Bookmarks file (HTML)',
+			links: 4,
+			// my-link-2 twice in the file, my-link-1 already saved.
+			duplicates: 2,
+			adding: 2,
+			unreadable: 0,
+			loose: 0,
+			tags: ['second tag', 'tag1', 'tag3'],
+			pocketRead: false
+		});
+		expect(body.folders).toHaveLength(3);
+	});
+
+	it('counts the lines that could not be read, and links at the top of the file', async () => {
+		const before = everything();
+		const { body } = await preview(alice, fixture('firefox.html'));
+		expect(everything()).toEqual(before);
+		// place: is not a web link; MDN twice (one with a trailing slash).
+		expect(body).toMatchObject({ links: 5, duplicates: 1, adding: 4, unreadable: 1, loose: 1 });
+		expect(body.failures).toEqual([
+			{ line: 18, reason: expect.stringMatching(/^Not a web address/) }
+		]);
+	});
+
+	it('marks a Pocket file, whose read state can become Done', async () => {
+		const { body } = await preview(alice, fixture('pocket.csv'));
+		expect(body).toMatchObject({ format: 'pocket-csv', pocketRead: true, folders: [] });
+	});
+
+	it('is refused signed out, for a form-sendable body, and for a file that is not bookmarks', async () => {
+		expect((await preview(null, fixture('chrome.html'))).status).toBe(401);
+		const form = await api.preview(
+			alice,
+			post(fixture('chrome.html'), 'multipart/form-data', true)
+		);
+		expect(form.status).toBe(415);
+		const page = await preview(alice, '<!doctype html><p>hi</p>');
+		expect(page.status).toBe(400);
+		expect(page.body.error).toMatch(/not a bookmarks file/);
+	});
+
+	it('takes under 3 s on a 5,000-link file', async () => {
+		// Half of them already saved, so the duplicate check finds something.
+		const file = bigFile(5000);
+		await api.import(alice, post(bigFile(2500), 'application/octet-stream'));
+		const before = everything();
+		const started = performance.now();
+		const { body } = await preview(alice, file);
+		const ms = performance.now() - started;
+		process.stderr.write(
+			`[timing] 5,000-link preview (${(file.length / 1e6).toFixed(2)} MB, 2,500 saved): ${ms.toFixed(0)} ms\n`
+		);
+		expect(body).toMatchObject({ links: 5000, duplicates: 2500, adding: 2500 });
+		expect(body.folders).toHaveLength(10);
+		expect(everything()).toEqual(before);
+		expect(ms).toBeLessThan(3000);
+	}, 30_000);
+});
+
+function bigFile(n: number) {
+	let html = '<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<H1>Bookmarks</H1>\n<DL><p>\n';
+	for (let f = 0; f < 10; f++) {
+		html += `<DT><H3>Folder ${f}</H3>\n<DL><p>\n`;
+		for (let i = f; i < n; i += 10) {
+			html += `<DT><A HREF="https://site${i % 97}.example.com/page/${i}" TAGS="t${i % 13}">Page ${i}</A>\n`;
+		}
+		html += '</DL><p>\n';
+	}
+	return html + '</DL><p>\n';
+}
+
+describe('POST /api/import with a mapping', () => {
+	const chrome = () => fixture('chrome.html');
+
+	it('new (renamed), existing, tag and none: each written as chosen; a link in no project lands in Unsorted', async () => {
+		const reading = createProject(t.db, syncWrite, alice.id, { name: 'Reading list' });
+		const res = await importMapped(
+			alice,
+			{
+				mapping: {
+					[key('Bookmarks bar')]: { kind: 'none' },
+					[key('Bookmarks bar', 'Reading')]: { kind: 'existing', projectId: reading.id },
+					[key('Bookmarks bar', 'Reading', 'Long reads')]: { kind: 'tag', name: 'Long Reads' },
+					[key('Other bookmarks')]: { kind: 'new', name: 'Code' }
+				}
+			},
+			chrome()
+		);
+		expect(res.status).toBe(200);
+		expect(res.body).toMatchObject({ added: 4, duplicates: 0, failed: 1 });
+		expect(seen(alice.id)).toEqual([
+			{ url: 'https://github.com/sveltejs/kit', tags: [], projects: ['Code'], status: null },
+			{
+				url: 'https://news.example.org/item/1',
+				tags: [],
+				projects: ['Reading list'],
+				status: null
+			},
+			{ url: 'https://svelte.dev/docs', tags: [], projects: [], status: null },
+			{ url: 'https://www.example.com/essay', tags: ['long reads'], projects: [], status: null }
+		]);
+		// The existing project is reused, not copied; one new project made.
+		expect(
+			listProjects(t.db, alice.id)
+				.map((p) => p.name)
+				.sort()
+		).toEqual(['Code', 'Reading list']);
+	});
+
+	it('a folder the mapping leaves out gets its default; two folders mapped to one new name share one project', async () => {
+		await importMapped(
+			alice,
+			{
+				mapping: {
+					[key('Bookmarks bar', 'Reading')]: { kind: 'new', name: 'Shelf' },
+					[key('Bookmarks bar', 'Reading', 'Long reads')]: { kind: 'new', name: 'shelf' }
+				}
+			},
+			chrome()
+		);
+		expect(seen(alice.id).map((l) => [l.url, l.projects])).toEqual([
+			['https://github.com/sveltejs/kit', []],
+			['https://news.example.org/item/1', ['shelf']],
+			['https://svelte.dev/docs', []],
+			['https://www.example.com/essay', ['shelf']]
+		]);
+		// The name first met in the file (Long reads comes before Reading's own link) is the one kept.
+		expect(listProjects(t.db, alice.id).map((p) => p.name)).toEqual(['shelf']);
+	});
+
+	it('copies of a link in two folders keep both folders’ choices', async () => {
+		const work = createProject(t.db, syncWrite, alice.id, { name: 'Work' });
+		await importMapped(
+			alice,
+			{
+				mapping: {
+					[key('Parent Folder', 'Child Folder')]: { kind: 'existing', projectId: work.id },
+					[key('Unsorted')]: { kind: 'tag', name: 'later' }
+				}
+			},
+			fixture('raindrop.html')
+		);
+		expect(seen(alice.id).find((l) => l.url === 'https://my-link-2.com/page')).toEqual({
+			url: 'https://my-link-2.com/page',
+			tags: ['later', 'second tag', 'tag1', 'tag3'],
+			projects: ['Work'],
+			status: null
+		});
+	});
+
+	it('keep the file’s tags: on keeps them, off drops them (a folder-as-tag still applies)', async () => {
+		await importMapped(
+			alice,
+			{ keepTags: false, mapping: { [key('Recipes')]: { kind: 'tag', name: 'food' } } },
+			fixture('firefox.html')
+		);
+		expect(seen(alice.id).map((l) => [l.url, l.tags])).toEqual([
+			['https://cooking.example.com/bread', ['food']],
+			['https://developer.mozilla.org/en-US/', []],
+			['https://regex101.com/', []],
+			['https://www.mozilla.org/en-US/firefox/', []]
+		]);
+		await importMapped(bob, { keepTags: true }, fixture('firefox.html'));
+		expect(seen(bob.id).find((l) => l.url === 'https://regex101.com/')?.tags).toEqual([
+			'dev',
+			'regex'
+		]);
+	});
+
+	it('Pocket’s read state: on, archive becomes Done; off, no status', async () => {
+		await importMapped(alice, { pocketReadDone: true }, fixture('pocket.csv'));
+		await importMapped(bob, { pocketReadDone: false }, fixture('pocket.csv'));
+		const done = (userId: string) => seen(userId).filter((l) => l.status === 'done').length;
+		expect(done(alice.id)).toBeGreaterThan(0);
+		expect(done(bob.id)).toBe(0);
+		expect(seen(bob.id)).toHaveLength(seen(alice.id).length);
+	});
+
+	it('writes through syncWrite in batches of 500', async () => {
+		const res = await importMapped(
+			alice,
+			{ mapping: { [key('Folder 0')]: { kind: 'tag', name: 'zero' } } },
+			bigFile(1201)
+		);
+		expect(res.body.added).toBe(1201);
+		expect(version(alice.id)).toBe(3);
+		expect(listProjects(t.db, alice.id)).toHaveLength(9);
+	});
+});
+
+describe('the mapping is checked on the server', () => {
+	const chrome = () => fixture('chrome.html');
+	const refusals: [string, () => unknown, RegExp][] = [
+		[
+			'another user’s project',
+			() => ({
+				mapping: { [key('Other bookmarks')]: { kind: 'existing', projectId: bobsProject } }
+			}),
+			/not one of yours/
+		],
+		[
+			'an unknown project id',
+			() => ({
+				mapping: {
+					[key('Other bookmarks')]: { kind: 'existing', projectId: '01JUNKJUNKJUNKJUNKJUNKJUNK' }
+				}
+			}),
+			/not one of yours/
+		],
+		[
+			'a deleted project',
+			() => ({
+				mapping: { [key('Other bookmarks')]: { kind: 'existing', projectId: alicesDeleted } }
+			}),
+			/not one of yours/
+		],
+		[
+			'a path not in the file',
+			() => ({ mapping: { [key('Nope')]: { kind: 'none' } } }),
+			/not in this file/
+		],
+		[
+			'a path that is only a prefix of one in the file',
+			() => ({
+				mapping: { [key('Bookmarks bar', 'Reading', 'Long reads', 'More')]: { kind: 'none' } }
+			}),
+			/not in this file/
+		],
+		[
+			'an overlong project name',
+			() => ({ mapping: { [key('Other bookmarks')]: { kind: 'new', name: 'x'.repeat(65) } } }),
+			/at most 64/
+		],
+		[
+			'an overlong tag name',
+			() => ({ mapping: { [key('Other bookmarks')]: { kind: 'tag', name: 'x'.repeat(65) } } }),
+			/at most 64/
+		],
+		[
+			'an empty name',
+			() => ({ mapping: { [key('Other bookmarks')]: { kind: 'new', name: '   ' } } }),
+			/needs a name/
+		],
+		[
+			'an unknown choice',
+			() => ({ mapping: { [key('Other bookmarks')]: { kind: 'folder' } } }),
+			/new project/
+		],
+		['a mapping that is a list', () => ({ mapping: [] }), /not readable/],
+		['a switch that is not true or false', () => ({ keepTags: 'yes' }), /true or false/],
+		['options that are not JSON', () => '{mapping:', /not readable/]
+	];
+	let bobsProject: string;
+	let alicesDeleted: string;
+	beforeEach(() => {
+		bobsProject = createProject(t.db, syncWrite, bob.id, { name: 'Bob’s' }).id;
+		alicesDeleted = createProject(t.db, syncWrite, alice.id, { name: 'Gone' }).id;
+		t.db.$client.prepare('UPDATE projects SET deleted_at = 1 WHERE id = ?').run(alicesDeleted);
+	});
+
+	it.each(refusals)('%s: 400, nothing written', async (_, options, message) => {
+		const before = everything();
+		const res = await importMapped(alice, options(), chrome());
+		expect(res.status).toBe(400);
+		expect(res.body.error).toMatch(message);
+		expect(everything()).toEqual(before);
+	});
+
+	it('an options line with no file after it, or none at all, is refused', async () => {
+		const before = everything();
+		const noLine = await api.import(
+			alice,
+			post(JSON.stringify({ mapping: {} }), IMPORT_WITH_OPTIONS)
+		);
+		expect(noLine.status).toBe(400);
+		const noFile = await api.import(alice, post(withOptions({}, ''), IMPORT_WITH_OPTIONS));
+		expect(noFile.status).toBe(400);
+		expect((await noFile.json()).error).toMatch(/empty/);
+		expect(everything()).toEqual(before);
+	});
+});
