@@ -57,6 +57,10 @@ named=no
 if [ $# -gt 0 ]; then
 	named=yes
 	image=$1
+	# One line of plain characters: grep alone would pass a value of several lines when one of them matches.
+	case "$image" in *'
+'*) fail "not an image name: it holds a line break" ;;
+	esac
 	printf '%s\n' "$image" | grep -Eqx '[a-z0-9][a-z0-9._/:@-]*' || fail "not an image name: $image"
 else
 	image=$(setting LINKSINK_IMAGE)
