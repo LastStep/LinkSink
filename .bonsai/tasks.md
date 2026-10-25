@@ -5,6 +5,13 @@ Active task when none is named: none (no task reads running)
 
 | Task | Title | Status | Lane | Started | Finished |
 |---|---|---|---|---|---|
+| T-0028 | LinkSink's mark is the app's icon everywhere — the browser tab, bookmarks and a phone's home screen | todo | light | | |
+| T-0027 | A project can be renamed from its own page, as well as from the Projects page | todo | light | | |
+| T-0026 | Options for a board view of links by status and priority, and the Obsidian-like link map | todo | director | | |
+| T-0025 | A sort control beside the filters, sorting by status and priority as well as dates and title | todo | light | | |
+| T-0024 | Import mapping — each folder can go to several projects and several tags, chosen in two dropdowns side by side | todo | full | | |
+| T-0023 | Details fetched after an import show up on the open page, with a line saying how many are still being fetched | todo | light | | |
+| T-0022 | The sidebar's project list scrolls on its own; Settings and everything below it stay in place | todo | light | | |
 | T-0021 | The page-details fetch queue stops on shutdown, so the server exits cleanly mid-fetch | todo | light | | |
 | T-0020 | Backups, the VPS deploy and CI — Litestream and restic services, deploy on the person's VPS, the ladder in CI | todo | full | | |
 | T-0019 | Import preview — see what a file holds and map each folder before anything is saved | verify | full | 2026-10-25 | |

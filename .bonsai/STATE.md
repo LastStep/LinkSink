@@ -56,7 +56,12 @@ is `<scratchpad>/playwright.lock`, used with flock. Each agent works in its own 
 ## Next
 
 1. **The person tests everything,** then closes each `verify` task or files notes. Triage the notes into bugs and
-   tasks (workflow:brief).
+   tasks (workflow:brief). Their first round (2026-10-25, in Docker, after importing 342 Firefox bookmarks) is
+   triaged, all `todo`, none started:
+   - light: T-0022 sidebar scroll (BUG-003), T-0023 details after an import show live (BUG-004), T-0025 a sort
+     control with status and priority, T-0027 rename a project from its page, T-0028 the app icon (BUG-005);
+   - full: T-0024 several projects and tags per imported folder (amends P-T-0019);
+   - director: T-0026 the board view and the link map, to be discussed with the person first.
 2. **T-0020, backups, the VPS deploy and CI** (todo). It waits for the person's VPS facts (Open questions). It
    carries: Litestream and restic as compose services; FTS5 keyed on rowid vs `VACUUM INTO`; building in CI and the
    ladder there; the drizzle-kit audit (dev only, not in the image); a server's .env (Resend, LINKSINK_LISTEN empty,
