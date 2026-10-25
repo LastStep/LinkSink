@@ -12,6 +12,7 @@
 		filterQuery,
 		parseFilters,
 		sameFilters,
+		compareLinks,
 		SORT_LABEL,
 		SORTS,
 		statusRank,
@@ -84,12 +85,17 @@
 	});
 	/** The list's groups: days saved (or edited) for those sorts, priorities for priority, one A to Z group for title. */
 	const days = $derived.by(() => {
+		// For the grouped sorts the rows are put in the sort's order here, so a group is never split in two while the
+		// list still holds the last sort's order (a new sort is asked for, its answer not yet in).
+		const grouped =
+			filters.sort === 'saved' || filters.sort === 'edited' || filters.sort === 'title';
+		const rows = grouped ? links : [...links].sort(compareLinks(filters.sort));
 		switch (filters.sort) {
 			case 'edited':
-				return byDay(links, (l) => l.updatedAt);
+				return byDay(rows, (l) => l.updatedAt);
 			case 'priority': {
 				const groups: { key: number; label: string; items: StoreLink[] }[] = [];
-				for (const l of links) {
+				for (const l of rows) {
 					const key = l.priority ?? 0;
 					const last = groups.at(-1);
 					if (last && last.key === key) last.items.push(l);
@@ -104,7 +110,7 @@
 			}
 			case 'status': {
 				const groups: { key: number; label: string; items: StoreLink[] }[] = [];
-				for (const l of links) {
+				for (const l of rows) {
 					const key = statusRank(l.status);
 					const last = groups.at(-1);
 					if (last && last.key === key) last.items.push(l);
@@ -118,18 +124,18 @@
 				return groups;
 			}
 			case 'opened': {
-				// opened links by the day they were opened, newest first; the never-opened ones last
-				const opened = links.filter((l) => l.openedAt !== null);
-				const never = links.filter((l) => l.openedAt === null);
+				// opened rows by the day they were opened, newest first; the never-opened ones last
+				const opened = rows.filter((l) => l.openedAt !== null);
+				const never = rows.filter((l) => l.openedAt === null);
 				const groups = byDay(opened, (l) => l.openedAt!);
 				return never.length
 					? [...groups, { key: -1, label: 'Never opened', items: never }]
 					: groups;
 			}
 			case 'title':
-				return links.length ? [{ key: 0, label: 'A to Z', items: links }] : [];
+				return rows.length ? [{ key: 0, label: 'A to Z', items: rows }] : [];
 			default:
-				return byDay(links, (l) => l.createdAt);
+				return byDay(rows, (l) => l.createdAt);
 		}
 	});
 	/** When a row's time column says: the day's time for the sorts that group by day, else the day saved. */

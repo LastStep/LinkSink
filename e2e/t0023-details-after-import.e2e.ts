@@ -54,7 +54,7 @@ test.use({ storageState: state });
 const bookmarks = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
 <TITLE>Bookmarks</TITLE>
 <DL><p>
-${Array.from({ length: COUNT }, (_, i) => `<DT><A HREF="${fixture}/article.html?n=${i}" ADD_DATE="${1_700_000_000 + i}">Imported ${i}</A>`).join('\n')}
+${Array.from({ length: COUNT }, (_, i) => `<DT><A HREF="${fixture}/article.html?n=${i}" ADD_DATE="${1_700_000_000 + i}"></A>`).join('\n')}
 </DL><p>
 `;
 
