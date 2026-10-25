@@ -15,6 +15,30 @@
 	let menuOpen = $state(false);
 	afterNavigate(() => (menuOpen = false));
 
+	// The command palette, on every signed-in screen: Ctrl/Cmd+K opens and closes it. Its code loads on first use.
+	let paletteOpen = $state(false);
+	const loadPalette = () => import('./Palette.svelte');
+	let paletteFrom: HTMLElement | null = null;
+	function onwindowkey(event: KeyboardEvent) {
+		if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+			event.preventDefault();
+			if (paletteOpen) closePalette();
+			else {
+				paletteFrom = document.activeElement as HTMLElement | null;
+				menuOpen = false;
+				paletteOpen = true;
+			}
+		}
+	}
+	function closePalette(restore = true) {
+		paletteOpen = false;
+		// Focus goes back where it was, unless the command moved it
+		if (restore)
+			setTimeout(() => {
+				if (document.activeElement === document.body) paletteFrom?.focus();
+			});
+	}
+
 	onMount(() => {
 		store.refresh().catch(() => {});
 	});
@@ -35,6 +59,8 @@
 		return 'LinkSink';
 	});
 </script>
+
+<svelte:window onkeydown={onwindowkey} />
 
 {#snippet nav()}
 	<nav class="nav" aria-label="Lists">
@@ -119,6 +145,12 @@
 	<div class="main">
 		{@render children()}
 	</div>
+
+	{#if paletteOpen}
+		{#await loadPalette() then { default: Palette }}
+			<Palette onclose={() => closePalette()} />
+		{/await}
+	{/if}
 
 	<nav class="tabs" aria-label="Tabs">
 		<a class="tab" aria-current={path === '/' ? 'page' : undefined} href={resolve('/')}>
