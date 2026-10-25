@@ -3,14 +3,15 @@
 import { readFileSync } from 'node:fs';
 import { and, eq, isNull } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { links, syncMeta } from '../db/schema.ts';
+import { linkProjects, links, syncMeta } from '../db/schema.ts';
 import { linksJson } from '../links.ts';
 import { createProject, listProjects, listTags } from '../organise.ts';
 import { createSyncWrite, type SyncWrite } from '../sync/write.ts';
 import { addUser, tempDatabase } from '../test/db.ts';
 import { snapshot } from '../test/synced.ts';
 import { createImportApi, IMPORT_WITH_OPTIONS, type ImportApi } from './api.ts';
-import { parseImport } from './index.ts';
+import { importItems, parseImport } from './index.ts';
+import type { ImportItem } from './types.ts';
 import { folderKey, foldersOf, type FolderChoice } from './mapping.ts';
 
 let t: ReturnType<typeof tempDatabase>;
@@ -504,5 +505,87 @@ describe('the mapping is checked on the server', () => {
 		expect(noFile.status).toBe(400);
 		expect((await noFile.json()).error).toMatch(/empty/);
 		expect(everything()).toEqual(before);
+	});
+});
+
+// Breakages the tests verifier (M-2026-10-25-c87249d5) applied that no test caught; each test below fails with its
+// breakage in place.
+describe('caught breakages', () => {
+	it('a top folder marked as the browser’s own by its attribute, whatever its name, starts on No project', () => {
+		// Names no list knows (a German browser): only PERSONAL_TOOLBAR_FOLDER and UNFILED_BOOKMARKS_FOLDER say so.
+		const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL><p>
+<DT><H3 PERSONAL_TOOLBAR_FOLDER="true">Lesezeichenleiste</H3>
+<DL><p><DT><A HREF="https://a.example.com">a</A>
+<DT><H3>Rezepte</H3><DL><p><DT><A HREF="https://b.example.com">b</A></DL><p>
+</DL><p>
+<DT><H3 UNFILED_BOOKMARKS_FOLDER="true">Weitere Lesezeichen</H3>
+<DL><p><DT><A HREF="https://c.example.com">c</A></DL><p>
+</DL><p>`;
+		const folders = foldersOf(parseImport(Buffer.from(file)).items, new Map());
+		expect(folders.map((f) => [f.path.join(' › '), f.suggested, f.container])).toEqual([
+			['Lesezeichenleiste', { kind: 'none' }, true],
+			['Lesezeichenleiste › Rezepte', { kind: 'new', name: 'Rezepte' }, false],
+			['Weitere Lesezeichen', { kind: 'none' }, true]
+		]);
+	});
+
+	it('an existing project whose stored name has capitals matches its folder', async () => {
+		const reading = createProject(t.db, syncWrite, alice.id, { name: 'READING' });
+		const { body } = await preview(alice, fixture('chrome.html'));
+		expect(
+			body.folders.find((f: { key: string }) => f.key === key('Bookmarks bar', 'Reading')).suggested
+		).toEqual({ kind: 'existing', projectId: reading.id });
+	});
+
+	const item = (url: string, extra: Partial<ImportItem> = {}): ImportItem => ({
+		url,
+		title: null,
+		tags: [],
+		projects: [],
+		createdAt: null,
+		notes: null,
+		status: null,
+		archived: false,
+		line: 1,
+		...extra
+	});
+
+	it('the writer, called past the option checks, links no project of another user', () => {
+		const bobs = createProject(t.db, syncWrite, bob.id, { name: 'Bob’s' });
+		const result = importItems(syncWrite, alice.id, [
+			item('https://x.example.com', { projectIds: [bobs.id] })
+		]);
+		expect(result.added).toBe(1);
+		expect(
+			t.db.select().from(linkProjects).where(eq(linkProjects.projectId, bobs.id)).all()
+		).toEqual([]);
+		expect(seen(alice.id)).toEqual([
+			{ url: 'https://x.example.com/', tags: [], projects: [], status: null }
+		]);
+	});
+
+	it('a later copy’s existing project joins the first copy', () => {
+		const work = createProject(t.db, syncWrite, alice.id, { name: 'Work' });
+		importItems(syncWrite, alice.id, [
+			item('https://y.example.com/page'),
+			item('https://y.example.com/page/', { projectIds: [work.id] })
+		]);
+		expect(seen(alice.id)).toEqual([
+			{ url: 'https://y.example.com/page', tags: [], projects: ['Work'], status: null }
+		]);
+	});
+
+	it('mapped through the API: the existing-project choice on the second copy of a link', async () => {
+		const work = createProject(t.db, syncWrite, alice.id, { name: 'Work' });
+		await importMapped(
+			alice,
+			{ mapping: { [key('Unsorted')]: { kind: 'existing', projectId: work.id } } },
+			fixture('raindrop.html')
+		);
+		expect(seen(alice.id).find((l) => l.url === 'https://my-link-2.com/page')?.projects).toEqual([
+			'Parent Folder / Child Folder',
+			'Work'
+		]);
 	});
 });
