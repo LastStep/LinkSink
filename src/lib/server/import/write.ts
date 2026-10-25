@@ -7,12 +7,14 @@ import { linkProjects, links, linkTags, projects, tags } from '../db/schema.ts';
 import { displayName, tagName } from '../organise.ts';
 import type { SyncWrite, SyncWriter } from '../sync/write.ts';
 import { ulid } from '../ulid.ts';
-import type { ImportFailure, ImportItem } from './types.ts';
+import { ImportStopped, type ImportFailure, type ImportItem } from './types.ts';
 
 export const IMPORT_BATCH = 500;
 const NAME_MAX = 64;
 const TITLE_MAX = 500;
 const NOTES_MAX = 20_000;
+/** The most tags one imported link takes; the rest are dropped. */
+export const TAGS_MAX = 100;
 
 export interface ImportResult {
 	added: number;
@@ -23,9 +25,14 @@ export interface ImportResult {
 	addedIds: string[];
 }
 
+/** An item checked and normalised before anything is written: one per address. */
 export interface Unique extends ImportItem {
 	key: string;
 	clean: string;
+	/** Tag names as stored (at most TAGS_MAX), sorted. */
+	tagNames: string[];
+	/** Project names, one per name in any case (the first spelling kept). */
+	projectNames: string[];
 }
 
 /** A name cut to the longest the app stores, then checked as the app checks it; null if nothing is left. */
@@ -127,17 +134,12 @@ function writeBatch(syncWrite: SyncWrite, userId: string, batch: Unique[]) {
 		const ids: string[] = [];
 		for (const item of batch) {
 			if (saved.has(item.key)) continue;
-			const tagNames = [
-				...new Set(item.tags.map((t) => named(t, tagName)).filter((t) => t !== null))
-			].sort();
+			const { tagNames } = item;
 			// Each project once, whether named by the file or by id: id to name, in the order first met.
 			const joined = new Map<string, string>();
-			for (const p of item.projects) {
-				const name = named(p, (s) => displayName(s, 'project'));
-				if (name !== null) {
-					const projectId = names.project(name);
-					if (!joined.has(projectId)) joined.set(projectId, name);
-				}
+			for (const name of item.projectNames) {
+				const projectId = names.project(name);
+				if (!joined.has(projectId)) joined.set(projectId, name);
 			}
 			for (const projectId of item.projectIds ?? []) {
 				const name = existing.get(projectId);
@@ -145,14 +147,14 @@ function writeBatch(syncWrite: SyncWrite, userId: string, batch: Unique[]) {
 			}
 			const projectNames = [...joined.values()];
 			const id = ulid(w.now);
-			const title = item.title?.trim().slice(0, TITLE_MAX) || null;
+			const { title } = item;
 			const createdAt = item.createdAt ?? w.now;
 			w.insert(links, {
 				id,
 				url: item.clean,
 				urlKey: item.key,
 				title: title ?? displayHost(item.clean),
-				notes: item.notes?.slice(0, NOTES_MAX) || null,
+				notes: item.notes,
 				status: item.status,
 				archivedAt: item.archived ? w.now : null,
 				userSet: JSON.stringify(title ? ['title'] : []),
@@ -186,7 +188,13 @@ export function importItems(
 	const addedIds: string[] = [];
 	for (let i = 0; i < unique.length; i += IMPORT_BATCH) {
 		const batch = unique.slice(i, i + IMPORT_BATCH);
-		const ids = writeBatch(syncWrite, userId, batch);
+		let ids: string[];
+		try {
+			ids = writeBatch(syncWrite, userId, batch);
+		} catch (error) {
+			// The batch rolled back; the batches before it stay written.
+			throw new ImportStopped(addedIds.length, error);
+		}
 		duplicates += batch.length - ids.length;
 		addedIds.push(...ids);
 		for (const id of ids) onCreated(id);
@@ -195,8 +203,9 @@ export function importItems(
 }
 
 /**
- * The items each address once (by url_key), in file order: a second copy is counted as a duplicate and its tags,
- * projects and notes join the first; an item with no web address is a failure. Nothing is read or written.
+ * The items each address once (by url_key), in file order, checked and normalised: a second copy is counted as a
+ * duplicate and its tags, projects and notes join the first; an item with no web address is a failure. Nothing is
+ * read or written (the preview counts with it too).
  */
 export function uniqueItems(items: ImportItem[]): {
 	unique: Unique[];
@@ -223,8 +232,9 @@ export function uniqueItems(items: ImportItem[]): {
 			duplicates++;
 			first.tags.push(...item.tags);
 			first.projects.push(...item.projects);
-			if (item.projectIds?.length)
+			if (item.projectIds?.length) {
 				first.projectIds = [...(first.projectIds ?? []), ...item.projectIds];
+			}
 			first.notes ??= item.notes;
 			continue;
 		}
@@ -234,8 +244,31 @@ export function uniqueItems(items: ImportItem[]): {
 			projects: [...item.projects],
 			projectIds: item.projectIds ? [...item.projectIds] : undefined,
 			key,
-			clean
+			clean,
+			tagNames: [],
+			projectNames: []
 		});
 	}
-	return { unique: [...byKey.values()], failures, duplicates };
+	// Everything is checked and normalised here, before the first write.
+	const unique = [...byKey.values()];
+	for (const u of unique) {
+		const tagSet = new Set<string>();
+		for (const t of u.tags) {
+			const name = named(t, tagName);
+			if (name !== null) tagSet.add(name);
+			if (tagSet.size === TAGS_MAX) break;
+		}
+		u.tagNames = [...tagSet].sort();
+		const projectSet = new Map<string, string>();
+		for (const p of u.projects) {
+			const name = named(p, (x) => displayName(x, 'project'));
+			// Project names are unique in any case (organise.ts), so "Reading" and "reading" are one project.
+			if (name !== null && !projectSet.has(name.toLowerCase()))
+				projectSet.set(name.toLowerCase(), name);
+		}
+		u.projectNames = [...projectSet.values()];
+		u.title = u.title?.trim().slice(0, TITLE_MAX) || null;
+		u.notes = u.notes?.slice(0, NOTES_MAX) || null;
+	}
+	return { unique, failures, duplicates };
 }

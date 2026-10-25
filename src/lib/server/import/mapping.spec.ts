@@ -182,6 +182,26 @@ describe('defaults', () => {
 		).toEqual({ kind: 'new', name: 'Tools' });
 	});
 
+	it('a file nested 2,000 deep: folders past 32 fold into the one at 32, quickly', () => {
+		let file = '<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<DL><p>\n';
+		for (let i = 0; i < 2000; i++) file += `<DT><H3>d${i}</H3>\n<DL><p>\n`;
+		file += '<DT><A HREF="https://deep.example.com">deep</A>\n';
+		for (let i = 0; i < 2000; i++) file += '</DL><p>\n';
+		const started = performance.now();
+		const folders = foldersOf(parseImport(Buffer.from(file)).items, new Map());
+		expect(performance.now() - started).toBeLessThan(1000);
+		expect(folders).toHaveLength(1);
+		expect(folders[0].path).toHaveLength(32);
+		expect(folders[0].path.at(-1)).toBe('d31');
+		expect(folders[0].suggested).toEqual({
+			kind: 'new',
+			name: Array.from({ length: 32 }, (_, i) => `d${i}`)
+				.join(' / ')
+				.slice(0, 64)
+				.trim()
+		});
+	});
+
 	it('a default name over 64 characters is cut to 64', () => {
 		const long = 'f'.repeat(40);
 		const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>${long}</H3><DL><p><DT><H3>${long}</H3><DL><p><DT><A HREF="https://a.example.com">a</A></DL><p></DL><p></DL><p>`;

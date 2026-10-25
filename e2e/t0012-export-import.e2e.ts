@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { linkIn, sentMail } from './outbox.ts';
 
@@ -324,6 +325,48 @@ test('markup in an imported title and note shows as text, never as markup', asyn
 	expect(shown).toContain(XSS_NOTE);
 	expect(await page.locator('img[src="x"]').count()).toBe(0);
 	expect(await page.evaluate(() => (window as { __xss?: number }).__xss)).toBeUndefined();
+});
+
+/**
+ * POSTs `bytes` in 64 KB chunks with Transfer-Encoding: chunked and no Content-Length, as Node sends a streamed
+ * body; resolves with the status, or 'reset' if the server ended the connection before answering.
+ */
+function postChunked(path: string, bytes: number, cookie = ''): Promise<number | 'reset'> {
+	return new Promise((resolve) => {
+		const req = httpRequest(
+			`${origin}${path}`,
+			{
+				method: 'POST',
+				headers: { 'content-type': 'application/json', origin, ...(cookie ? { cookie } : {}) }
+			},
+			(res) => {
+				res.resume();
+				resolve(res.statusCode ?? 0);
+			}
+		);
+		req.on('error', () => resolve('reset'));
+		const chunk = Buffer.alloc(64 * 1024, 0x61);
+		let sent = 0;
+		const pump = () => {
+			while (sent < bytes) {
+				sent += chunk.length;
+				if (!req.write(chunk)) return void req.once('drain', pump);
+			}
+			req.end();
+		};
+		pump();
+	});
+}
+
+test('a chunked body over 512 KB is refused on every route but the import (B3)', async () => {
+	const session = JSON.parse(readFileSync(state, 'utf8')) as {
+		cookies: { name: string; value: string }[];
+	};
+	const cookie = session.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+	expect(await postChunked('/api/auth/sign-in/email', 5 * 1024 * 1024)).toBe(413);
+	expect(await postChunked('/api/links', 600 * 1024, cookie)).toBe(413);
+	// Within the limit a chunked body still reaches the route (here: not valid JSON, so 400).
+	expect(await postChunked('/api/links', 128 * 1024, cookie)).toBe(400);
 });
 
 test('a file that is not bookmarks, or over 20 MB, is refused with a message and nothing is written', async ({

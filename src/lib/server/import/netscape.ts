@@ -9,10 +9,16 @@
 //   `<DD>` of the description with the notes inside `[linkding-notes]...[/linkding-notes]`.
 // A browser's own top-level containers (the bookmarks bar, Firefox's Other Bookmarks) are where everything lives,
 // not folders the person made, so they do not become projects; the folders inside them do.
-import { Parser } from 'htmlparser2';
-import { fileTime, type ImportFailure, type ImportItem } from './types.ts';
+import { Tokenizer } from 'htmlparser2';
+import { fileTime, type ImportFailure, type ImportFolder, type ImportItem } from './types.ts';
 
 const LINKDING_ARCHIVED = 'linkding:bookmarks.archived';
+/** Folders deeper than this fold into the path of the folder at this depth. */
+export const FOLDER_DEPTH_MAX = 32;
+/** A folder's name is cut to the longest project name before it joins a path. */
+const FOLDER_NAME_MAX = 64;
+/** How much of a folder heading's text is read at all. */
+const NAME_READ_MAX = 1_000;
 
 /** Line numbers (1-based) for offsets into `text`. */
 function lineIndex(text: string) {
@@ -55,12 +61,12 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 	const items: ImportItem[] = [];
 	const failures: ImportFailure[] = [];
 
-	// One entry per open <DL>: the folder name it lists, or null (the top list, or a browser container).
-	const folders: (string | null)[] = [];
-	// The same lists, keeping the browser's containers by name for the import preview (T-0019); null for the top
-	// list or a folder with no name.
-	const trail: ({ name: string; container: boolean } | null)[] = [];
-	let pendingTrail: { name: string; container: boolean } | null | undefined;
+	// One entry per open <DL>: the folder path it lists (made once, when it opens), or null for no project (the top
+	// list, or a browser container), and how many named folders deep it is.
+	// `folder` is the same list for the import preview (T-0019): every named folder from the top, the browser's
+	// containers included, made once per list and shared by its links; null at the top of the file.
+	const folders: { path: string | null; depth: number; folder: ImportFolder | null }[] = [];
+	let pendingNamed: { name: string; container: boolean } | null | undefined;
 	let heading: { name: string; container: boolean } | null = null;
 	let pendingFolder: string | null | undefined; // a closed <H3> waiting for its <DL>
 	let anchor: { href: string | undefined; attrs: Record<string, string>; line: number } | null =
@@ -73,95 +79,171 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 		if (dd?.item) dd.item.notes = noteText(dd.text);
 		dd = null;
 	};
+	// A <H3> or an <A> left open ends where the next list entry starts, as a browser reads it.
+	const endHeading = () => {
+		if (!heading) return;
+		const folder = squash(heading.name).slice(0, FOLDER_NAME_MAX);
+		pendingFolder = heading.container || !folder ? null : folder;
+		pendingNamed = folder ? { name: folder, container: heading.container } : null;
+		heading = null;
+	};
+	const endAnchor = () => {
+		if (!anchor) return;
+		const { href, attrs, line } = anchor;
+		anchor = null;
+		const url = href?.trim();
+		if (!url) {
+			failures.push({ line, reason: 'A bookmark with no address.' });
+			return;
+		}
+		const tags = splitTags(attrs.tags);
+		const path = folders.at(-1)?.path ?? null;
+		const folder = folders.at(-1)?.folder ?? null;
+		const item: ImportItem = {
+			url,
+			title: squash(anchorText) || null,
+			tags: tags.filter((t) => t !== LINKDING_ARCHIVED),
+			projects: path ? [path] : [],
+			createdAt: fileTime(attrs.add_date),
+			notes: null,
+			status: null,
+			archived: tags.includes(LINKDING_ARCHIVED),
+			line
+		};
+		if (folder) item.folder = folder;
+		items.push(item);
+		last = item;
+	};
 
-	const parser = new Parser(
-		{
-			onopentag(name, attrs) {
-				if (name === 'dt' || name === 'dl' || name === 'h3' || name === 'a' || name === 'hr') {
-					endNote();
+	function open(name: string, attrs: Record<string, string>, at: number) {
+		if (
+			name === 'dt' ||
+			name === 'dl' ||
+			name === 'dd' ||
+			name === 'h3' ||
+			name === 'a' ||
+			name === 'hr'
+		) {
+			endNote();
+			endAnchor();
+			endHeading();
+		}
+		switch (name) {
+			case 'dl': {
+				const parent = folders.at(-1) ?? { path: null, depth: 0, folder: null };
+				const folder = pendingFolder;
+				const named = pendingNamed;
+				pendingFolder = undefined;
+				pendingNamed = undefined;
+				// Past the depth cap a folder folds into its parent here too.
+				const shown =
+					named && (parent.folder?.path.length ?? 0) < FOLDER_DEPTH_MAX
+						? {
+								path: [...(parent.folder?.path ?? []), named.name],
+								container: [...(parent.folder?.container ?? []), named.container]
+							}
+						: parent.folder;
+				if (!folder || parent.depth >= FOLDER_DEPTH_MAX) folders.push({ ...parent, folder: shown });
+				else {
+					const path = parent.path ? `${parent.path} / ${folder}` : folder;
+					folders.push({ path, depth: parent.depth + 1, folder: shown });
 				}
-				switch (name) {
-					case 'dl':
-						folders.push(pendingFolder ?? null);
-						pendingFolder = undefined;
-						trail.push(pendingTrail ?? null);
-						pendingTrail = undefined;
-						last = null;
-						break;
-					case 'h3':
-						heading = {
-							name: '',
-							container:
-								attrs.personal_toolbar_folder === 'true' ||
-								attrs.unfiled_bookmarks_folder === 'true'
-						};
-						last = null;
-						break;
-					case 'a':
-						anchor = { href: attrs.href, attrs, line: lineAt(parser.startIndex) };
-						anchorText = '';
-						break;
-					case 'dd':
-						dd = { item: last, text: '' };
-						last = null;
-						break;
-				}
-			},
-			ontext(chunk) {
-				if (anchor) anchorText += chunk;
-				else if (heading) heading.name += chunk;
-				else if (dd) dd.text += chunk;
-			},
-			onclosetag(name) {
-				if (name === 'h3' && heading) {
-					const folder = squash(heading.name);
-					pendingFolder = heading.container || !folder ? null : folder;
-					pendingTrail = folder ? { name: folder, container: heading.container } : null;
-					heading = null;
-				} else if (name === 'a' && anchor) {
-					const { href, attrs, line } = anchor;
-					anchor = null;
-					const url = href?.trim();
-					if (!url) {
-						failures.push({ line, reason: 'A bookmark with no address.' });
-						return;
-					}
-					const tags = splitTags(attrs.tags);
-					const path = folders.filter((f): f is string => f !== null).join(' / ');
-					const named = trail.filter((f) => f !== null);
-					const item: ImportItem = {
-						url,
-						title: squash(anchorText) || null,
-						tags: tags.filter((t) => t !== LINKDING_ARCHIVED),
-						projects: path ? [path] : [],
-						createdAt: fileTime(attrs.add_date),
-						notes: null,
-						status: null,
-						archived: tags.includes(LINKDING_ARCHIVED),
-						line
-					};
-					if (named.length) {
-						item.folder = {
-							path: named.map((f) => f.name),
-							container: named.map((f) => f.container)
-						};
-					}
-					items.push(item);
-					last = item;
-				} else if (name === 'dl') {
-					endNote();
-					folders.pop();
-					trail.pop();
-					last = null;
-				} else if (name === 'dd') {
-					endNote();
-				}
+				last = null;
+				break;
 			}
-		},
-		{ decodeEntities: true, lowerCaseTags: true, lowerCaseAttributeNames: true }
+			case 'h3':
+				heading = {
+					name: '',
+					container:
+						attrs.personal_toolbar_folder === 'true' || attrs.unfiled_bookmarks_folder === 'true'
+				};
+				last = null;
+				break;
+			case 'a':
+				anchor = { href: attrs.href, attrs, line: lineAt(at) };
+				anchorText = '';
+				break;
+			case 'dd':
+				dd = { item: last, text: '' };
+				last = null;
+				break;
+		}
+	}
+
+	function close(name: string) {
+		if (name === 'h3') endHeading();
+		else if (name === 'a') endAnchor();
+		else if (name === 'dl') {
+			endNote();
+			endAnchor();
+			endHeading();
+			folders.pop();
+			last = null;
+		} else if (name === 'dd') endNote();
+	}
+
+	function onText(chunk: string) {
+		if (anchor) anchorText += chunk;
+		else if (heading) {
+			if (heading.name.length < NAME_READ_MAX) heading.name += chunk;
+		} else if (dd) dd.text += chunk;
+	}
+
+	// htmlparser2's Tokenizer reads tags, attributes and entities in one linear pass. Its Parser is not used: it keeps
+	// open elements with Array#unshift, so a file nested thousands deep would take time growing with the square of
+	// the depth. The only nesting kept here is `folders`, a stack of paths made once each.
+	let tag = '';
+	let tagAt = 0;
+	let attrs: Record<string, string> = {};
+	let attrName = '';
+	let attrValue = '';
+	const tokenizer = new Tokenizer(
+		{ decodeEntities: true },
+		{
+			onopentagname(start, end) {
+				tag = text.slice(start, end).toLowerCase();
+				tagAt = start - 1;
+				attrs = {};
+			},
+			onattribname(start, end) {
+				attrName = text.slice(start, end).toLowerCase();
+				attrValue = '';
+			},
+			onattribdata(start, end) {
+				attrValue += text.slice(start, end);
+			},
+			onattribentity(codepoint) {
+				attrValue += String.fromCodePoint(codepoint);
+			},
+			onattribend() {
+				if (!Object.hasOwn(attrs, attrName)) attrs[attrName] = attrValue;
+				attrValue = '';
+			},
+			onopentagend() {
+				open(tag, attrs, tagAt);
+			},
+			onselfclosingtag() {
+				open(tag, attrs, tagAt);
+			},
+			onclosetag(start, end) {
+				close(text.slice(start, end).toLowerCase());
+			},
+			ontext(start, end) {
+				onText(text.slice(start, end));
+			},
+			ontextentity(codepoint) {
+				onText(String.fromCodePoint(codepoint));
+			},
+			oncdata() {},
+			oncomment() {},
+			ondeclaration() {},
+			onprocessinginstruction() {},
+			onend() {}
+		}
 	);
-	parser.write(text);
-	parser.end();
+	tokenizer.write(text);
+	tokenizer.end();
 	endNote();
+	endAnchor();
 	return { items, failures };
 }
