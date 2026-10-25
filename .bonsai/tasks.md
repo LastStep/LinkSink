@@ -5,6 +5,7 @@ Active task when none is named: T-0005
 
 | Task | Title | Status | Lane | Started | Finished |
 |---|---|---|---|---|---|
+| T-0021 | The page-details fetch queue stops on shutdown, so the server exits cleanly mid-fetch | todo | light | | |
 | T-0020 | Backups, the VPS deploy and CI — Litestream and restic services, deploy on the person's VPS, the ladder in CI | todo | full | | |
 | T-0019 | Import preview — see what a file holds and map each folder before anything is saved | verify | full | 2026-10-25 | |
 | T-0018 | Build ADR-0005 — two-line rows with a fixed state cell, radio-list status and priority, and the shared redesign of details, frame and phone | verify | full | 2026-10-25 | |
