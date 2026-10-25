@@ -92,7 +92,8 @@ Then open `https://<LINKSINK_HOST>` and sign up (once: LinkSink has one account,
 `console` mail, find the confirm link with `docker compose logs app | grep verify-email`.
 
 **Case B, the certificate warning.** Each browser warns on the first visit ("Your connection is not private").
-Choose Advanced, then Proceed: LinkSink never tells a browser to refuse that for a local address, so you always can.
+Choose Advanced, then Proceed. For a local name or an address LinkSink never sends the header (HSTS) that would make
+a browser refuse this, so you always can.
 To stop the warning for good, trust Caddy's own authority on each device. Copy it out with
 `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt linksink-root.crt`, then on Windows run
 `certutil -user -addstore Root linksink-root.crt`; on a Mac open it and set it to Always Trust in Keychain Access; on
