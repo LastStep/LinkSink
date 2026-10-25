@@ -2,14 +2,19 @@
 id: OPT-0003   # an options write-up; every field and how to fill it: skill workflow:options
 title: How should a Ledger row show tags, projects, status and priority, and how should the details set status and priority?
 lane: director
-status: open
+status: decided
 author: orchestrator
 created: 2026-10-24
-decided: null
-chosen: null
+decided: 2026-10-25
+chosen: C
 ---
 
 # How should a row show tags, projects, status and priority, and how should the details set status and priority?
+
+## Decided
+
+2026-10-25 06:41 UTC, in the person's words: "OPT-0003 picks: row f3, control c3, the whole shared redesign." This is
+the second pass's third bundle, recorded as `chosen: C`. Recorded in ADR-0005; built by T-0018.
 
 ## Why this is being asked now
 

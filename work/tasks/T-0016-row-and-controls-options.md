@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0016
 title: Options for the Ledger row layout and the details' status/priority controls, shown on real data
-status: running
+status: verify
 lane: director
 done_when:
   - "work/options/ holds one write-up with 2–4 row layouts (tags, projects, status, priority) and 2–4 status/priority controls for the details, each pictured from a real spike run at 390 and 1440 px, light and dark, with one recommended"

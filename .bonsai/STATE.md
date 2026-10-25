@@ -26,10 +26,10 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
 
 1. T-0006, T-0007, T-0008 have landed; T-0007 and
    T-0008 read `verify` (the person closes them). T-0014 and T-0015 (BUG-001, BUG-002, at 96062ea) are done.
-   - T-0016 (director lane): options write-up `work/options/OPT-0003-row-and-controls.md`, shots in
-     `design/options/T-0016/`. Recommended: rows A (columns) and controls C (segments with marks). Waiting on the
-     person's pick. Then a decision record and a light build task, which also fixes the hover-Archive trap on the
-     time cell and GitHub's black favicon in dark mode. T-0009 (written, not approved) starts after that.
+   - T-0016 (director lane) reads `verify`: the person chose row f3, control c3 and the whole shared redesign
+     (OPT-0003 decided, ADR-0005). T-0018 builds it (full lane, status `plan`); its plan `work/plans/P-T-0018.md`
+     is a draft and waits for the person's approval. Comparison page: https://claude.ai/artifact/5EHQa6dDUeoLn1jbyTLwf3.
+     T-0009 (search as you type) follows T-0018 and is not approved yet.
    - T-0017 (a link pasted on a tag's or project's page joins it; a duplicate gets it too) landed at 8ded31c and is
      done; ladder green on main at 1b0add0 (367 unit, 38 e2e, 52.04 KB).
 2. T-0005 (deploy) is a Docker Compose setup (ADR-0004, the person's word) and waits for the person's VPS facts
@@ -54,6 +54,8 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
 - 2026-10-24 ADR-0002: SvelteKit 3 + Better Auth + SQLite (better-sqlite3, WAL, FTS5, Drizzle 0.45) on Node ≥ 22.19,
   Caddy + systemd on the person's VPS.
 - 2026-10-24 ADR-0003: the look is direction A, Ledger.
+- 2026-10-25 ADR-0005: rows are two lines with a fixed status/priority cell (f3), radio-list controls (c3), and the
+  whole Fable redesign of details, frame and phone; amends ADR-0003.
 - 2026-10-24 ADR-0004: deploy as Docker Compose (app, Caddy, backups) so it runs on any host; replaces systemd.
 - 2026-10-24 fields: Source and Media (one each, automatic, editable), Tags and Projects (many), Status and Priority
   (optional, fixed values), Archive; description auto-filled from the page, never overwritten once edited; import of
