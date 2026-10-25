@@ -241,3 +241,22 @@ About 25 minutes of wall clock to the final climb (07:17 to 07:41), the merges i
 ## Verifier
 
 > Added by the verifier, in a fresh context. Pass or fail, with reasons.
+
+## Landing (orchestrator, 2026-10-25 10:20 UTC)
+
+- **Briefs:**
+  - M-2026-10-25-c646dda9 (the build);
+  - rounds M-2026-10-25-afa315a9, M-2026-10-25-4fbfb516, M-2026-10-25-32a2d3a2 and M-2026-10-25-6db50f15.
+  - Last report: M-2026-10-25-cfde1e5c.
+- **Security:** PASS M-2026-10-25-cdb1d853 at c97c6ed.
+- **QA:** PASS M-2026-10-25-3cc04598 at c97c6ed.
+- **Tests (verifier@T-0019#2):**
+  - PASS M-2026-10-25-c87249d5 at c97c6ed.
+  - FAIL M-2026-10-25-423bd975 at 9e9caad (held: "Unsorted" matched by name in any file, against done_when 2). done_when 2 was amended to Raindrop files only, as the orchestrator's default.
+- **Round 5 at f642e83:** read by the orchestrator, not re-verified (a small change that fixes exactly the held finding). The tests were written first and failed at 9e9caad.
+- **Blocking findings:** 1 held, 0 did not hold.
+- **Merged:** no-ff into main as 153c7d5. `bonsai ladder --task T-0019` on main at 153c7d5 (clean, under the shared Playwright lock): rungs 0-5 green, unit 520, e2e 59.
+- **Status:** T-0019 → verify. The person tests it at the end with a real bookmarks export.
+- **Proposed follow-ups:**
+  - a "set every folder to…" control;
+  - fewer tab stops with many folders.

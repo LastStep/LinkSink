@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0019
 title: Import preview — see what a file holds and map each folder before anything is saved
-status: running
+status: verify
 lane: full
 done_when:
   - "Choosing a file in Settings → Import writes nothing: it shows a preview with the links found, those already saved (duplicates), those that could not be read, and every folder (its full path and link count) (API test: preview leaves the database unchanged)"
