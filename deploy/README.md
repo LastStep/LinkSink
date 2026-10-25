@@ -8,14 +8,9 @@ the LinkSink folder.
 
 - Docker Desktop is running, with WSL integration on for this distribution (Settings, Resources, WSL Integration).
   `docker compose version` answers.
-- Ports 80 and 443 are free. On this machine Apache runs inside WSL and holds port 80, and LinkSink cannot start
-  while it does (the error reads `ports are not available: exposing port TCP 127.0.0.1:80`). Stop it while you
-  test, and start it again when you are done:
-
-  ```bash
-  sudo systemctl stop apache2     # before
-  sudo systemctl start apache2    # after, if you want it back
-  ```
+- Port 443 is free. Port 80 is not, on this machine: Apache in WSL holds it. You need not stop Apache: the example
+  settings publish Caddy's plain http on port 8080 instead (`LINKSINK_HTTP_PORT=8080`). Plain http only redirects
+  to https, so http://localhost:8080 takes you to https://localhost.
 
 ## 1. Write the settings
 
@@ -32,7 +27,8 @@ sed -i "s|^LINKSINK_AUTH_SECRET=.*|LINKSINK_AUTH_SECRET=$(openssl rand -base64 3
 ```
 
 For this machine, keep the rest as the example has it: `LINKSINK_HOST=localhost`, `LINKSINK_LISTEN=127.0.0.1`
-(only this computer can reach it) and `LINKSINK_MAIL_TRANSPORT=console` (mail is printed, not sent).
+(only this computer can reach it), `LINKSINK_HTTP_PORT=8080` (port 80 is Apache's) and
+`LINKSINK_MAIL_TRANSPORT=console` (mail is printed, not sent).
 
 ## 2. Build and start
 
@@ -52,6 +48,9 @@ unhealthy`, and `docker compose logs app` says why, in the app's own names for t
 - `RESEND_API_KEY must be set` or `MAIL_FROM must be set`: set `LINKSINK_MAIL_TRANSPORT=console` (this machine),
   or the two Resend settings (a server).
 - `ORIGIN must be the public origin`: `LINKSINK_HOST` holds more than a host name (no `https://`, no `/`).
+
+If it ends with `ports are not available: exposing port TCP 127.0.0.1:8080` (or `:443`), something else holds that
+port: pick another `LINKSINK_HTTP_PORT`, or free 443.
 
 Fix `.env`, then run `docker compose up -d` again.
 
