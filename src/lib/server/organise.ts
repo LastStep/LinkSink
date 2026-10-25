@@ -458,7 +458,9 @@ export function createProject(
 			wanted &&
 			w.tx.select({ id: projects.id }).from(projects).where(eq(projects.id, wanted)).get();
 		const id = wanted && !taken ? wanted : ulid(w.now);
-		const position = Math.max(0, ...existing.map((p) => p.position + 1));
+		// A loop, not Math.max(...): spreading many thousands of projects overflows the call stack.
+		let position = 0;
+		for (const p of existing) if (p.position + 1 > position) position = p.position + 1;
 		w.insert(projects, { id, name, color: c, description, position });
 		return id;
 	});

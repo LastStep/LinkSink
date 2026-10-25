@@ -5,9 +5,9 @@ task: T-0012
 role: builder
 model: opus
 started: 2026-10-25 06:45
-finished: 2026-10-25 07:33
+finished: 2026-10-25 08:47
 outcome: needs-verifier
-commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1", "91ab57f", "5e8d44c", "836b54a", "38f1220", "d9c6016", "a845284", "277025c"]
+commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1", "91ab57f", "5e8d44c", "836b54a", "38f1220", "d9c6016", "a845284", "277025c", "3bbce56", "b347107", "fae6bf9", "2bcbd9c", "6ca9ac3", "97806a3", "a048dff", "a7ecb3a"]
 labels: {}
 ---
 
@@ -204,6 +204,107 @@ What did not work in this round:
   and 4790 for the 91ab57f run. The probe server (mine, pid 81834 and earlier 78123) did not stop on SIGTERM:
   adapter-node closes its listener, but the fixture site keeps the process alive. I stopped both with SIGKILL and
   confirmed it with `ss -ltnp`.
+
+## Fix round 2 (brief M-2026-10-25-e43d804d, 07:50 to 08:47)
+
+### C1: what was taking the memory
+
+The background fetch queue alone did not explain it. Measured, in order:
+- 10,000 links on a built server (lookups failing at once, as in e2e): peak RSS 1,259 MB, and 750 MB still held
+  after every link had failed. A heap snapshot of the idle server is 25 MB, so the held memory is outside the JS
+  heap. The snapshot taken at the heap's peak holds 20,004 pending `Timeout` objects and 20,065 `WeakRef`s (about
+  two per link, timers left behind by each fetch attempt). It totals 34 MB live; the rest of the 495 MB heap peak
+  was garbage.
+- 100,000 links under a 1.5 GB heap cap: the server died inside the import request itself, before any background
+  work.
+- The import's writes alone, outside the server: heap peak 255 MB, but RSS 3.2 GB, growing by 14.5 MB with every
+  500-link batch, and a forced GC freed none of it.
+- Raw SQLite on one connection, 100,000 rows: reusing one prepared INSERT, RSS +9 MB. A new statement for every
+  row (what drizzle does for every query), RSS +1,413 MB, linear, about 14 KB a row, and not given back after a
+  forced GC or after `db.close()`. With the FTS5 triggers on `links` dropped, the growth goes away: each INSERT or
+  UPDATE on `links` compiles the triggers into its statement.
+- better-sqlite3 13.0.3 frees a statement's native memory (`sqlite3_finalize`, `statement.cpp` line 19, through
+  `Database::RemoveStatement`) in the JS object's finalizer. The finalizer runs only on a later turn of the event
+  loop.
+
+**Cause:** every query prepares a new native statement, about 14 KB with the FTS5 triggers. V8 does not see that
+memory, and it is given back only on a later turn of the event loop. Both phases held the loop for their whole run:
+- The import wrote every batch in one synchronous call (3.2 GB at 100,000 links).
+- The fetch queue chained jobs that fail at once in microtasks. Then 100,000 same-delay retry timers fired in one
+  timers phase, each writing a failure (several statements per link) before the loop could turn.
+
+The memory piled up until the process died; health requests timed out while it lasted.
+
+**Fixes:**
+- Import: the import no longer queues links itself. It writes them `pending`, gives the loop a turn between batches
+  (fae6bf9), and calls `kickFetches()` once.
+- Feeder: `src/lib/server/fetch/feeder.ts` reads waiting links from the database by a primary-key cursor, 8 at a
+  time, whenever fewer than 4 are queued. The queue therefore holds at most 11 links however many wait.
+- Queue: each job starts on its own event-loop turn (`setImmediate`). Its `onRoom` callback tops it up, and it lists
+  its queued ids for the feeder (b347107).
+- Restart: the server kicks the feeder once when it starts, so work cut off by a restart resumes.
+- At most 2 at once is unchanged: T-0007's queue tests pass unchanged.
+
+### Timed runs on a built server, HEAD a7ecb3a
+
+Harness: `.../scratchpad/c1/` (`serve.mjs` starts `build/` the way the e2e server does, `drive.mjs` signs up,
+imports, then asks `/login` every second and samples `/proc/<pid>/status`). Both runs used one 100,000-link file:
+
+| Run | File | Import | Background work watched | Health | Peak RSS | Steady RSS |
+|---|---|---|---|---|---|---|
+| A: lookups fail at once (as in e2e) | 18.6 MB | 200 in 45.0 s | 330 s; 1,312 links failed (twice each) | 330/330 answered, slowest 61 ms | 519 MB (during the import) | about 228 MB, flat |
+| B: fake site, 2 s per page | 16.3 MB | 200 in 42.6 s | 330 s; 164 links ok (meta and favicon both wait 2 s) | 330/330 answered, slowest 7 ms | 530 MB (during the import) | about 217 MB, flat |
+
+Before (91ab57f/3bbce56, the verifier's runs): 200 in 17 s, then 5.1 GB and death about 60 s later. The import now
+takes longer (45 s against 17 s) because it gives the loop a turn between batches. The files are 18.6 MB and 16.3 MB
+rather than a full 20 MB; it is the link count that drives the memory.
+
+### C2
+
+- Both `Math.max(0, ...projects)` spreads are now loops (`write.ts` namer, `organise.ts` createProject).
+- The import spreads of a link's tags and projects onto the first copy are loops too.
+- One import makes at most 1,000 new projects. The file is refused before any write with "That file would make N
+  new projects (one for each folder); one import makes at most 1,000. Nothing was imported."
+
+### Also: an upload over 20 MB answers 413 with its message
+
+- There is no server-wide body limit any more (`BODY_SIZE_LIMIT=Infinity` in the e2e server and `.env.example`).
+  `/api/import` reads at most 20 MB, and `hooks.server.ts` holds every other route to 512 KB (B3).
+- The import used to *cancel* the body when over 20 MB, which made SvelteKit destroy the socket before the answer
+  went out. It now stops reading and releases the stream (a048dff).
+- **T-0005 must now set `BODY_SIZE_LIMIT=Infinity`, not 21M.**
+
+### Tests, and what each does on 3bbce56 (ran: `git archive 3bbce56`, the new tests copied in)
+
+| Test | Here | On 3bbce56 |
+|---|---|---|
+| `feeder.spec.ts` "keeps at most 11 links in the queue while 100,000 wait, and fetches every one, 2 at a time" | pass (100,000 done, max 11 queued, 2 running) | the module does not exist; the counterpart (100,000 imported, queue bound 11) fails: 100,000 queued |
+| `feeder.spec.ts` "a run of fetches that fail at once lets timers through" | pass | module missing |
+| `feeder.spec.ts` "skips queued, deleted, not pending ..." | pass | module missing |
+| `round2.spec.ts` "gives the event loop a turn between batches" | pass | fails: 0 turns (called with 3bbce56's signature) |
+| `round2.spec.ts` "1,001 new projects refused, nothing written" | pass | fails: 200 |
+| `round2.spec.ts` "1,000 new projects is allowed" | pass | passes (a guard that the cap is not too tight) |
+| `round2.spec.ts` "130,000 projects, one more by hand or by import" | pass | fails: `RangeError: Maximum call stack size exceeded` |
+| e2e "a chunked body over 512 KB ..." now also: chunked import over 20 MB → 413 and message | pass | fails: connection reset |
+
+My own earlier import tests changed shape with the design: `onCreated` per link became `onImported` once, and the
+queue test now goes through the feeder. Every assertion is kept or made stronger.
+
+### What did not work, round 2
+
+- Run B on a second port could not sign up: the build fixes its origin. It ran on 4800 after run A.
+- Fetches that fail at once now drain slowly: about 4 links a second, because a failed link waits 2 s for its retry
+  inside the 4-link low mark. 100,000 such links would take hours. Memory stays flat and the server answers
+  throughout. A link that fails slowly or succeeds is limited by its fetch time instead (run B: about 0.5 a second
+  at 2 s a page, 2 pages each).
+- The import of the largest file still peaks at about 520 MB RSS (parsing 100,000 links and writing them); it falls
+  back afterwards.
+
+### Processes, round 2
+
+All mine were stopped by pid: probe and run servers 120883, 124788, 127175 (died by itself), 142021, 142022 and
+146900, then checked with `ss -ltnp` and `pgrep`. Not mine and left alone: pid 58713 (an e2e server from
+`.../scratchpad/t12`) and pids 153531/153532 (an e2e server from `LinkSink-t0009`).
 
 ## Verifier
 

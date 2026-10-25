@@ -555,9 +555,9 @@ describe('caught breakages', () => {
 		...extra
 	});
 
-	it('the writer, called past the option checks, links no project of another user', () => {
+	it('the writer, called past the option checks, links no project of another user', async () => {
 		const bobs = createProject(t.db, syncWrite, bob.id, { name: 'Bob’s' });
-		const result = importItems(syncWrite, alice.id, [
+		const result = await importItems(t.db, syncWrite, alice.id, [
 			item('https://x.example.com', { projectIds: [bobs.id] })
 		]);
 		expect(result.added).toBe(1);
@@ -569,9 +569,9 @@ describe('caught breakages', () => {
 		]);
 	});
 
-	it('a later copy’s existing project joins the first copy', () => {
+	it('a later copy’s existing project joins the first copy', async () => {
 		const work = createProject(t.db, syncWrite, alice.id, { name: 'Work' });
-		importItems(syncWrite, alice.id, [
+		await importItems(t.db, syncWrite, alice.id, [
 			item('https://y.example.com/page'),
 			item('https://y.example.com/page/', { projectIds: [work.id] })
 		]);
@@ -591,5 +591,85 @@ describe('caught breakages', () => {
 			'Parent Folder / Child Folder',
 			'Work'
 		]);
+	});
+});
+
+// T-0012's fix round 2 (b49f6c5): an import makes at most 1,000 new projects, and every upload stops at 20 MB.
+describe('with T-0012’s limits', () => {
+	/** A file with `n` folders of one link each. */
+	function folders(n: number) {
+		let html = '<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<DL><p>\n';
+		for (let f = 0; f < n; f++) {
+			html += `<DT><H3>Folder ${f}</H3>\n<DL><p>\n<DT><A HREF="https://f${f}.example.com/">${f}</A>\n</DL><p>\n`;
+		}
+		return html + '</DL><p>\n';
+	}
+
+	it('a mapping’s new projects count toward the 1,000 cap; mapped elsewhere, they do not', async () => {
+		const file = folders(1001);
+		const before = everything();
+		// Every folder on its default (New project): 1,001 new projects, refused before anything is written.
+		const refused = await importMapped(alice, { mapping: {} }, file);
+		expect(refused.status).toBe(400);
+		expect(refused.body.error).toMatch(/1,001 new projects/);
+		expect(everything()).toEqual(before);
+		// Renamed so two folders share one new name: 1,000 new projects, allowed.
+		const shared = await importMapped(
+			alice,
+			{ mapping: { [key('Folder 1000')]: { kind: 'new', name: 'Folder 0' } } },
+			file
+		);
+		expect(shared.status).toBe(200);
+		expect(shared.body).toMatchObject({ added: 1001, projectsMade: 1000 });
+	}, 60_000);
+
+	it('a folder mapped to a tag or to nothing makes no project toward the cap', async () => {
+		const res = await importMapped(
+			alice,
+			{
+				mapping: {
+					[key('Folder 0')]: { kind: 'tag', name: 'zero' },
+					[key('Folder 1')]: { kind: 'none' }
+				}
+			},
+			folders(1002)
+		);
+		expect(res.status).toBe(200);
+		expect(res.body.projectsMade).toBe(1000);
+	}, 60_000);
+
+	/** A request whose body streams in 64 KB chunks with no Content-Length, as a chunked upload arrives. */
+	function streamed(url: string, type: string, bytes: number) {
+		let sent = 0;
+		const chunk = new Uint8Array(64 * 1024).fill(0x61);
+		return new Request(url, {
+			method: 'POST',
+			headers: { 'content-type': type },
+			body: new ReadableStream<Uint8Array>({
+				pull(controller) {
+					if (sent >= bytes) return controller.close();
+					sent += chunk.length;
+					controller.enqueue(chunk);
+				}
+			}),
+			duplex: 'half'
+		} as RequestInit);
+	}
+
+	it('the preview stops a chunked body over 20 MB with 413, as the import does', async () => {
+		const before = everything();
+		const preview = await api.preview(
+			alice,
+			streamed('http://localhost/api/import?preview', 'application/octet-stream', 21 * 1024 * 1024)
+		);
+		expect(preview.status).toBe(413);
+		expect((await preview.json()).error).toMatch(/over 20 MB/);
+		// An import with options may carry its options line on top of the 20 MB file, and no more.
+		const mapped = await api.import(
+			alice,
+			streamed('http://localhost/api/import', IMPORT_WITH_OPTIONS, 21 * 1024 * 1024)
+		);
+		expect(mapped.status).toBe(413);
+		expect(everything()).toEqual(before);
 	});
 });

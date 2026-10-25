@@ -23,7 +23,7 @@ const UPLOAD_TYPES = ['application/octet-stream', 'text/html', 'text/csv'];
  */
 export const IMPORT_WITH_OPTIONS = 'application/vnd.linksink.import';
 
-/** The options line is at most this long; with the 20 MB file it stays inside BODY_SIZE_LIMIT (21M). */
+/** The options line is at most this long; an import with options reads no more than this plus the 20 MB file. */
 export const OPTIONS_MAX = 512 * 1024;
 
 const problem = (status: number, message: string) => Response.json({ error: message }, { status });
@@ -42,7 +42,9 @@ async function readCapped(request: Request, max: number): Promise<Uint8Array> {
 		if (done) break;
 		size += value.byteLength;
 		if (size > max) {
-			await reader.cancel();
+			// Stop reading, but do not cancel: cancelling the body makes the server drop the connection before the
+			// 413 below is sent. Unread, the upload is held back, and the connection closes after the answer.
+			reader.releaseLock();
 			throw new ImportRefused('That file is over 20 MB. Split it, or export fewer bookmarks.', 413);
 		}
 		parts.push(value);
@@ -59,12 +61,15 @@ async function readCapped(request: Request, max: number): Promise<Uint8Array> {
 export function createImportApi({
 	db,
 	syncWrite,
-	onCreated = () => {}
+	onImported = () => {}
 }: {
 	db: DB;
 	syncWrite: SyncWrite;
-	/** Called with each new link's id once it is written: the app queues its page details fetch. */
-	onCreated?: (linkId: string) => void;
+	/**
+	 * Called once an import has written links (all of them, or some before a failure). The app tells its fetch
+	 * queue, whose feeder reads the waiting links from the database a few at a time (fetch/feeder.ts).
+	 */
+	onImported?: () => void;
 }) {
 	return {
 		/**
@@ -96,7 +101,8 @@ export function createImportApi({
 				const items = withOptions
 					? applyMapping(parsed.items, checkOptions(db, caller.id, parsed, options), parsed.format)
 					: parsed.items;
-				const result = importItems(syncWrite, caller.id, items, onCreated);
+				const result = await importItems(db, syncWrite, caller.id, items);
+				if (result.added) onImported();
 				const failures = [...parsed.failures, ...result.failures].sort((a, b) => a.line - b.line);
 				return Response.json({
 					format: parsed.format,
@@ -110,6 +116,7 @@ export function createImportApi({
 			} catch (error) {
 				if (error instanceof ImportRefused) return problem(error.status, error.message);
 				if (error instanceof ImportStopped && error.saved > 0) {
+					onImported();
 					console.error('[import] stopped part-way', error.saved, error.cause);
 					return problem(
 						500,

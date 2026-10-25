@@ -3,7 +3,13 @@ import { parseNetscape } from './netscape.ts';
 import { parsePocketCsv } from './pocket.ts';
 import { ImportRefused, type ParsedFile } from './types.ts';
 
-export { importItems, IMPORT_BATCH, TAGS_MAX, type ImportResult } from './write.ts';
+export {
+	importItems,
+	IMPORT_BATCH,
+	NEW_PROJECTS_MAX,
+	TAGS_MAX,
+	type ImportResult
+} from './write.ts';
 export {
 	ImportRefused,
 	ImportStopped,

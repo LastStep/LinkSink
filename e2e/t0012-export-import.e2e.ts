@@ -334,17 +334,24 @@ test('markup in an imported title and note shows as text, never as markup', asyn
  * POSTs `bytes` in 64 KB chunks with Transfer-Encoding: chunked and no Content-Length, as Node sends a streamed
  * body; resolves with the status, or 'reset' if the server ended the connection before answering.
  */
-function postChunked(path: string, bytes: number, cookie = ''): Promise<number | 'reset'> {
+function postChunked(
+	path: string,
+	bytes: number,
+	cookie = '',
+	type = 'application/json'
+): Promise<{ status: number; text: string } | 'reset'> {
 	return new Promise((resolve) => {
 		const req = httpRequest(
 			`${origin}${path}`,
 			{
 				method: 'POST',
-				headers: { 'content-type': 'application/json', origin, ...(cookie ? { cookie } : {}) }
+				headers: { 'content-type': type, origin, ...(cookie ? { cookie } : {}) }
 			},
 			(res) => {
-				res.resume();
-				resolve(res.statusCode ?? 0);
+				let text = '';
+				res.setEncoding('utf8');
+				res.on('data', (d) => (text += d));
+				res.on('end', () => resolve({ status: res.statusCode ?? 0, text }));
 			}
 		);
 		req.on('error', () => resolve('reset'));
@@ -366,10 +373,23 @@ test('a chunked body over 512 KB is refused on every route but the import (B3)',
 		cookies: { name: string; value: string }[];
 	};
 	const cookie = session.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
-	expect(await postChunked('/api/auth/sign-in/email', 5 * 1024 * 1024)).toBe(413);
-	expect(await postChunked('/api/links', 600 * 1024, cookie)).toBe(413);
+	expect(await postChunked('/api/auth/sign-in/email', 5 * 1024 * 1024)).toMatchObject({
+		status: 413
+	});
+	expect(await postChunked('/api/links', 600 * 1024, cookie)).toMatchObject({ status: 413 });
 	// Within the limit a chunked body still reaches the route (here: not valid JSON, so 400).
-	expect(await postChunked('/api/links', 128 * 1024, cookie)).toBe(400);
+	expect(await postChunked('/api/links', 128 * 1024, cookie)).toMatchObject({ status: 400 });
+	// An import over 20 MB, chunked, is answered 413 with its message, not a closed connection.
+	const big = await postChunked(
+		'/api/import',
+		21 * 1024 * 1024,
+		cookie,
+		'application/octet-stream'
+	);
+	expect(big).not.toBe('reset');
+	const answer = big as { status: number; text: string };
+	expect(answer.status).toBe(413);
+	expect(JSON.parse(answer.text).error).toMatch(/over 20 MB/);
 });
 
 test('a file that is not bookmarks, or over 20 MB, is refused with a message and nothing is written', async ({

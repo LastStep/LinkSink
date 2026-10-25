@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { linkIn, sentMail } from './outbox.ts';
 
@@ -437,4 +439,60 @@ test('the preview at 390 and 1440, light and dark; 200 folders scroll in their o
 		}
 	}
 	expect(mine(await exported(page))).toEqual([]);
+});
+
+/**
+ * POSTs `bytes` in 64 KB chunks with Transfer-Encoding: chunked and no Content-Length (as T-0012's e2e does);
+ * resolves with the status, or 'reset' if the server ended the connection before answering.
+ */
+function postChunked(
+	path: string,
+	bytes: number,
+	cookie: string,
+	type: string
+): Promise<{ status: number; text: string } | 'reset'> {
+	return new Promise((resolve) => {
+		const req = httpRequest(
+			`${origin}${path}`,
+			{ method: 'POST', headers: { 'content-type': type, origin, cookie } },
+			(res) => {
+				let text = '';
+				res.setEncoding('utf8');
+				res.on('data', (d) => (text += d));
+				res.on('end', () => resolve({ status: res.statusCode ?? 0, text }));
+			}
+		);
+		req.on('error', () => resolve('reset'));
+		const chunk = Buffer.alloc(64 * 1024, 0x61);
+		let sent = 0;
+		const pump = () => {
+			while (sent < bytes) {
+				sent += chunk.length;
+				if (!req.write(chunk)) return void req.once('drain', pump);
+			}
+			req.end();
+		};
+		pump();
+	});
+}
+
+test('the preview stops a chunked upload over 20 MB with 413 and its message, as the import does', async ({
+	page
+}) => {
+	const before = await everything(page);
+	const session = JSON.parse(readFileSync(state, 'utf8')) as {
+		cookies: { name: string; value: string }[];
+	};
+	const cookie = session.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+	for (const [path, type] of [
+		['/api/import?preview', 'application/octet-stream'],
+		['/api/import', 'application/vnd.linksink.import']
+	]) {
+		const big = await postChunked(path, 21 * 1024 * 1024, cookie, type);
+		expect(big, path).not.toBe('reset');
+		const answer = big as { status: number; text: string };
+		expect(answer.status, path).toBe(413);
+		expect(JSON.parse(answer.text).error).toMatch(/over 20 MB/);
+	}
+	expect(await everything(page)).toEqual(before);
 });
