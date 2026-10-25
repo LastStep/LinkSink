@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0009
 title: Search, filters and keyboard — FTS5 search as you type, combined filters in the URL, sort, keys and the command palette
-status: todo
+status: running
 lane: full
 done_when:
   - "links_fts searches title, description, url, notes, tags_text and projects_text (unicode61 remove_diacritics 2, prefix '2 3'), soft-deleted rows excluded, kept current by triggers; GET /api/links?q= serves it"
@@ -11,12 +11,12 @@ done_when:
   - "Filters by source, media, tags (any/all switch), projects, status and priority combine as the one-pager says (any within one filter, all across filters); archived links are excluded unless archived=include|only; the whole view is in the URL and a reload reproduces it (unit SQL builder + e2e)"
   - "Paging is keyset on created_at,id, 50 per page; sort by saved (default), edited, priority or title"
   - "/, n, j/k and arrows, Enter, e, t, p, a, x and Ctrl/Cmd+K work as the plan says; the command palette adds a link, searches, jumps to a project, tag or source, and goes to Unsorted, Archive or Settings (e2e)"
-  - "Every screen follows direction A at 390 and 1440 px, light and dark, in Chromium and WebKit"
+  - "Every screen follows ADR-0005 (the redesign on direction A) at 390 and 1440 px, light and dark, in Chromium and WebKit; the search field reads \"Filter as you type\", its / hint focuses it, and status and priority filters use the StateMark marks"
   - "The ladder climbs green at the branch's HEAD, first-load JS within 60 KB gzipped (the palette and filter panel load on first use)"
-depends_on: [T-0008]
+depends_on: [T-0008, T-0018]
 blocked_by: null
 created: 2026-10-24
-started: null
+started: 2026-10-25
 finished: null
 labels:
   bonsai.branch: t0009-search-filters-keys

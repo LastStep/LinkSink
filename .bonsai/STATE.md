@@ -28,13 +28,13 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
    T-0008 read `verify` (the person closes them). T-0014 and T-0015 (BUG-001, BUG-002, at 96062ea) are done.
    - T-0016 (director lane) reads `verify`: the person chose row f3, control c3 and the whole shared redesign
      (OPT-0003 decided, ADR-0005). T-0018 builds it (full lane, status `plan`); its plan `work/plans/P-T-0018.md`
-     was approved by the person (06:43 UTC 10-25); T-0018 (the redesign) landed at 2274706 and reads `verify`; the person tries it and closes it. T-0012 (export/import) was built beside it and is being verified (security + tests). T-0019 (import preview with folder mapping, the person's ask, plan approved) is building on T-0012's branch. Comparison page: https://claude.ai/artifact/5EHQa6dDUeoLn1jbyTLwf3.
-     T-0009 (search as you type) follows T-0018 and is not approved yet.
+     was approved by the person (06:43 UTC 10-25); T-0018 (the redesign) landed at 2274706 and reads `verify`; the person tries it and closes it. T-0012 (export/import) landed at 9fb1e0c after four fix rounds and reads `verify`. T-0019 (import preview with folder mapping, the person's ask, plan approved) is building on T-0012's branch. Comparison page: https://claude.ai/artifact/5EHQa6dDUeoLn1jbyTLwf3.
+     T-0009 (search, filters, keys) is running (builder@T-0009). The person tests everything at the end (08:03 10-25): T-0007, T-0008, T-0018 and what lands after stay in `verify` until then.
    - T-0017 (a link pasted on a tag's or project's page joins it; a duplicate gets it too) landed at 8ded31c and is
      done; ladder green on main at 1b0add0 (367 unit, 38 e2e, 52.04 KB).
 2. T-0005 (deploy) is a Docker Compose setup (ADR-0004, the person's word) and waits for the person's VPS facts
    (Open questions); HTTPS only (Caddy redirect, HSTS, secure
-   cookies), the person's word. T-0005 also carries: BODY_SIZE_LIMIT=21M for imports (T-0012); rate-limit client IP behind Caddy (Better Auth
+   cookies), the person's word. T-0005 also carries: BODY_SIZE_LIMIT=Infinity (T-0012: the import stops at 20 MB, every other route at 512 KB in hooks); rate-limit client IP behind Caddy (Better Auth
    `advanced.ipAddress`; a direct caller can set x-forwarded-for), FTS5 rowid vs `VACUUM INTO`, building in CI with
    ORIGIN set (`kit.paths.origin` is build-time), drizzle-kit audit findings (moderate, dev only).
 3. Chromium for browser tests: `~/.cache/ms-playwright/chromium-1223`. Geist font is named in the tokens but not
