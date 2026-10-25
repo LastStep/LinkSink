@@ -5,9 +5,9 @@ task: T-0012
 role: builder
 model: opus
 started: 2026-10-25 06:45
-finished: 2026-10-25 08:47
+finished: 2026-10-25 09:02
 outcome: needs-verifier
-commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1", "91ab57f", "5e8d44c", "836b54a", "38f1220", "d9c6016", "a845284", "277025c", "3bbce56", "b347107", "fae6bf9", "2bcbd9c", "6ca9ac3", "97806a3", "a048dff", "a7ecb3a"]
+commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1", "91ab57f", "5e8d44c", "836b54a", "38f1220", "d9c6016", "a845284", "277025c", "3bbce56", "b347107", "fae6bf9", "2bcbd9c", "6ca9ac3", "97806a3", "a048dff", "a7ecb3a", "b49f6c5", "64f4079", "04b4479", "ea82acd", "6865b01", "c6c82e0"]
 labels: {}
 ---
 
@@ -305,6 +305,29 @@ queue test now goes through the feeder. Every assertion is kept or made stronger
 All mine were stopped by pid: probe and run servers 120883, 124788, 127175 (died by itself), 142021, 142022 and
 146900, then checked with `ss -ltnp` and `pgrep`. Not mine and left alone: pid 58713 (an e2e server from
 `.../scratchpad/t12`) and pids 153531/153532 (an e2e server from `LinkSink-t0009`).
+
+## Fix round 3 (brief M-2026-10-25-13483117, 08:52 to 09:02)
+
+This is the same mistake for the third time (a spread argument over imported or fetched data), so this round removes
+the class as well as the instance:
+- **D1:** `export.ts` computed a folder's LAST_MODIFIED with `Math.max(createdAt, ...links)`. It is a loop now
+  (64f4079).
+- **Lint rule** (`eslint.config.js`, `no-restricted-syntax`, 6865b01): refuses a spread argument into
+  `Math.max`/`Math.min`, any `.push(...)`, and `String.fromCharCode`/`fromCodePoint`. Run on b49f6c5's source it
+  flags exactly three lines: `export.ts:55` (D1), `fetch/meta.ts:130` and `fetch/head.ts:67`.
+- **Every hit fixed:**
+  - `meta.ts` `sizeOf` (a page's `sizes` attribute) is a loop.
+  - `ldUrl` and `ldName` no longer spread a page's JSON-LD array into `first(...)`. The rule cannot catch these, so
+    they were found by reading. Both are loops now (04b4479).
+  - `head.ts:67` spreads at most 8,192 bytes per chunk, so it stays, with an eslint-disable comment that names that
+    bound (ea82acd).
+- **Tests** (c6c82e0), each failing on b49f6c5 with `RangeError: Maximum call stack size exceeded` (ran: `git
+  archive b49f6c5`, the tests copied in):
+  - `src/lib/server/export.spec.ts`: an HTML export of one project with 150,000 links, checking its LAST_MODIFIED
+    and that all 150,000 links appear (15 s).
+  - `src/lib/server/fetch/spread.spec.ts`: a page with 200,000 icon sizes, 200,000 JSON-LD image urls and 200,000
+    JSON-LD authors parses; the icon, image and author come out right.
+- Processes: none started this round apart from the ladder's own.
 
 ## Verifier
 
