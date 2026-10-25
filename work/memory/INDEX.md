@@ -12,3 +12,5 @@ labels: {}
   or a ladder climb wraps it in a shared flock
 - [One ladder climb per combined round](M-one-climb-per-combined-round.md): when several tasks land together,
   one climb at the combined HEAD proves them all
+- [The compose project "linksink" is the person's own stack](M-compose-project-is-the-persons.md): every agent
+  compose call passes its own -p, scripts included
