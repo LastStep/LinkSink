@@ -308,7 +308,7 @@
 	}
 
 	function onwindowkey(event: KeyboardEvent) {
-		if (event.key !== 'Escape' || pickerIds) return;
+		if (event.key !== 'Escape' || pickerIds || event.defaultPrevented) return;
 		if (openId) openId = null;
 		else if (selecting) endSelect();
 	}

@@ -2,16 +2,10 @@
 	// The organiser: tags (type to find or create), projects, status, priority, and for one link its source and
 	// media. Keyboard first: the search box keeps focus, arrows move, Enter toggles or creates, Esc closes.
 	import { onMount, tick } from 'svelte';
-	import {
-		MEDIA,
-		MEDIA_LABEL,
-		PRIORITIES,
-		PRIORITY_LABEL,
-		STATUSES,
-		STATUS_LABEL
-	} from '#lib/fields.ts';
+	import { MEDIA, MEDIA_LABEL, type Priority, type Status } from '#lib/fields.ts';
 	import { store, StoreError, type BulkInput, type LinkChanges } from '#lib/store/index.ts';
 	import Icon from './Icon.svelte';
+	import StateRadios from './StateRadios.svelte';
 
 	// `kind` narrows the organiser to one thing: "Add tag" opens the tags, "Add to project" the projects (and a new name
 	// makes a project). Without it, everything shows, and a new name makes a tag.
@@ -144,7 +138,7 @@
 			// Focus stays inside the organiser while it is open.
 			const focusable = [
 				...dialog.querySelectorAll<HTMLElement>(
-					'input:not([disabled]), select:not([disabled]), button:not([disabled]), [tabindex="0"]'
+					'input:not([disabled]), select:not([disabled]), button:not([disabled]):not([tabindex="-1"]), [tabindex="0"]'
 				)
 			];
 			if (focusable.length === 0) return;
@@ -278,39 +272,29 @@
 
 		{#if !kind}
 			<div class="values">
-				<p class="group">Status</p>
-				<div class="seg" role="radiogroup" aria-label="Status">
-					<button
-						type="button"
-						role="radio"
-						aria-checked={statusValue === null}
-						onclick={() => change({ status: null }, { status: null })}>None</button
-					>
-					{#each STATUSES as status (status)}
-						<button
-							type="button"
-							role="radio"
-							aria-checked={statusValue === status}
-							onclick={() => change({ status }, { status })}>{STATUS_LABEL[status]}</button
-						>
-					{/each}
-				</div>
-				<p class="group">Priority</p>
-				<div class="seg" role="radiogroup" aria-label="Priority">
-					<button
-						type="button"
-						role="radio"
-						aria-checked={priorityValue === null}
-						onclick={() => change({ priority: null }, { priority: null })}>None</button
-					>
-					{#each PRIORITIES as priority (priority)}
-						<button
-							type="button"
-							role="radio"
-							aria-checked={priorityValue === priority}
-							onclick={() => change({ priority }, { priority })}>{PRIORITY_LABEL[priority]}</button
-						>
-					{/each}
+				<div class="two radios-two">
+					<div>
+						<p class="group">Status</p>
+						<StateRadios
+							kind="status"
+							value={statusValue as Status | null | undefined}
+							onchoose={(v) => {
+								const status = v as Status | null;
+								change({ status }, { status });
+							}}
+						/>
+					</div>
+					<div>
+						<p class="group">Priority</p>
+						<StateRadios
+							kind="priority"
+							value={priorityValue as Priority | null | undefined}
+							onchoose={(v) => {
+								const priority = v as Priority | null;
+								change({ priority }, { priority });
+							}}
+						/>
+					</div>
 				</div>
 				{#if single}
 					<div class="two">
@@ -484,15 +468,14 @@
 		border-top: 1px solid var(--rule);
 		padding-top: 4px;
 	}
-	.values .seg {
-		margin: 0 6px;
-		align-self: flex-start;
-	}
 	.two {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 12px;
 		margin: 0 6px;
+	}
+	.radios-two {
+		margin: 0 12px 4px;
 	}
 	.two label {
 		display: flex;
