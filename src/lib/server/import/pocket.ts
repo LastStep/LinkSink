@@ -2,6 +2,8 @@
 // separated by `|`, `time_added` in seconds, status `unread` or `archive` (researcher report M-2026-10-25-fffd0b0a,
 // from Karakeep's parser and tests). Some exports add a `cursor` column, so columns are read by their header name.
 // Quoting is standard CSV (RFC 4180): a quoted field may hold commas, doubled quotes and line breaks.
+import { cut, FIELD_MAX, IMPORT_LINKS_MAX } from './limits.ts';
+import { tooManyLinks } from './netscape.ts';
 import { fileTime, ImportRefused, type ImportFailure, type ImportItem } from './types.ts';
 
 /** The records of a CSV file, each with the line it starts on. Throws ImportRefused on an unclosed quote. */
@@ -75,27 +77,29 @@ export function parsePocketCsv(text: string): { items: ImportItem[]; failures: I
 	const items: ImportItem[] = [];
 	const failures: ImportFailure[] = [];
 	for (const { fields, line } of rows) {
-		const get = (i: number) => (i === -1 ? '' : (fields[i] ?? '').trim());
-		const address = get(url);
+		// Each field is cut to its limit before anything else is done with it.
+		const get = (i: number, max: number) => (i === -1 ? '' : cut(fields[i], max).trim());
+		const address = get(url, FIELD_MAX.url);
 		if (!address) {
 			failures.push({ line, reason: 'A row with no address.' });
 			continue;
 		}
-		const state = get(status).toLowerCase();
+		const state = get(status, FIELD_MAX.status).toLowerCase();
 		items.push({
 			url: address,
-			title: get(title).replace(/\s+/g, ' ') || null,
-			tags: get(tags)
+			title: get(title, FIELD_MAX.title).replace(/\s+/g, ' ') || null,
+			tags: get(tags, FIELD_MAX.tags)
 				.split('|')
 				.map((t) => t.trim())
 				.filter(Boolean),
 			projects: [],
-			createdAt: fileTime(get(added)),
+			createdAt: fileTime(get(added, FIELD_MAX.date)),
 			notes: null,
 			status: state === 'archive' || state === 'read' ? 'done' : null,
 			archived: false,
 			line
 		});
+		if (items.length > IMPORT_LINKS_MAX) throw tooManyLinks();
 	}
 	return { items, failures };
 }
