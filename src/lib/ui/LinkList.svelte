@@ -12,6 +12,9 @@
 		filterQuery,
 		parseFilters,
 		sameFilters,
+		SORT_LABEL,
+		SORTS,
+		statusRank,
 		type Filters
 	} from '#lib/search/filters.ts';
 	import { parseQuery } from '#lib/search/query.ts';
@@ -99,13 +102,46 @@
 				}
 				return groups;
 			}
+			case 'status': {
+				const groups: { key: number; label: string; items: StoreLink[] }[] = [];
+				for (const l of links) {
+					const key = statusRank(l.status);
+					const last = groups.at(-1);
+					if (last && last.key === key) last.items.push(l);
+					else
+						groups.push({
+							key,
+							label: l.status ? STATUS_LABEL[l.status as Status] : 'No status',
+							items: [l]
+						});
+				}
+				return groups;
+			}
+			case 'opened': {
+				// opened links by the day they were opened, newest first; the never-opened ones last
+				const opened = links.filter((l) => l.openedAt !== null);
+				const never = links.filter((l) => l.openedAt === null);
+				const groups = byDay(opened, (l) => l.openedAt!);
+				return never.length
+					? [...groups, { key: -1, label: 'Never opened', items: never }]
+					: groups;
+			}
 			case 'title':
 				return links.length ? [{ key: 0, label: 'A to Z', items: links }] : [];
 			default:
 				return byDay(links, (l) => l.createdAt);
 		}
 	});
-	const timeField = $derived(filters.sort === 'edited' ? 'updatedAt' : 'createdAt');
+	/** When a row's time column says: the day's time for the sorts that group by day, else the day saved. */
+	const shownAt = (l: StoreLink) =>
+		filters.sort === 'edited'
+			? l.updatedAt
+			: filters.sort === 'opened'
+				? (l.openedAt ?? l.createdAt)
+				: l.createdAt;
+	const byTime = $derived(
+		filters.sort === 'saved' || filters.sort === 'edited' || filters.sort === 'opened'
+	);
 	const tagById = $derived(new Map($store.tags.map((t) => [t.id, t])));
 	const projectById = $derived(new Map($store.projects.map((p) => [p.id, p])));
 	const sourceById = $derived(new Map($store.sources.map((s) => [s.id, s])));
@@ -584,6 +620,11 @@
 		{/if}
 		{#if message}<p class="error" role="alert">{message}</p>{/if}
 		{#if notice}<p class="notice muted" role="status">{notice}</p>{/if}
+		{#if $store.detailsLeft > 0}
+			<p class="fetching muted num" role="status" data-testid="fetching">
+				Fetching details: {$store.detailsLeft}{$store.detailsAtLeast ? '+' : ''} left
+			</p>
+		{/if}
 
 		<div class="toolbar">
 			<form class="search" role="search" onsubmit={onsearchsubmit}>
@@ -630,6 +671,18 @@
 						class="fb-n num">{filterCount(filters)}</span
 					>{/if}
 			</button>
+			<!-- The sort: a native select (it costs no script and a phone gives it its own picker); the filter panel's
+			     own Sort row sets the same filters.sort, so the two always agree. -->
+			<label class="sort-ctl" class:on={filters.sort !== 'saved'}>
+				<Icon name="sort" />
+				<select
+					aria-label="Order by"
+					value={filters.sort}
+					onchange={(e) => apply({ ...filters, sort: e.currentTarget.value as Filters['sort'] })}
+				>
+					{#each SORTS as s (s)}<option value={s}>{SORT_LABEL[s]}</option>{/each}
+				</select>
+			</label>
 			<span class="count muted num" aria-live="polite"
 				>{plural(
 					$store.next && $store.total !== null
@@ -772,10 +825,10 @@
 										>{/if}</span
 								>
 							</span>
-							<time class="c-time num" datetime={new Date(link[timeField]).toISOString()}
-								>{filters.sort === 'title' || filters.sort === 'priority'
+							<time class="c-time num" datetime={new Date(shownAt(link)).toISOString()}
+								>{!byTime || (filters.sort === 'opened' && link.openedAt === null)
 									? shortDate(link.createdAt)
-									: timeOf(link[timeField])}</time
+									: timeOf(shownAt(link))}</time
 							>
 							<span class="c-act">
 								<button
@@ -1003,6 +1056,47 @@
 		.key {
 			display: none;
 		}
+	}
+	.sort-ctl {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		flex: none;
+		height: 34px;
+		border: 1px solid var(--control);
+		border-radius: var(--radius-control);
+		background: var(--surface);
+		color: var(--muted);
+	}
+	.sort-ctl:hover,
+	.sort-ctl.on,
+	.sort-ctl:focus-within {
+		color: var(--text);
+	}
+	.sort-ctl:focus-within {
+		border-color: var(--text);
+	}
+	.sort-ctl :global(svg) {
+		position: absolute;
+		left: 10px;
+		pointer-events: none;
+	}
+	.sort-ctl select {
+		height: 100%;
+		padding: 0 10px 0 32px;
+		border: 0;
+		border-radius: inherit;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		font-weight: 450;
+		cursor: pointer;
+		outline: none;
+		appearance: none;
+	}
+	.fetching {
+		margin: 0 0 var(--s-2, 8px);
+		font-size: 13px;
 	}
 	.count {
 		margin-left: auto;
@@ -1392,6 +1486,13 @@
 		}
 		.fb-word {
 			display: none;
+		}
+		/* the sort keeps its name on a phone, a little tighter */
+		.sort-ctl {
+			height: 38px;
+		}
+		.sort-ctl select {
+			padding-right: 6px;
 		}
 		.row,
 		.selecting .row {
