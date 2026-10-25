@@ -32,7 +32,9 @@ async function readCapped(request: Request, max: number): Promise<Uint8Array> {
 		if (done) break;
 		size += value.byteLength;
 		if (size > max) {
-			await reader.cancel();
+			// Stop reading, but do not cancel: cancelling the body makes the server drop the connection before the
+			// 413 below is sent. Unread, the upload is held back, and the connection closes after the answer.
+			reader.releaseLock();
 			throw new ImportRefused('That file is over 20 MB. Split it, or export fewer bookmarks.', 413);
 		}
 		parts.push(value);
