@@ -5,9 +5,9 @@ task: T-0012
 role: builder
 model: opus
 started: 2026-10-25 06:45
-finished: 2026-10-25 07:06
+finished: 2026-10-25 07:33
 outcome: needs-verifier
-commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1"]
+commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1", "91ab57f", "5e8d44c", "836b54a", "38f1220", "d9c6016", "a845284", "277025c"]
 labels: {}
 ---
 
@@ -180,6 +180,30 @@ The session's spend is not known; the hours are the task's rows in `.bonsai/sess
   columns; Pocket's older HTML export (`ril_export.html`).
 - The director to import the exported HTML into Firefox and Chrome once (done_when 1's browser half).
 - Choosing the browsers' top folders as projects or not (Deviation 1).
+
+## Fix round (brief M-2026-10-25-b32f82f3, 07:20 to 07:33)
+
+Both verifiers failed 91ab57f. Each finding is fixed and has a test, and each new test fails when run on 91ab57f's
+source (ran: `git archive 91ab57f` unpacked into the scratchpad, the new spec and e2e files copied in, run there).
+
+| Finding | Fix | Test | Fails on 91ab57f? |
+|---|---|---|---|
+| B1: the same address under "Reading" and "reading" gave a 500 after earlier batches were written | `write.ts`: project names are de-duplicated in any case before writing, and the first spelling is kept (5e8d44c..836b54a) | `fixes.spec.ts` "the same address under Reading and reading...": 200, 2 links, 1 project, 2 joins | yes: 500, `UNIQUE constraint failed: link_projects` |
+| B2: a file nested 40,000 folders deep exhausted the server | `netscape.ts` now reads with htmlparser2's `Tokenizer`, which is linear. Its `Parser` keeps open elements with `Array#unshift`/`shift`, so it is quadratic in depth: 13.7 s on that file before any of my code runs. Each folder's path is made once when its list opens, at most 32 levels deep (deeper folders fold into the 32nd), each name cut to 64 characters before it joins (5e8d44c) | `fixes.spec.ts` "nested 40,000 folders deep ... within 2 s": 65 ms now; plus "deeper than 32 levels fold into the 32nd ..." | yes: 5,617 ms; and no fold |
+| B3: a chunked body bypassed the 512 KB limit on every route | `src/lib/server/body-limit.ts`, called from `hooks.server.ts`. A body with no stated length is read from a `clone()`, at most 512 KB and one chunk, and refused with 413; a stated length over 512 KB is refused unread. `/api/import` is exempt (38f1220, a845284) | `body-limit.spec.ts` (3 tests); e2e "a chunked body over 512 KB is refused...": 5 MB chunked to `/api/auth/sign-in/email` gives 413, 600 KB chunked to `/api/links` gives 413, 128 KB chunked still reaches the route | yes: e2e on a 91ab57f server, the 5 MB chunked sign-in got 400 (parsed), not 413; the unit spec cannot load (the module is new) |
+| Failures part-way | Everything (addresses, names, titles, notes, caps) is checked and normalised before the first write. A batch that fails rolls back; the answer then says "N links were saved. Import the same file again and those are skipped as duplicates", or "nothing was saved" when none were. "Nothing was lost" is gone (836b54a) | `fixes.spec.ts`: a syncWrite failing on its 2nd call gives that message with 500 links, and a re-import adds 700 and skips 500; failing on the 1st call gives "nothing was saved" with no row changed | yes: old message |
+| Caps | At most 100 tags a link (the first 100 named), each cut to the 64-character tag-name limit | `fixes.spec.ts` "at most 100 tags...": 150 tags of 84 characters give 100 tags of 64 | yes: 150 |
+| Exports | `X-Content-Type-Options: nosniff` on both downloads | `fixes.spec.ts` "send nosniff" | yes: null |
+
+What did not work in this round:
+- My first B3 fix hung any over-limit chunked request: `await reader.cancel()` on one branch of a teed stream settles
+  only once the other branch is cancelled too. The in-process unit test passed anyway; the real server showed the
+  hang. Fixed in a845284 by not awaiting the cancel.
+- Ports: 4770 and 4771 are held by a process not mine (pid 58713, an e2e server started from
+  `.../scratchpad/t12`, probably a verifier's copy of 91ab57f). I left it alone and used 4780 for the probe server
+  and 4790 for the 91ab57f run. The probe server (mine, pid 81834 and earlier 78123) did not stop on SIGTERM:
+  adapter-node closes its listener, but the fixture site keeps the process alive. I stopped both with SIGKILL and
+  confirmed it with `ss -ltnp`.
 
 ## Verifier
 
