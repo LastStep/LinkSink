@@ -777,3 +777,16 @@ ${head}
 		expect(body.folders[0].suggested).toEqual({ kind: 'new', name: 'Work / Unsorted' });
 	});
 });
+
+// A gap in T-0012's tests (orchestrator, M-2026-10-25-6db50f15): the folder heading is read only to FIELD_MAX.folder
+// (256 characters); nothing past that point reaches the folder's name.
+describe('the folder heading’s read limit', () => {
+	it('text past the first 256 characters of a heading is not read', () => {
+		const heading = 'a' + ' '.repeat(300) + 'b';
+		const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>${heading}</H3><DL><p><DT><A HREF="https://h.example.com">h</A></DL><p></DL><p>`;
+		const [item] = parseImport(Buffer.from(file)).items;
+		// Read whole, the name would be "a b"; read to the limit, the "b" is never seen.
+		expect(item.folder?.path).toEqual(['a']);
+		expect(item.projects).toEqual(['a']);
+	});
+});
