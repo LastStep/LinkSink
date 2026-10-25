@@ -600,13 +600,18 @@
 					oninput={onsearchinput}
 					onkeydown={onsearchkey}
 				/>
-				<!-- The / hint is a button: a click focuses the box, as the key does. -->
+				<!-- The / hint is a button: a click focuses the box, as the key does. Its mousedown keeps focus off the
+				     hint itself (the hint hides once the box has focus, so a focused hint would swallow the click). -->
 				<button
 					class="key"
 					type="button"
 					tabindex="-1"
 					aria-hidden="true"
 					title="Press / to search"
+					onmousedown={(e) => {
+						e.preventDefault();
+						searchBox?.focus();
+					}}
 					onclick={() => searchBox?.focus()}>/</button
 				>
 			</form>
@@ -992,6 +997,12 @@
 	}
 	.search:focus-within .key {
 		visibility: hidden;
+	}
+	/* no keyboard, no key hint: touch screens and phones */
+	@media (hover: none), (max-width: 759px) {
+		.key {
+			display: none;
+		}
 	}
 	.count {
 		margin-left: auto;

@@ -515,8 +515,18 @@ test('a tag or project with no links, a search with no match and an empty Unsort
 
 	// Empty Unsorted: give every link waiting there a tag (late in the run; no later test needs an empty or a full one).
 	const sorted = await makeTag(page, 'sorted-for-empty');
-	const waiting = (await (await page.request.get('/api/links?view=unsorted')).json())
-		.links as Link[];
+	// Every page of Unsorted (the list API pages by 50 since T-0009): read them all first, then tag them.
+	const waiting: Link[] = [];
+	let after: string | null = null;
+	do {
+		const pageOf: { links: Link[]; next: string | null } = await (
+			await page.request.get(
+				`/api/links?view=unsorted${after ? `&after=${encodeURIComponent(after)}` : ''}`
+			)
+		).json();
+		waiting.push(...pageOf.links);
+		after = pageOf.next;
+	} while (after);
 	for (const l of waiting)
 		await page.request.patch(`/api/links/${l.id}`, { data: { tagIds: [sorted.id] } });
 	await ready(page, '/unsorted');

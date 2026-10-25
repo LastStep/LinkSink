@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { NO_FILTERS, type Filters } from '../search/filters.ts';
 import { createApiStore } from './api.ts';
 import type { LinkJson, StoreState } from './types.ts';
@@ -103,15 +103,25 @@ describe('the store: search, filters and pages', () => {
 	});
 
 	it('drops an older answer that arrives after a newer search', async () => {
-		let release!: () => void;
-		const api = fakeApi({ '': { links: [link('a')], next: null } });
-		const store = createApiStore(api.fetcher);
-		api.hold(new Promise<void>((r) => (release = r)));
+		// each GET waits for its own release, so the answers can arrive in the other order
+		const gates = new Map<string, () => void>();
+		const answers: Record<string, LinkJson[]> = { li: [link('old')], link: [link('fresh')] };
+		const fetcher = (async (path: string) => {
+			const q = new URL(path, 'http://x').searchParams.get('q') ?? '';
+			await new Promise<void>((r) => gates.set(q, r));
+			return Response.json({ links: answers[q], next: null });
+		}) as typeof fetch;
+		const store = createApiStore(fetcher);
 		const old = store.search(f({ q: 'li' }));
 		const fresh = store.search(f({ q: 'link' }));
-		release();
-		await Promise.all([old, fresh]);
-		expect(snapshot(store).filters.q).toBe('link');
+		await vi.waitFor(() => expect(gates.size).toBe(2));
+		gates.get('link')!();
+		await fresh;
+		gates.get('li')!();
+		await old;
+		const s = snapshot(store);
+		expect(s.filters.q).toBe('link');
+		expect(s.links.map((l) => l.id)).toEqual(['fresh']);
 	});
 
 	it('takes a link out of a filtered list once a change stops it matching, unless it is open', async () => {
@@ -144,15 +154,20 @@ describe('the store: search, filters and pages', () => {
 	});
 
 	it('keeps the sort when a link changes', async () => {
+		// saved order (newest first) is Apple, Banana, Damson; by title, Cherry lands between Banana and Damson
 		const api = fakeApi({
 			'': {
-				links: [link('a', { title: 'Apple' }), link('b', { title: 'Banana' })],
+				links: [
+					link('a', { title: 'Apple', createdAt: 300 }),
+					link('b', { title: 'Banana', createdAt: 200 }),
+					link('c', { title: 'Damson', createdAt: 100 })
+				],
 				next: null
 			}
 		});
 		const store = createApiStore(api.fetcher);
 		await store.search(f({ sort: 'title' }));
 		await store.put({ id: 'a', title: 'Cherry' });
-		expect(snapshot(store).links.map((l) => l.title)).toEqual(['Banana', 'Cherry']);
+		expect(snapshot(store).links.map((l) => l.title)).toEqual(['Banana', 'Cherry', 'Damson']);
 	});
 });

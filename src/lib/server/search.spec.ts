@@ -240,7 +240,11 @@ describe('the list query', () => {
 		for (let i = 0; i < 115; i++) {
 			const id = addLink(syncWrite, 'u1', {
 				url: `https://many.example/${i}`,
-				title: `${i % 7 === 0 ? 'zeta' : 'Alpha'} ${String(i).padStart(3, '0')}`
+				// every fifth title is the same, so the title sort's tie-break (the id) decides their order
+				title:
+					i % 5 === 0
+						? 'Same title'
+						: `${i % 7 === 0 ? 'zeta' : 'Alpha'} ${String(i).padStart(3, '0')}`
 			});
 			if (i % 3 === 0) patchLink(t.db, syncWrite, 'u1', id, { priority: ((i % 9) / 3 + 1) as 1 });
 			// many share a created_at: the id breaks the tie
@@ -272,7 +276,13 @@ describe('the list query', () => {
 			// the same order as one big page, and as the client's comparator
 			const one = searchLinks(t.db, 'u1', all, filters, { limit: 200 }).links;
 			expect(seen, sort).toEqual(one.map((l) => l.id));
-			expect(seen, sort).toEqual([...one].sort(compareLinks(sort)).map((l) => l.id));
+			// the client's comparator puts them in the same order from any starting order (ties included)
+			expect(seen, sort).toEqual(
+				[...one]
+					.reverse()
+					.sort(compareLinks(sort))
+					.map((l) => l.id)
+			);
 		}
 	});
 

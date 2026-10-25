@@ -377,6 +377,24 @@ test('a filtered list drops a link that stops matching, as a view does, and keep
 	await expect(titles(page)).toHaveText(['T9leave second']);
 });
 
+test('a click on the / hint puts the cursor in the search box; a phone shows no hint', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await ready(page, '/');
+	const hint = page.locator('form.search .key');
+	await expect(hint).toBeVisible();
+	await hint.click();
+	await expect(search(page)).toBeFocused();
+	await page.keyboard.type('t9hint');
+	await expect(search(page)).toHaveValue('t9hint');
+	await page.keyboard.press('Escape');
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await ready(page, '/');
+	await expect(hint).toBeHidden();
+});
+
 test('keys: / n j k arrows Enter e t p a x', async ({ page }) => {
 	await save(page, 'https://t9keys.example.com/3', 'T9keys three');
 	await save(page, 'https://t9keys.example.com/2', 'T9keys two');
