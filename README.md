@@ -1,5 +1,6 @@
 # LinkSink
 
+[![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue?style=flat)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/trinetra)
 
 **Paste any link and find it again later, organised your way.** LinkSink is a private, single-user home for the
@@ -162,3 +163,11 @@ LinkSink is free. If it is useful to you and you want to say thanks, you can buy
 LinkSink is private, not end-to-end encrypted: it keeps your links behind a sign-in and HTTPS on a machine you
 control. To report a security problem, open a private advisory on this repository (Security → Report a
 vulnerability) rather than an issue.
+
+## Licence
+
+LinkSink is free software under the [GNU Affero General Public License v3.0](LICENSE). You may use it, host it,
+change it and share it. If you run a changed version for other people over a network, you must offer them its
+source under the same licence.
+
+Copyright (C) 2026 Rohan Yadav.
