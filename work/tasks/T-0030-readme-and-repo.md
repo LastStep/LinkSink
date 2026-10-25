@@ -58,3 +58,4 @@ The workflows in .github/workflows/ (T-0029's), deploy/ (T-0005's and T-0029's),
   sqlite, svelte) and the description without "fast search": the About section was changed at 15:23 UTC, after the
   16 topics were set at 14:27 (the gh output then listed all 16). Left as it is; the person is asked whether that
   was them. README fixes from that check: 7fd78c1.
+- The person, 16:07 UTC: "yes the about section edit was me, leave it". Their description and 4 topics stand.
