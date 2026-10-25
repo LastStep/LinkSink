@@ -29,7 +29,7 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
    - T-0016 (director lane) reads `verify`: the person chose row f3, control c3 and the whole shared redesign
      (OPT-0003 decided, ADR-0005). T-0018 builds it (full lane, status `plan`); its plan `work/plans/P-T-0018.md`
      was approved by the person (06:43 UTC 10-25); T-0018 (the redesign) landed at 2274706 and reads `verify`; the person tries it and closes it. T-0012 (export/import) was built beside it and is being verified (security + tests). T-0019 (import preview with folder mapping, the person's ask, plan approved) is building on T-0012's branch. Comparison page: https://claude.ai/artifact/5EHQa6dDUeoLn1jbyTLwf3.
-     T-0009 (search as you type) follows T-0018 and is not approved yet.
+     T-0009 (search, filters, keys) is running (builder@T-0009). The person tests everything at the end (08:03 10-25): T-0007, T-0008, T-0018 and what lands after stay in `verify` until then.
    - T-0017 (a link pasted on a tag's or project's page joins it; a duplicate gets it too) landed at 8ded31c and is
      done; ladder green on main at 1b0add0 (367 unit, 38 e2e, 52.04 KB).
 2. T-0005 (deploy) is a Docker Compose setup (ADR-0004, the person's word) and waits for the person's VPS facts
