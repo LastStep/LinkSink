@@ -24,10 +24,12 @@ export interface ImportResult {
 	failures: ImportFailure[];
 	/** The new links' ids, in file order. */
 	addedIds: string[];
+	/** Projects the import made (T-0019's summary); existing ones it joined are not counted. */
+	projectsMade: number;
 }
 
 /** An item checked and normalised before anything is written: one per address. */
-interface Unique extends ImportItem {
+export interface Unique extends ImportItem {
 	key: string;
 	clean: string;
 	/** Tag names as stored (at most TAGS_MAX), sorted. */
@@ -71,6 +73,10 @@ function namer(w: SyncWriter) {
 	let position = 0;
 	for (const p of live) if (p.position + 1 > position) position = p.position + 1;
 	return {
+		/** How many projects this write has made so far. */
+		get made() {
+			return count - live.length;
+		},
 		tag(name: string) {
 			let id = tagIds.get(name);
 			if (!id) {
@@ -120,10 +126,40 @@ function writeBatch(syncWrite: SyncWrite, userId: string, batch: Unique[]) {
 				.map((r) => r.key)
 		);
 		const names = namer(w);
+		// Existing projects named by id (T-0019's mapping): checked as the caller's before the import began, and again
+		// here, inside the write, so one deleted since is left out rather than linked.
+		const wanted = [...new Set(batch.flatMap((b) => b.projectIds ?? []))];
+		const existing = new Map(
+			wanted.length
+				? w.tx
+						.select({ id: projects.id, name: projects.name })
+						.from(projects)
+						.where(
+							and(
+								eq(projects.userId, userId),
+								isNull(projects.deletedAt),
+								inArray(projects.id, wanted)
+							)
+						)
+						.all()
+						.map((p) => [p.id, p.name])
+				: []
+		);
 		const ids: string[] = [];
 		for (const item of batch) {
 			if (saved.has(item.key)) continue;
-			const { tagNames, projectNames } = item;
+			const { tagNames } = item;
+			// Each project once, whether named by the file or by id: id to name, in the order first met.
+			const joined = new Map<string, string>();
+			for (const name of item.projectNames) {
+				const projectId = names.project(name);
+				if (!joined.has(projectId)) joined.set(projectId, name);
+			}
+			for (const projectId of item.projectIds ?? []) {
+				const name = existing.get(projectId);
+				if (name !== undefined && !joined.has(projectId)) joined.set(projectId, name);
+			}
+			const projectNames = [...joined.values()];
 			const id = ulid(w.now);
 			const { title } = item;
 			const createdAt = item.createdAt ?? w.now;
@@ -143,12 +179,10 @@ function writeBatch(syncWrite: SyncWrite, userId: string, batch: Unique[]) {
 				projectsText: projectNames.join(' ')
 			});
 			for (const name of tagNames) w.insert(linkTags, { linkId: id, tagId: names.tag(name) });
-			for (const name of projectNames) {
-				w.insert(linkProjects, { linkId: id, projectId: names.project(name) });
-			}
+			for (const projectId of joined.keys()) w.insert(linkProjects, { linkId: id, projectId });
 			ids.push(id);
 		}
-		return ids;
+		return { ids, made: names.made };
 	});
 }
 
@@ -170,6 +204,57 @@ export async function importItems(
 	userId: string,
 	items: ImportItem[]
 ): Promise<ImportResult> {
+	const { unique, failures, duplicates: repeated } = uniqueItems(items);
+	let duplicates = repeated;
+	const existing = new Set(
+		db
+			.select({ name: projects.name })
+			.from(projects)
+			.where(and(eq(projects.userId, userId), isNull(projects.deletedAt)))
+			.all()
+			.map((p) => p.name.toLowerCase())
+	);
+	const created = new Set<string>();
+	for (const u of unique) {
+		for (const name of u.projectNames) {
+			if (!existing.has(name.toLowerCase())) created.add(name.toLowerCase());
+		}
+	}
+	if (created.size > NEW_PROJECTS_MAX) {
+		throw new ImportRefused(
+			`That file would make ${created.size.toLocaleString('en')} new projects (one for each folder); one import makes at most ${NEW_PROJECTS_MAX.toLocaleString('en')}. Nothing was imported.`
+		);
+	}
+	const addedIds: string[] = [];
+	let projectsMade = 0;
+	for (let i = 0; i < unique.length; i += IMPORT_BATCH) {
+		if (i > 0) await nextTurn();
+		const batch = unique.slice(i, i + IMPORT_BATCH);
+		let ids: string[];
+		try {
+			const written = writeBatch(syncWrite, userId, batch);
+			ids = written.ids;
+			projectsMade += written.made;
+		} catch (error) {
+			// The batch rolled back; the batches before it stay written.
+			throw new ImportStopped(addedIds.length, error);
+		}
+		duplicates += batch.length - ids.length;
+		for (const id of ids) addedIds.push(id);
+	}
+	return { added: addedIds.length, duplicates, failures, addedIds, projectsMade };
+}
+
+/**
+ * The items each address once (by url_key), in file order, checked and normalised: a second copy is counted as a
+ * duplicate and its tags, projects, project ids and notes join the first; an item with no web address is a failure.
+ * Nothing is read or written (the preview counts with it too).
+ */
+export function uniqueItems(items: ImportItem[]): {
+	unique: Unique[];
+	failures: ImportFailure[];
+	duplicates: number;
+} {
 	const failures: ImportFailure[] = [];
 	const byKey = new Map<string, Unique>();
 	let duplicates = 0;
@@ -190,6 +275,10 @@ export async function importItems(
 			duplicates++;
 			for (const t of item.tags) first.tags.push(t);
 			for (const p of item.projects) first.projects.push(p);
+			if (item.projectIds?.length) {
+				first.projectIds ??= [];
+				for (const id of item.projectIds) first.projectIds.push(id);
+			}
 			first.notes ??= item.notes;
 			continue;
 		}
@@ -197,6 +286,7 @@ export async function importItems(
 			...item,
 			tags: [...item.tags],
 			projects: [...item.projects],
+			projectIds: item.projectIds ? [...item.projectIds] : undefined,
 			key,
 			clean,
 			tagNames: [],
@@ -224,38 +314,5 @@ export async function importItems(
 		u.title = u.title?.trim().slice(0, TITLE_MAX) || null;
 		u.notes = u.notes?.slice(0, NOTES_MAX) || null;
 	}
-	const existing = new Set(
-		db
-			.select({ name: projects.name })
-			.from(projects)
-			.where(and(eq(projects.userId, userId), isNull(projects.deletedAt)))
-			.all()
-			.map((p) => p.name.toLowerCase())
-	);
-	const created = new Set<string>();
-	for (const u of unique) {
-		for (const name of u.projectNames) {
-			if (!existing.has(name.toLowerCase())) created.add(name.toLowerCase());
-		}
-	}
-	if (created.size > NEW_PROJECTS_MAX) {
-		throw new ImportRefused(
-			`That file would make ${created.size.toLocaleString('en')} new projects (one for each folder); one import makes at most ${NEW_PROJECTS_MAX.toLocaleString('en')}. Nothing was imported.`
-		);
-	}
-	const addedIds: string[] = [];
-	for (let i = 0; i < unique.length; i += IMPORT_BATCH) {
-		if (i > 0) await nextTurn();
-		const batch = unique.slice(i, i + IMPORT_BATCH);
-		let ids: string[];
-		try {
-			ids = writeBatch(syncWrite, userId, batch);
-		} catch (error) {
-			// The batch rolled back; the batches before it stay written.
-			throw new ImportStopped(addedIds.length, error);
-		}
-		duplicates += batch.length - ids.length;
-		for (const id of ids) addedIds.push(id);
-	}
-	return { added: addedIds.length, duplicates, failures, addedIds };
+	return { unique, failures, duplicates };
 }

@@ -11,7 +11,13 @@
 // not folders the person made, so they do not become projects; the folders inside them do.
 import { Tokenizer } from 'htmlparser2';
 import { append, ATTRIBUTE_MAX, cut, FIELD_MAX, IMPORT_LINKS_MAX, NAME_MAX } from './limits.ts';
-import { fileTime, ImportRefused, type ImportFailure, type ImportItem } from './types.ts';
+import {
+	fileTime,
+	ImportRefused,
+	type ImportFailure,
+	type ImportFolder,
+	type ImportItem
+} from './types.ts';
 
 const LINKDING_ARCHIVED = 'linkding:bookmarks.archived';
 /** Folders deeper than this fold into the path of the folder at this depth. */
@@ -77,15 +83,28 @@ export function tooManyLinks() {
 	);
 }
 
-/** Every link in a Netscape bookmark file, with its folder path; `<A>`s that are not links become failures. */
-export function parseNetscape(text: string): { items: ImportItem[]; failures: ImportFailure[] } {
+/**
+ * Every link in a Netscape bookmark file, with its folder path; `<A>`s that are not links become failures.
+ * `raindrop`: the file is Raindrop's export (its title, or a DATA-COVER attribute only Raindrop writes), whose own
+ * top-level Unsorted collection the import preview starts on No project (T-0019).
+ */
+export function parseNetscape(text: string): {
+	items: ImportItem[];
+	failures: ImportFailure[];
+	raindrop: boolean;
+} {
 	const lineAt = lineIndex(text);
+	// Raindrop's header: <TITLE>Raindrop.io Bookmarks</TITLE> and the same <H1>, before the first list.
+	let raindrop = /<(?:title|h1)>\s*Raindrop\.io\b/i.test(text.slice(0, 2048));
 	const items: ImportItem[] = [];
 	const failures: ImportFailure[] = [];
 
 	// One entry per open <DL>: the folder path it lists (made once, when it opens), or null for no project (the top
 	// list, or a browser container), and how many named folders deep it is.
-	const folders: { path: string | null; depth: number }[] = [];
+	// `folder` is the same list for the import preview (T-0019): every named folder from the top, the browser's
+	// containers included, made once per list and shared by its links; null at the top of the file.
+	const folders: { path: string | null; depth: number; folder: ImportFolder | null }[] = [];
+	let pendingNamed: { name: string; container: boolean } | null | undefined;
 	let heading: { name: string; container: boolean } | null = null;
 	let pendingFolder: string | null | undefined; // a closed <H3> waiting for its <DL>
 	let anchor: { href: string | undefined; attrs: Record<string, string>; line: number } | null =
@@ -103,6 +122,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 		if (!heading) return;
 		const folder = squash(heading.name).slice(0, FOLDER_NAME_MAX);
 		pendingFolder = heading.container || !folder ? null : folder;
+		pendingNamed = folder ? { name: folder, container: heading.container } : null;
 		heading = null;
 	};
 	const endAnchor = () => {
@@ -116,6 +136,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 		}
 		const tags = splitTags(attrs.tags);
 		const path = folders.at(-1)?.path ?? null;
+		const folder = folders.at(-1)?.folder ?? null;
 		const item: ImportItem = {
 			url,
 			title: squash(anchorText) || null,
@@ -127,6 +148,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 			archived: tags.includes(LINKDING_ARCHIVED),
 			line
 		};
+		if (folder) item.folder = folder;
 		items.push(item);
 		if (items.length > IMPORT_LINKS_MAX) throw tooManyLinks();
 		last = item;
@@ -147,13 +169,23 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 		}
 		switch (name) {
 			case 'dl': {
-				const parent = folders.at(-1) ?? { path: null, depth: 0 };
+				const parent = folders.at(-1) ?? { path: null, depth: 0, folder: null };
 				const folder = pendingFolder;
+				const named = pendingNamed;
 				pendingFolder = undefined;
-				if (!folder || parent.depth >= FOLDER_DEPTH_MAX) folders.push(parent);
+				pendingNamed = undefined;
+				// Past the depth cap a folder folds into its parent here too.
+				const shown =
+					named && (parent.folder?.path.length ?? 0) < FOLDER_DEPTH_MAX
+						? {
+								path: [...(parent.folder?.path ?? []), named.name],
+								container: [...(parent.folder?.container ?? []), named.container]
+							}
+						: parent.folder;
+				if (!folder || parent.depth >= FOLDER_DEPTH_MAX) folders.push({ ...parent, folder: shown });
 				else {
 					const path = parent.path ? `${parent.path} / ${folder}` : folder;
-					folders.push({ path, depth: parent.depth + 1 });
+					folders.push({ path, depth: parent.depth + 1, folder: shown });
 				}
 				last = null;
 				break;
@@ -167,6 +199,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 				last = null;
 				break;
 			case 'a':
+				if (Object.hasOwn(attrs, 'data-cover')) raindrop = true;
 				anchor = { href: attrs.href, attrs, line: lineAt(at) };
 				anchorText = '';
 				break;
@@ -254,5 +287,5 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 	tokenizer.end();
 	endNote();
 	endAnchor();
-	return { items, failures };
+	return { items, failures, raindrop };
 }

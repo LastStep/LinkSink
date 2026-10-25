@@ -16,6 +16,19 @@ export interface ImportItem {
 	archived: boolean;
 	/** The line of the file it starts on (1-based), for the summary. */
 	line: number;
+	/**
+	 * The folder it sits in (T-0019): every named folder from the top, the browser's own containers included, and
+	 * which of them carried a container attribute. Absent for a link at the top of the file, and for CSV rows.
+	 */
+	folder?: ImportFolder;
+	/** Existing projects it joins by id (a folder mapped to an existing project), checked as the user's before. */
+	projectIds?: string[];
+}
+
+export interface ImportFolder {
+	path: string[];
+	/** Per segment: the folder carried PERSONAL_TOOLBAR_FOLDER or UNFILED_BOOKMARKS_FOLDER. */
+	container: boolean[];
 }
 
 /** A line of the file that did not give a link. */
@@ -28,6 +41,8 @@ export interface ParsedFile {
 	format: ImportFormat;
 	items: ImportItem[];
 	failures: ImportFailure[];
+	/** Raindrop's own export (T-0019): its top-level Unsorted is Raindrop's collection, not a folder the person made. */
+	raindrop?: boolean;
 }
 
 /** A file refused as a whole; nothing is written and the message is safe to show. */
