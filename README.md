@@ -1,5 +1,6 @@
 # LinkSink
 
+[![CI](https://github.com/LastStep/LinkSink/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/LastStep/LinkSink/actions/workflows/ci.yml)
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue?style=flat)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/trinetra)
 
@@ -50,35 +51,27 @@ image to `ghcr.io/laststep/linksink`, so a host needs no source code and builds 
 ### On a server, with a domain
 
 1. Point a domain or subdomain (say `links.example.com`) at the server, and open ports 80 and 443.
-2. Get the two files LinkSink runs from:
+2. Get the files LinkSink runs from, and its settings example as `.env`:
 
    ```bash
-   mkdir -p linksink/deploy && cd linksink
-   curl -fsSLO https://raw.githubusercontent.com/LastStep/LinkSink/main/compose.yaml
-   curl -fsSL -o deploy/Caddyfile https://raw.githubusercontent.com/LastStep/LinkSink/main/deploy/Caddyfile
+   mkdir -p ~/linksink/deploy && cd ~/linksink
+   base=https://raw.githubusercontent.com/LastStep/LinkSink/main
+   curl -fsSLo compose.yaml "$base/compose.yaml"
+   curl -fsSLo deploy/Caddyfile "$base/deploy/Caddyfile"
+   curl -fsSLo deploy/update.sh "$base/deploy/update.sh"
+   curl -fsSLo .env "$base/deploy/server.env.example"
    ```
 
-3. Write `.env` beside `compose.yaml`. Mail goes through [Resend](https://resend.com), which sends the
-   confirmation and password-reset emails:
+3. Fill in `.env`: `LINKSINK_HOST` (your domain), a new `LINKSINK_AUTH_SECRET` (`openssl rand -base64 32`), and
+   your [Resend](https://resend.com) key and From address, which send the confirmation and password-reset emails.
+4. Start it. The script pulls the image, starts both containers, waits until the app answers and checks
+   `https://<your domain>/login`:
 
    ```bash
-   LINKSINK_HOST=links.example.com
-   LINKSINK_LISTEN=
-   LINKSINK_HTTP_PORT=80
-   LINKSINK_AUTH_SECRET=   # openssl rand -base64 32
-   LINKSINK_MAIL_TRANSPORT=resend
-   LINKSINK_RESEND_API_KEY=
-   LINKSINK_MAIL_FROM=LinkSink <links@example.com>
+   sh deploy/update.sh
    ```
 
-4. Start it, then open `https://links.example.com` and create your account:
-
-   ```bash
-   docker compose pull
-   docker compose up -d
-   ```
-
-Caddy gets a certificate from Let's Encrypt by itself.
+5. Open `https://links.example.com` and create your account. Caddy gets a certificate from Let's Encrypt by itself.
 
 ### Other ways to run it
 
@@ -90,25 +83,26 @@ Caddy gets a certificate from Let's Encrypt by itself.
 ### Update
 
 ```bash
-docker compose pull
-docker compose up -d
+sh deploy/update.sh
 ```
 
-The app applies database changes itself when it starts.
+It pulls the newest image and restarts LinkSink; the app applies database changes itself when it starts. Pushes to
+`main` can also deploy by themselves over SSH, once the deploy secrets are set ([`deploy/SERVER.md`](deploy/SERVER.md)).
 
 ### Settings
 
 All in `.env` beside `compose.yaml`:
 
-| Setting                   | What it is                                                                                          |
-| ------------------------- | --------------------------------------------------------------------------------------------------- |
-| `LINKSINK_HOST`           | The host name LinkSink is served at, with no `https://`. `localhost` on your own computer.          |
-| `LINKSINK_LISTEN`         | The address ports 80 and 443 listen on: empty for every address, `127.0.0.1` for this machine only. |
-| `LINKSINK_HTTP_PORT`      | The port plain http redirects from: 80 on a server.                                                 |
-| `LINKSINK_AUTH_SECRET`    | At least 32 random characters; sessions are signed with it. Changing it signs every device out.     |
-| `LINKSINK_MAIL_TRANSPORT` | `resend` on a server; `console` prints mail to `docker compose logs app`, for trying it out only.   |
-| `LINKSINK_RESEND_API_KEY` | Your Resend API key.                                                                                |
-| `LINKSINK_MAIL_FROM`      | The From address, on a domain verified with Resend.                                                 |
+| Setting                   | What it is                                                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `LINKSINK_HOST`           | The host name LinkSink is served at, with no `https://`. `localhost` on your own computer.                 |
+| `LINKSINK_LISTEN`         | The address ports 80 and 443 listen on: empty for every address, `127.0.0.1` for this machine only.        |
+| `LINKSINK_HTTP_PORT`      | The port plain http redirects from: 80 on a server.                                                        |
+| `LINKSINK_AUTH_SECRET`    | At least 32 random characters; sessions are signed with it. Changing it signs every device out.            |
+| `LINKSINK_MAIL_TRANSPORT` | `resend` on a server; `console` prints mail to `docker compose logs app`, for trying it out only.          |
+| `LINKSINK_RESEND_API_KEY` | Your Resend API key.                                                                                       |
+| `LINKSINK_MAIL_FROM`      | The From address, on a domain verified with Resend.                                                        |
+| `LINKSINK_IMAGE`          | The image to run: empty for `ghcr.io/laststep/linksink:latest`, or a version, commit or digest to stay on. |
 
 ### Backups
 
