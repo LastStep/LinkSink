@@ -1,4 +1,8 @@
 import type { SavedVia, UserSetField } from '../fields.ts';
+import { matchesFilters, NO_FILTERS, type Filters } from '../search/filters.ts';
+import type { Term } from '../search/query.ts';
+
+export type { Filters } from '../search/filters.ts';
 
 /** A link as the API sends it and the store holds it. Times are milliseconds since the epoch. */
 export interface LinkJson {
@@ -77,23 +81,36 @@ export type View =
 	| { kind: 'tag'; id: string };
 
 /**
- * Whether a link belongs in a view, on what the store can see: Archive holds archived links; the rest hold unarchived
- * ones, narrowed to one tag, one project, or (Unsorted) links with neither. A deleted link belongs nowhere.
+ * Whether a link belongs in a list: a view (Archive holds archived links; the rest hold unarchived ones unless the
+ * filters say `archived=include|only`, narrowed to one tag, one project, or (Unsorted) links with neither) and its
+ * search and filters, by the rule the server's query follows (src/lib/search/filters.ts). A deleted link belongs
+ * nowhere. `terms` may be passed in when one parse of the search serves many links.
  */
-export function belongsToView(view: View, link: LinkJson): boolean {
+export function belongsToList(
+	view: View,
+	filters: Filters,
+	link: LinkJson,
+	terms?: Term[]
+): boolean {
 	if (link.deletedAt !== null) return false;
-	if ((view.kind === 'archive') !== (link.archivedAt !== null)) return false;
 	switch (view.kind) {
 		case 'unsorted':
-			return link.tagIds.length === 0 && link.projectIds.length === 0;
+			if (link.tagIds.length || link.projectIds.length) return false;
+			break;
 		case 'tag':
-			return link.tagIds.includes(view.id);
+			if (!link.tagIds.includes(view.id)) return false;
+			break;
 		case 'project':
-			return link.projectIds.includes(view.id);
-		default:
-			return true;
+			if (!link.projectIds.includes(view.id)) return false;
+			break;
 	}
+	const f: Filters = view.kind === 'archive' ? { ...filters, archived: 'only' } : filters;
+	return matchesFilters(f, link, terms);
 }
+
+/** Whether a link belongs in a view with no search and no filters. */
+export const belongsToView = (view: View, link: LinkJson): boolean =>
+	belongsToList(view, NO_FILTERS, link, []);
 
 /** A link in the store. `pending` is true while it is an optimistic row the server has not confirmed yet. */
 export type StoreLink = LinkJson & { pending: boolean };
@@ -104,6 +121,14 @@ export interface StoreState {
 	loading: boolean;
 	/** The view the links are from. */
 	view: View;
+	/** The search, filters and sort the links are from. */
+	filters: Filters;
+	/** The next page's cursor; null when every matching link is loaded. */
+	next: string | null;
+	/** How many links match in all, as the server counted them on the first page. */
+	total: number | null;
+	/** True while the next page loads. */
+	loadingMore: boolean;
 	tags: TagJson[];
 	projects: ProjectJson[];
 	sources: SourceJson[];
@@ -169,6 +194,13 @@ export class StoreError extends Error {
 export interface LinkStore {
 	/** Loads the live links of a view (matching `q` when given) into the store and returns them. */
 	list(q?: string | null, view?: View): Promise<LinkJson[]>;
+	/**
+	 * Loads the first page (50) of a view's links that match a search and filters, in their sort, into the store and
+	 * returns them. An answer to an older call that arrives late is dropped.
+	 */
+	search(filters: Filters, view?: View): Promise<LinkJson[]>;
+	/** Loads the next page of the current list, if there is one; returns the links it added. */
+	more(): Promise<LinkJson[]>;
 	/** Loads the tags, projects, sources and counts. */
 	refresh(): Promise<void>;
 	/**

@@ -54,3 +54,7 @@ export function byDay<T>(
 /** "3 links", "1 link". */
 export const plural = (n: number, one: string, many = `${one}s`) =>
 	`${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+const short = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
+/** "25 Oct": the day a link was saved, where the list is not grouped by day. */
+export const shortDate = (ms: number) => short.format(ms);

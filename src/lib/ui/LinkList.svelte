@@ -1,14 +1,23 @@
 <script lang="ts">
 	// A list of links as a day ledger (ADR-0003): Links, Unsorted, Archive, one project or one tag. Paste anywhere to
 	// save; a row opens its details; select many (x, shift-click, long-press) to organise, archive or delete at once.
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from '#lib/fields.ts';
 	import { listenForPastes } from '#lib/paste.ts';
-	import { belongsToView, store, StoreError, type StoreLink, type View } from '#lib/store/index.ts';
+	import {
+		filterCount,
+		filterQuery,
+		parseFilters,
+		sameFilters,
+		type Filters
+	} from '#lib/search/filters.ts';
+	import { parseQuery } from '#lib/search/query.ts';
+	import { belongsToList, store, StoreError, type StoreLink, type View } from '#lib/store/index.ts';
 	import { displayHost } from '#lib/url.ts';
-	import { byDay, plural, timeOf } from './format.ts';
+	import { byDay, plural, shortDate, timeOf } from './format.ts';
 	import Icon from './Icon.svelte';
 	import StateMark from './StateMark.svelte';
 
@@ -23,11 +32,25 @@
 	const loadDetail = () => import('./Detail.svelte');
 	const loadPicker = () => import('./Picker.svelte');
 	const loadBulkBar = () => import('./BulkBar.svelte');
+	const loadFilters = () => import('./FilterPanel.svelte');
+
+	/** How long the search waits after a keystroke before it asks (the plan's 100 ms). */
+	const DEBOUNCE_MS = 100;
 
 	/** How long an undo stays offered. */
 	const UNDO_MS = 5000;
 
-	const q = $derived(page.url.searchParams.get('q')?.trim() ?? '');
+	// The list's search, filters and sort live in the address (src/lib/search/filters.ts), so a reload or a bookmark
+	// brings the same view back. `filters` is what the list shows; `typed` is the search box, which runs ahead of it
+	// by the debounce while the person types.
+	let filters = $state.raw<Filters>(parseFilters(page.url.searchParams));
+	let typed = $state(untrack(() => filters.q));
+	let typingTimer: ReturnType<typeof setTimeout> | undefined;
+	let searchBox = $state<HTMLInputElement | null>(null);
+	let panelOpen = $state(false);
+	const q = $derived(filters.q);
+	const terms = $derived(parseQuery(filters.q));
+	const narrowed = $derived(filterCount(filters) > 0 || Boolean(filters.q.trim()));
 	const canPaste = $derived(view.kind !== 'archive');
 
 	let url = $state('');
@@ -49,24 +72,113 @@
 
 	// The rows follow the store: a link whose tags, projects or archive state no longer fit this view leaves the list at
 	// once. The link that is open stays in the store (hold), so its details and organiser keep working.
-	const links = $derived($store.links.filter((l) => l.pending || belongsToView(view, l)));
+	const links = $derived(
+		$store.links.filter((l) => l.pending || belongsToList(view, filters, l, terms))
+	);
 	const open = $derived(openId ? ($store.links.find((l) => l.id === openId) ?? null) : null);
 	$effect(() => {
 		store.hold([...(openId ? [openId] : []), ...(pickerIds ?? [])]);
 	});
-	const days = $derived(byDay(links, (l) => l.createdAt));
+	/** The list's groups: days saved (or edited) for those sorts, priorities for priority, one A to Z group for title. */
+	const days = $derived.by(() => {
+		switch (filters.sort) {
+			case 'edited':
+				return byDay(links, (l) => l.updatedAt);
+			case 'priority': {
+				const groups: { key: number; label: string; items: StoreLink[] }[] = [];
+				for (const l of links) {
+					const key = l.priority ?? 0;
+					const last = groups.at(-1);
+					if (last && last.key === key) last.items.push(l);
+					else
+						groups.push({
+							key,
+							label: key ? `${PRIORITY_LABEL[key as Priority]} priority` : 'No priority',
+							items: [l]
+						});
+				}
+				return groups;
+			}
+			case 'title':
+				return links.length ? [{ key: 0, label: 'A to Z', items: links }] : [];
+			default:
+				return byDay(links, (l) => l.createdAt);
+		}
+	});
+	const timeField = $derived(filters.sort === 'edited' ? 'updatedAt' : 'createdAt');
 	const tagById = $derived(new Map($store.tags.map((t) => [t.id, t])));
 	const projectById = $derived(new Map($store.projects.map((p) => [p.id, p])));
 	const sourceById = $derived(new Map($store.sources.map((s) => [s.id, s])));
 
+	// A new view closes what was open; a new search or filter keeps it open (the held link stays on screen).
+	$effect(() => {
+		void view;
+		untrack(() => {
+			openId = null;
+			endSelect();
+		});
+	});
 	$effect(() => {
 		const v = view;
-		const query = q;
-		openId = null;
-		selected.clear();
-		selecting = false;
-		store.list(query, v).catch(showError);
+		const f = filters;
+		untrack(() => selected.clear());
+		store.search(f, v).catch(showError);
 	});
+
+	// A real navigation (a link, back and forward, the palette) brings its own address: read the filters from it.
+	afterNavigate((nav) => {
+		if (nav.type === 'enter' || (nav as { shallow?: boolean }).shallow) return;
+		const next = parseFilters(nav.to?.url.searchParams ?? new URLSearchParams());
+		clearTimeout(typingTimer);
+		typed = next.q;
+		if (!sameFilters(next, filters)) filters = next;
+		panelOpen = false;
+	});
+
+	/** Shows other filters now: the list asks for them, and the address follows without a page load. */
+	function apply(next: Filters) {
+		clearTimeout(typingTimer);
+		if (sameFilters(next, filters)) return;
+		filters = next;
+		const query = filterQuery(next);
+		// the page's own path (already resolved), with the filters' query
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		goto(`${page.url.pathname}${query ? `?${query}` : ''}`, { shallow: true, replace: true }).catch(
+			() => {}
+		);
+	}
+
+	/** Each keystroke in the search box: the list follows 100 ms after the last one. */
+	function onsearchinput() {
+		clearTimeout(typingTimer);
+		typingTimer = setTimeout(() => apply({ ...filters, q: typed }), DEBOUNCE_MS);
+	}
+	function onsearchsubmit(event: SubmitEvent) {
+		event.preventDefault();
+		apply({ ...filters, q: typed });
+	}
+	function onsearchkey(event: KeyboardEvent) {
+		if (event.key !== 'Escape') return;
+		// Esc clears the search, then leaves the box
+		event.preventDefault();
+		if (typed) {
+			typed = '';
+			apply({ ...filters, q: '' });
+		} else searchBox?.blur();
+	}
+
+	// ---------- paging: the next 50 as the end of the list comes into sight ----------
+	function more() {
+		store.more().catch(showError);
+	}
+	function nearEnd(node: HTMLElement) {
+		const seen = new IntersectionObserver(
+			(entries) => entries.some((e) => e.isIntersecting) && more(),
+			{ rootMargin: '600px 0px' }
+		);
+		seen.observe(node);
+		return { destroy: () => seen.disconnect() };
+	}
 
 	onMount(() => {
 		const stop = listenForPastes(
@@ -80,7 +192,17 @@
 			() => box
 		);
 		listening = true;
-		return stop;
+		// The command palette's "Add a link": a link to save, or the paste box to type one in.
+		const onadd = (event: Event) => {
+			const url = (event as CustomEvent<{ url?: string }>).detail?.url;
+			if (url && canPaste) save(url);
+			else box?.focus();
+		};
+		window.addEventListener('linksink:add', onadd);
+		return () => {
+			stop();
+			window.removeEventListener('linksink:add', onadd);
+		};
 	});
 
 	function showError(error: unknown) {
@@ -117,7 +239,12 @@
 				...(view.kind === 'tag' ? { tagIds: [view.id] } : {}),
 				...(view.kind === 'project' ? { projectIds: [view.id] } : {})
 			});
-			if (result.duplicate) {
+			if (narrowed && !$store.links.some((l) => l.id === result.link.id)) {
+				// Saved, but the search or the filters on screen leave it out.
+				notice = result.duplicate
+					? 'Already saved. It does not match the search or filters on screen.'
+					: 'Saved. It does not match the search or filters on screen, so it is not shown.';
+			} else if (result.duplicate) {
 				notice = 'Already saved.';
 				flashed = result.link.id;
 				setTimeout(() => {
@@ -200,7 +327,7 @@
 			await store.bulk({ ids, archived });
 			endSelect();
 			offerUndo(`${archived ? 'Archived' : 'Restored'} ${plural(ids.length, 'link')}.`, () =>
-				store.bulk({ ids, archived: !archived }).then(() => store.list(q, view))
+				store.bulk({ ids, archived: !archived }).then(() => store.search(filters, view))
 			);
 		} catch (error) {
 			showError(error);
@@ -271,19 +398,9 @@
 
 	function rowKey(event: KeyboardEvent, link: StoreLink) {
 		if (event.target !== event.currentTarget) return;
-		if (event.key === 'Enter') {
+		if (event.key === 'Enter' && !event.metaKey && !event.ctrlKey) {
 			event.preventDefault();
 			openId = link.id;
-		} else if (event.key === 'x' && !link.pending) {
-			event.preventDefault();
-			toggleSelect(link.id, event.shiftKey);
-		} else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-			event.preventDefault();
-			const rows = [...document.querySelectorAll<HTMLElement>('li.row')];
-			const i = rows.indexOf(event.currentTarget as HTMLElement);
-			rows[
-				event.key === 'ArrowDown' ? Math.min(rows.length - 1, i + 1) : Math.max(0, i - 1)
-			]?.focus();
 		}
 	}
 
@@ -307,10 +424,99 @@
 			pressEnd();
 	}
 
+	// ---------- keys (plan P-T-0002, step 7): / n j k arrows Enter e t p a x; Ctrl/Cmd+K is the Shell's ----------
+	/** Typing in a field, or a dialog open over the list: the list's keys stand back. */
+	function keysOff(event: KeyboardEvent) {
+		const target = event.target as Element | null;
+		return (
+			event.defaultPrevented ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.altKey ||
+			pickerIds !== null ||
+			panelOpen ||
+			Boolean(
+				target?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')
+			) ||
+			Boolean(document.querySelector('[aria-modal="true"]'))
+		);
+	}
+	const rowEls = () => [...document.querySelectorAll<HTMLElement>('ul.ledger li.row')];
+	/** The row the keys act on: the focused one, else the open one. */
+	function current(): StoreLink | null {
+		const row = (document.activeElement as Element | null)?.closest<HTMLElement>('li.row');
+		const id = row?.id.startsWith('link-') ? row.id.slice(5) : openId;
+		return (id && links.find((l) => l.id === id)) || null;
+	}
+	async function move(by: 1 | -1) {
+		const rows = rowEls();
+		if (rows.length === 0) return;
+		const at = current();
+		const i = at ? rows.findIndex((r) => r.id === `link-${at.id}`) : -1;
+		const next = i < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, i + by));
+		if (by === 1 && i === rows.length - 1 && $store.next) {
+			await store.more().catch(showError);
+			await tick();
+			return move(1);
+		}
+		const row = rows[next];
+		row.focus();
+		row.scrollIntoView({ block: 'nearest' });
+		// With the details open, they follow the row
+		const id = row.id.slice(5);
+		if (openId && openId !== id && !links.find((l) => l.id === id)?.pending) openId = id;
+	}
+	async function edit(link: StoreLink) {
+		openId = link.id;
+		await loadDetail();
+		await tick();
+		await tick();
+		document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Link title"]')?.focus();
+	}
+
 	function onwindowkey(event: KeyboardEvent) {
-		if (event.key !== 'Escape' || pickerIds || event.defaultPrevented) return;
-		if (openId) openId = null;
-		else if (selecting) endSelect();
+		if (event.key === 'Escape') {
+			if (pickerIds || panelOpen || event.defaultPrevented) return;
+			if (openId) openId = null;
+			else if (selecting) endSelect();
+			return;
+		}
+		if (keysOff(event)) return;
+		const link = current();
+		const many = selecting && selected.size > 0 ? [...selected] : null;
+		const act = (fn: () => void) => {
+			event.preventDefault();
+			fn();
+		};
+		switch (event.key) {
+			case '/':
+				return act(() => searchBox?.focus());
+			case 'n':
+				return canPaste ? act(() => box?.focus()) : undefined;
+			case 'j':
+				return act(() => void move(1));
+			case 'k':
+				return act(() => void move(-1));
+			// The arrows move between rows from a row; elsewhere they scroll the page as usual
+			case 'ArrowDown':
+			case 'ArrowUp':
+				if (!(document.activeElement as Element | null)?.closest('li.row')) return;
+				return act(() => void move(event.key === 'ArrowDown' ? 1 : -1));
+			case 'x':
+			case 'X':
+				return link && !link.pending ? act(() => toggleSelect(link.id, event.shiftKey)) : undefined;
+			case 'e':
+				return link && !link.pending ? act(() => void edit(link)) : undefined;
+			case 't':
+			case 'p': {
+				const kind = event.key === 't' ? 'tag' : 'project';
+				if (many) return act(() => organise(many, kind));
+				return link && !link.pending ? act(() => organise([link.id], kind)) : undefined;
+			}
+			case 'a':
+				if (many) return act(() => void bulkArchive());
+				return link && !link.pending ? act(() => void archive(link)) : undefined;
+		}
 	}
 
 	async function organise(ids: string[], kind?: 'tag' | 'project') {
@@ -374,13 +580,66 @@
 		{#if notice}<p class="notice muted" role="status">{notice}</p>{/if}
 
 		<div class="toolbar">
-			<form class="search" method="get" role="search">
+			<form class="search" role="search" onsubmit={onsearchsubmit}>
 				<Icon name="search" />
-				<input name="q" type="search" placeholder="Search" aria-label="Search" value={q} />
-				<kbd class="key" aria-hidden="true">/</kbd>
+				<input
+					bind:this={searchBox}
+					bind:value={typed}
+					name="q"
+					type="search"
+					placeholder="Filter as you type"
+					aria-label="Search"
+					autocomplete="off"
+					spellcheck="false"
+					oninput={onsearchinput}
+					onkeydown={onsearchkey}
+				/>
+				<!-- The / hint is a button: a click focuses the box, as the key does. -->
+				<button
+					class="key"
+					type="button"
+					tabindex="-1"
+					aria-hidden="true"
+					title="Press / to search"
+					onclick={() => searchBox?.focus()}>/</button
+				>
 			</form>
-			<span class="count muted num">{plural(links.filter((l) => !l.pending).length, 'link')}</span>
+			<button
+				class="btn filter-btn"
+				type="button"
+				aria-haspopup="dialog"
+				aria-expanded={panelOpen}
+				class:on={filterCount(filters) > 0 || filters.sort !== 'saved'}
+				onpointerenter={loadFilters}
+				onfocus={loadFilters}
+				onclick={() => (panelOpen = !panelOpen)}
+			>
+				<Icon name="filter" /><span class="fb-word">Filters</span>{#if filterCount(filters)}<span
+						class="fb-n num">{filterCount(filters)}</span
+					>{/if}
+			</button>
+			<span class="count muted num" aria-live="polite"
+				>{plural(
+					$store.next && $store.total !== null
+						? $store.total
+						: links.filter((l) => !l.pending).length,
+					'link'
+				)}</span
+			>
 		</div>
+
+		<!-- The filters on screen as chips, and the panel that sets them: loaded on first use (the first-load budget). -->
+		{#if panelOpen || filterCount(filters) > 0 || filters.sort !== 'saved'}
+			{#await loadFilters() then { default: FilterPanel }}
+				<FilterPanel
+					{filters}
+					{view}
+					open={panelOpen}
+					onchange={apply}
+					onclose={() => (panelOpen = false)}
+				/>
+			{/await}
+		{/if}
 
 		{#if links.length > 0}
 			<ul class="ledger" aria-label="Links" class:selecting>
@@ -501,8 +760,10 @@
 										>{/if}</span
 								>
 							</span>
-							<time class="c-time num" datetime={new Date(link.createdAt).toISOString()}
-								>{timeOf(link.createdAt)}</time
+							<time class="c-time num" datetime={new Date(link[timeField]).toISOString()}
+								>{filters.sort === 'title' || filters.sort === 'priority'
+									? shortDate(link.createdAt)
+									: timeOf(link[timeField])}</time
 							>
 							<span class="c-act">
 								<button
@@ -531,8 +792,19 @@
 					{/each}
 				{/each}
 			</ul>
+			{#if $store.next}
+				<div class="more" use:nearEnd>
+					<button class="btn ghost" type="button" disabled={$store.loadingMore} onclick={more}
+						>{$store.loadingMore ? 'Loading…' : 'Show more'}</button
+					>
+				</div>
+			{/if}
 		{:else if !$store.loading}
-			{@const words = q ? `Nothing matches “${q}”. Try fewer or shorter words.` : empty}
+			{@const words = q
+				? `Nothing matches “${q}”${filterCount(filters) ? ' with these filters' : ''}. Try fewer or shorter words.`
+				: filterCount(filters)
+					? 'No links match these filters. Take one off to see more.'
+					: empty}
 			{@const cut = words.indexOf('. ')}
 			<div class="empty-card empty">
 				<p class="lead">{cut > 0 ? words.slice(0, cut + 1) : words}</p>
@@ -717,6 +989,41 @@
 	.count {
 		margin-left: auto;
 		font-size: 13px;
+	}
+	button.key {
+		cursor: text;
+	}
+	.filter-btn {
+		height: 34px;
+		padding: 0 10px;
+		color: var(--muted);
+		font-weight: 450;
+	}
+	.filter-btn:hover,
+	.filter-btn[aria-expanded='true'],
+	.filter-btn.on {
+		color: var(--text);
+	}
+	.filter-btn[aria-expanded='true'] {
+		border-color: var(--text);
+	}
+	.fb-n {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 5px;
+		border-radius: 9px;
+		background: var(--text);
+		color: var(--ground);
+		font-size: 11px;
+		font-weight: 600;
+	}
+	.more {
+		display: flex;
+		justify-content: center;
+		padding-top: 16px;
 	}
 
 	/* ---------- the ledger: day names on the ground, each day's rows one card ---------- */

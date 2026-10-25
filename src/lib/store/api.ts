@@ -1,4 +1,6 @@
 // The store's first implementation: an in-memory list of the current view, kept by the JSON API (/api/links).
+import { compareLinks, filterQuery, NO_FILTERS, type Filters } from '../search/filters.ts';
+import { parseQuery, type Term } from '../search/query.ts';
 import { ulid } from '../ulid.ts';
 import { displayHost, parseHttpUrl } from '../url.ts';
 import {
@@ -12,15 +14,12 @@ import {
 	type ViewCounts,
 	type LinkJson,
 	type LinkStore,
-	belongsToView,
+	belongsToList,
 	type NewLinkInput,
 	type PutResult,
 	type StoreLink,
 	type StoreState
 } from './types.ts';
-
-const newestFirst = (a: LinkJson, b: LinkJson) =>
-	b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
 
 function optimistic(id: string, input: NewLinkInput): StoreLink {
 	const now = Date.now();
@@ -89,6 +88,10 @@ export function createApiStore(
 		links: [],
 		loading: true,
 		view: { kind: 'all' },
+		filters: NO_FILTERS,
+		next: null,
+		total: null,
+		loadingMore: false,
 		tags: [],
 		projects: [],
 		sources: [],
@@ -107,13 +110,25 @@ export function createApiStore(
 	}
 	const confirmed = (link: LinkJson): StoreLink => ({ ...link, pending: false });
 	const held = new Set<string>();
-	/** A held link stays while it is open, even out of the view; a deleted one never does. */
+	/** The search on screen, parsed once per change of its text. */
+	let terms: { q: string; terms: Term[] } = { q: '', terms: [] };
+	const termsNow = () => {
+		if (terms.q !== state.filters.q)
+			terms = { q: state.filters.q, terms: parseQuery(state.filters.q) };
+		return terms.terms;
+	};
+	/**
+	 * A held link stays while it is open, even out of the list; a deleted one never does. Otherwise a link stays while
+	 * it fits the view, the search and the filters: one changed so it no longer does leaves the list at once.
+	 */
 	const belongs = (link: LinkJson) =>
-		link.deletedAt === null && (held.has(link.id) || belongsToView(state.view, link));
+		link.deletedAt === null &&
+		(held.has(link.id) || belongsToList(state.view, state.filters, link, termsNow()));
+	const order = () => compareLinks(state.filters.sort);
 	const without = (id: string) => state.links.filter((l) => l.id !== id);
-	/** The list with `link` put in (or taken out, when it no longer belongs in the view). */
+	/** The list with `link` put in (or taken out, when it no longer belongs in the list). */
 	const withLink = (link: LinkJson) =>
-		belongs(link) ? [...without(link.id), confirmed(link)].sort(newestFirst) : without(link.id);
+		belongs(link) ? [...without(link.id), confirmed(link)].sort(order()) : without(link.id);
 
 	async function request<T>(
 		path: string,
@@ -244,33 +259,71 @@ export function createApiStore(
 		emit({ ...body, organised: true });
 	}
 
+	const listParams = (filters: Filters, view: View) =>
+		[viewQuery(view), filterQuery(filters)].filter(Boolean).join('&');
+
+	async function search(filters: Filters, view: View = { kind: 'all' }) {
+		const call = ++listCall;
+		const params = listParams(filters, view);
+		const { body } = await request<{
+			links: LinkJson[];
+			counts?: ViewCounts;
+			next?: string | null;
+			total?: number | null;
+		}>(`/api/links${params ? `?${params}` : ''}`);
+		// A newer list was asked for meanwhile: this answer is stale.
+		if (call !== listCall) return body.links;
+		const sameView = JSON.stringify(view) === JSON.stringify(state.view);
+		// Rows still being saved stay on screen (in the view they were saved in).
+		const pending = sameView
+			? state.links.filter((l) => l.pending && !body.links.some((b) => b.id === l.id))
+			: [];
+		emit({
+			view,
+			filters,
+			links: [...pending, ...body.links.map(confirmed)],
+			next: body.next ?? null,
+			total: body.total ?? null,
+			loading: false,
+			loadingMore: false,
+			...(body.counts ? { counts: body.counts } : {})
+		});
+		return body.links;
+	}
+
 	const path = (kind: string, id: string, rest = '') =>
 		`/api/${kind}/${encodeURIComponent(id)}${rest}`;
 	const send = (method: string, body: unknown) => ({ method, body: JSON.stringify(body) });
 
 	return {
-		async list(q, view = { kind: 'all' }) {
-			const call = ++listCall;
-			const params = [q?.trim() ? `q=${encodeURIComponent(q.trim())}` : '', viewQuery(view)]
-				.filter(Boolean)
-				.join('&');
-			const { body } = await request<{ links: LinkJson[]; counts?: ViewCounts }>(
-				`/api/links${params ? `?${params}` : ''}`
-			);
-			// A newer list was asked for meanwhile: this answer is stale.
-			if (call !== listCall) return body.links;
-			const sameView = JSON.stringify(view) === JSON.stringify(state.view);
-			// Rows still being saved stay on screen (in the view they were saved in).
-			const pending = sameView
-				? state.links.filter((l) => l.pending && !body.links.some((b) => b.id === l.id))
-				: [];
-			emit({
-				view,
-				links: [...pending, ...body.links.map(confirmed)],
-				loading: false,
-				...(body.counts ? { counts: body.counts } : {})
-			});
-			return body.links;
+		list(q, view = { kind: 'all' }) {
+			return search({ ...NO_FILTERS, q: q ?? '' }, view);
+		},
+
+		search,
+
+		async more() {
+			const after = state.next;
+			if (!after || state.loadingMore) return [];
+			const call = listCall;
+			emit({ loadingMore: true });
+			try {
+				const params = [
+					listParams(state.filters, state.view),
+					`after=${encodeURIComponent(after)}`
+				];
+				const { body } = await request<{ links: LinkJson[]; next: string | null }>(
+					`/api/links?${params.filter(Boolean).join('&')}`
+				);
+				// The list changed meanwhile (a new search, another view): this page belongs to the old one.
+				if (call !== listCall) return [];
+				const have = new Set(state.links.map((l) => l.id));
+				const added = body.links.filter((l) => !have.has(l.id));
+				emit({ links: [...state.links, ...added.map(confirmed)], next: body.next });
+				return added;
+			} finally {
+				if (call === listCall) emit({ loadingMore: false });
+			}
 		},
 
 		refresh,
@@ -293,7 +346,7 @@ export function createApiStore(
 				next = next.filter((l) => l.id !== link.id);
 				if (belongs(link)) next = [...next, confirmed(link)];
 			}
-			set(next.sort(newestFirst));
+			set(next.sort(order()));
 			scheduleRefresh();
 			return body.links;
 		},

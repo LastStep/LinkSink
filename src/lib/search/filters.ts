@@ -76,7 +76,7 @@ const oneOf =
 		(values as readonly string[]).includes(v);
 
 /** Reads the filters from an address's query. Anything it does not know is dropped, never an error. */
-export function parseFilters(params: URLSearchParams): Filters {
+export function parseFilters(params: Pick<URLSearchParams, 'get'>): Filters {
 	const pick = <T extends string>(name: string, values: readonly T[], fallback: T): T => {
 		const v = params.get(name);
 		return v && oneOf(values)(v) ? v : fallback;
