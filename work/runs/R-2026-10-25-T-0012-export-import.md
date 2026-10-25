@@ -5,7 +5,7 @@ task: T-0012
 role: builder
 model: opus
 started: 2026-10-25 06:45
-finished: 2026-10-25 09:47
+finished: 2026-10-25 09:36
 outcome: needs-verifier
 commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1", "91ab57f", "5e8d44c", "836b54a", "38f1220", "d9c6016", "a845284", "277025c", "3bbce56", "b347107", "fae6bf9", "2bcbd9c", "6ca9ac3", "97806a3", "a048dff", "a7ecb3a", "b49f6c5", "64f4079", "04b4479", "ea82acd", "6865b01", "c6c82e0", "ea8d6a5", "7d3c4f4", "f480661", "4250000", "1c3ec63", "44c06cf"]
 labels: {}
@@ -337,7 +337,7 @@ the class as well as the instance:
 - The ladder ran under the shared Playwright lock (the person's rule, given mid-round).
 - Processes: none started this round apart from the ladder's own.
 
-## Fix round 4 (brief M-2026-10-25-de517a71, 09:20 to 09:47)
+## Fix round 4 (brief M-2026-10-25-de517a71, 09:20 to 09:36)
 
 Both findings came from the same cause: work done on raw input before it was cut to size. This round closes that class:
 - **One limits module** (`src/lib/server/import/limits.ts`): `cut()`, `append()` and one limit per raw field.
