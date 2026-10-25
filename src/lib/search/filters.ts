@@ -1,10 +1,10 @@
 // A list's search, filters and sort, and their form in the address (plan P-T-0002, step 7; F-web-mvp "Finding"):
 // `?q=&source=<id>,<id>&media=video,article&tags=<id>,<id>&tagmode=any|all&projects=<id>&status=to_read
-// &priority=high&archived=include|only&sort=edited|priority|title`. Within one filter any picked value matches;
+// &priority=high&archived=include|only&sort=edited|opened|title|priority|status`. Within one filter any picked value matches;
 // across filters all must; `tagmode=all` asks for every picked tag. Archived links stay out unless `archived` says
 // otherwise. Shared by the server (the SQL in src/lib/server/search.ts) and the client (the URL, the store's check of
 // a link it holds), so the two read one address the same way.
-import { MEDIA, type Media, type Priority, type Status } from '../fields.ts';
+import { MEDIA, STATUSES, type Media, type Priority, type Status } from '../fields.ts';
 import type { LinkJson } from '../store/types.ts';
 import { foldedWords, matches, parseQuery, type Term } from './query.ts';
 
@@ -21,13 +21,16 @@ export const PRIORITY_OF: Record<PriorityFilter, Priority | null> = {
 	none: null
 };
 
-export const SORTS = ['saved', 'edited', 'priority', 'title'] as const;
+/** In the order the sort control lists them. */
+export const SORTS = ['saved', 'edited', 'opened', 'title', 'priority', 'status'] as const;
 export type Sort = (typeof SORTS)[number];
 export const SORT_LABEL: Record<Sort, string> = {
 	saved: 'Date saved',
 	edited: 'Last edited',
+	opened: 'Last opened',
+	title: 'Title',
 	priority: 'Priority',
-	title: 'Title'
+	status: 'Status'
 };
 
 export const ARCHIVED = ['exclude', 'include', 'only'] as const;
@@ -185,12 +188,33 @@ export const titleKey = (link: Pick<LinkJson, 'title' | 'url'>) =>
 const cmp = (a: number | string, b: number | string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
- * The order a sort puts links in, the same as the server's ORDER BY: saved and edited newest first, priority highest
- * first (then newest), title A to Z; ties by id, in the sort's direction.
+ * A status's place in the Status sort, highest first: the order the status list shows (to read, in progress, done),
+ * a link with none last. The server's ORDER BY (src/lib/server/search.ts) ranks the same way.
+ */
+export const statusRank = (status: string | null): number => {
+	const i = STATUSES.indexOf(status as Status);
+	return i < 0 ? 0 : STATUSES.length - i;
+};
+
+/**
+ * The order a sort puts links in, the same as the server's ORDER BY: saved, edited and opened newest first (a link
+ * never opened last), priority highest first (then newest), status in the status list's order (none last, then
+ * newest), title A to Z; ties by id, in the sort's direction.
  */
 export function compareLinks(sort: Sort) {
-	type L = Pick<LinkJson, 'id' | 'createdAt' | 'updatedAt' | 'priority' | 'title' | 'url'>;
+	type L = Pick<
+		LinkJson,
+		'id' | 'createdAt' | 'updatedAt' | 'openedAt' | 'status' | 'priority' | 'title' | 'url'
+	>;
 	switch (sort) {
+		case 'opened':
+			return (a: L, b: L) =>
+				cmp(b.openedAt ?? 0, a.openedAt ?? 0) || cmp(b.createdAt, a.createdAt) || cmp(b.id, a.id);
+		case 'status':
+			return (a: L, b: L) =>
+				cmp(statusRank(b.status), statusRank(a.status)) ||
+				cmp(b.createdAt, a.createdAt) ||
+				cmp(b.id, a.id);
 		case 'edited':
 			return (a: L, b: L) => cmp(b.updatedAt, a.updatedAt) || cmp(b.id, a.id);
 		case 'priority':

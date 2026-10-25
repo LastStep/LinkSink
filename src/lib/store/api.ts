@@ -1,6 +1,7 @@
 // The store's first implementation: an in-memory list of the current view, kept by the JSON API (/api/links).
 import { compareLinks, filterQuery, NO_FILTERS, type Filters } from '../search/filters.ts';
 import { parseQuery, type Term } from '../search/query.ts';
+import { createDetailsWatch, PAGE as DETAILS_PAGE, type DetailsWatchTuning } from './details.ts';
 import { ulid } from '../ulid.ts';
 import { displayHost, parseHttpUrl } from '../url.ts';
 import {
@@ -78,11 +79,13 @@ export interface ApiStoreOptions {
 	pollEveryMs?: number;
 	/** How long to keep asking before the row stays as it is (10 s). */
 	pollForMs?: number;
+	/** T-0023: look for links still waiting for their details, and keep looking while any does (off by default). */
+	watchLibrary?: boolean | DetailsWatchTuning;
 }
 
 export function createApiStore(
 	fetcher: typeof fetch = (...args) => fetch(...args),
-	{ pollEveryMs = 1_000, pollForMs = 10_000 }: ApiStoreOptions = {}
+	{ pollEveryMs = 1_000, pollForMs = 10_000, watchLibrary = false }: ApiStoreOptions = {}
 ): LinkStore {
 	let state: StoreState = {
 		links: [],
@@ -96,7 +99,9 @@ export function createApiStore(
 		projects: [],
 		sources: [],
 		counts: { links: 0, unsorted: 0, archive: 0 },
-		organised: false
+		organised: false,
+		detailsLeft: 0,
+		detailsAtLeast: false
 	};
 	const subscribers = new Set<(state: StoreState) => void>();
 	let listCall = 0;
@@ -242,6 +247,32 @@ export function createApiStore(
 		}
 	}
 
+	/** T-0023: details the server fetches in the background reach the open list (src/lib/store/details.ts). */
+	const details = createDetailsWatch({
+		...(typeof watchLibrary === 'object' ? watchLibrary : {}),
+		page: async (after) => {
+			const q = `limit=${DETAILS_PAGE}${after ? `&after=${encodeURIComponent(after)}` : ''}`;
+			const { body } = await request<{ links: LinkJson[]; next?: string | null }>(
+				`/api/links?${q}`
+			);
+			return { links: body.links, next: body.next ?? null };
+		},
+		onLinks(links) {
+			const byId = new Map(links.map((l) => [l.id, l]));
+			let changed = false;
+			const next = state.links.map((row) => {
+				const fresh = byId.get(row.id);
+				if (!fresh || row.pending) return row;
+				if (fresh.version <= row.version && fresh.metaState === row.metaState) return row;
+				changed = true;
+				return confirmed(fresh);
+			});
+			if (changed) set(next.sort(order()));
+		},
+		onLeft: (left, atLeast) => emit({ detailsLeft: left, detailsAtLeast: atLeast })
+	});
+	let looked = false;
+
 	let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 	/** Counts follow a change a moment later (one request for a burst of picker toggles). */
 	function scheduleRefresh() {
@@ -288,6 +319,11 @@ export function createApiStore(
 			loadingMore: false,
 			...(body.counts ? { counts: body.counts } : {})
 		});
+		// The first list, or any list showing a link still waiting for its details, starts the watch.
+		if (watchLibrary && (!looked || body.links.some((l) => l.metaState === 'pending'))) {
+			looked = true;
+			details.check();
+		}
 		return body.links;
 	}
 
@@ -327,6 +363,10 @@ export function createApiStore(
 		},
 
 		refresh,
+
+		checkDetails() {
+			if (watchLibrary) details.check();
+		},
 
 		hold(ids) {
 			held.clear();

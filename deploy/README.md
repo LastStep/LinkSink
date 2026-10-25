@@ -4,6 +4,9 @@ LinkSink runs as two containers: `app` (the LinkSink server) and `caddy` (in fro
 links and account live in a Docker volume, so they survive restarts. Run every command below in a WSL terminal, in
 the LinkSink folder.
 
+To run LinkSink on another machine (a server with a domain, or another computer at home) from the image GitHub
+publishes, with no source there, see **`deploy/SERVER.md`**. It also says how to move your links there from here.
+
 ## Before you start
 
 - Docker Desktop is running, with WSL integration on for this distribution (Settings, Resources, WSL Integration).
@@ -110,15 +113,16 @@ This deletes your LinkSink account, every saved link and Caddy's certificates, f
 docker compose down -v
 ```
 
-The built image stays (`docker image ls`); `docker image rm linksink-app` removes it too.
+The built image stays (`docker image ls`); `docker image rm ghcr.io/laststep/linksink` removes it too. (Before
+T-0029 it was named `linksink-app`: `docker image rm linksink-app` removes that older one.)
 
 ## What is where
 
-| Thing                    | Where                                                                 |
-| ------------------------ | --------------------------------------------------------------------- |
-| Settings                 | `.env` beside `compose.yaml` (example: `deploy/env.example`)          |
-| Database and page images | volume `data`, at `/data` in the app (`linksink.db`, `media/`)        |
-| Certificates             | volume `caddy_data`                                                   |
-| HTTPS, redirects, HSTS   | `deploy/Caddyfile`                                                    |
-| The app image            | `Dockerfile`; Node 22, runs as the user `node`, never root            |
-| The app's port (3000)    | the compose network only; nothing outside Docker reaches it but Caddy |
+| Thing                    | Where                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Settings                 | `.env` beside `compose.yaml` (example: `deploy/env.example`)                                          |
+| Database and page images | volume `data`, at `/data` in the app (`linksink.db`, `media/`)                                        |
+| Certificates             | volume `caddy_data`                                                                                   |
+| HTTPS, redirects, HSTS   | `deploy/Caddyfile`                                                                                    |
+| The app image            | `Dockerfile`, built here as `ghcr.io/laststep/linksink`; Node 22, runs as the user `node`, never root |
+| The app's port (3000)    | the compose network only; nothing outside Docker reaches it but Caddy                                 |

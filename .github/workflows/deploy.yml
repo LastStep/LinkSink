@@ -1,0 +1,154 @@
+# .github/workflows/deploy.yml: runs a published LinkSink image on the server, over SSH (T-0029).
+#
+# ci.yml calls it after each publish on main, with that commit's image (sha-<short>); a person runs it on demand for
+# a chosen tag (Actions, deploy, Run workflow). It copies compose.yaml, deploy/Caddyfile and deploy/update.sh from the
+# commit it runs on into the server's LinkSink folder, runs deploy/update.sh there (pull, restart, wait until healthy,
+# check https://<host>/login on the server), then checks https://<host>/login from here. With the deploy secrets not
+# set it skips with a notice and the run stays green. The secrets, and the server's own setup: deploy/SERVER.md.
+#
+# Repository secrets it reads (Settings, Secrets and variables, Actions):
+# - DEPLOY_HOST: the server's host name, the one its .env names as LINKSINK_HOST (links.example.com);
+# - DEPLOY_USER: the user it signs in as, one that may run docker;
+# - DEPLOY_SSH_KEY: that user's private key, made for this alone (its public half in the user's authorized_keys);
+# - DEPLOY_PATH: the LinkSink folder on the server, the one holding .env (/home/deploy/linksink);
+# - DEPLOY_KNOWN_HOSTS: the server's host key line(s), from `ssh-keyscan <host>`, so it never trusts a stranger;
+# - DEPLOY_PORT: optional, the SSH port; 22 when not set.
+# Every action is pinned by its full commit, its version in the comment beside it.
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The image tag to run: latest, a version (1.2.0) or a commit (sha-1a2b3c4)'
+        required: true
+        default: latest
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: 'The image tag to run'
+        required: true
+        type: string
+    secrets:
+      DEPLOY_HOST:
+        required: false
+      DEPLOY_USER:
+        required: false
+      DEPLOY_SSH_KEY:
+        required: false
+      DEPLOY_PATH:
+        required: false
+      DEPLOY_KNOWN_HOSTS:
+        required: false
+      DEPLOY_PORT:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # One deploy at a time, and a deploy is never cancelled halfway; set on the job, so it holds whether ci.yml calls
+    # this workflow or a person runs it.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    env:
+      TAG: ${{ inputs.tag }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+    steps:
+      - name: Check the deploy settings
+        id: settings
+        env:
+          HAS_KEY: ${{ secrets.DEPLOY_SSH_KEY != '' }}
+          HAS_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS != '' }}
+        run: |
+          missing=""
+          [ -n "$DEPLOY_HOST" ] || missing="$missing DEPLOY_HOST"
+          [ -n "$DEPLOY_USER" ] || missing="$missing DEPLOY_USER"
+          [ "$HAS_KEY" = true ] || missing="$missing DEPLOY_SSH_KEY"
+          [ -n "$DEPLOY_PATH" ] || missing="$missing DEPLOY_PATH"
+          [ "$HAS_KNOWN_HOSTS" = true ] || missing="$missing DEPLOY_KNOWN_HOSTS"
+          if [ -n "$missing" ]; then
+            echo "::notice title=Deploy skipped::No server to deploy to: the repository secret(s)$missing are not set. deploy/SERVER.md says how to set them."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Each value goes into a command line on the server: only plain characters, matched against the whole
+          # value (bash's =~ never matches across a newline, so a value of several lines is refused).
+          tag_re='^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'
+          host_re='^[A-Za-z0-9.-]+$'
+          user_re='^[A-Za-z0-9_][A-Za-z0-9._-]*$'
+          path_re='^[A-Za-z0-9._/~-]+$'
+          port_re='^[0-9]{1,5}$'
+          [[ $TAG =~ $tag_re ]] || { echo "::error::not an image tag: one line of letters, digits, '.', '_' and '-'"; exit 1; }
+          [[ $DEPLOY_HOST =~ $host_re ]] || { echo "::error::DEPLOY_HOST must be a host name"; exit 1; }
+          [[ $DEPLOY_USER =~ $user_re ]] || { echo "::error::DEPLOY_USER must be a user name"; exit 1; }
+          [[ $DEPLOY_PATH =~ $path_re ]] || { echo "::error::DEPLOY_PATH must be a folder path with no spaces"; exit 1; }
+          [[ ${DEPLOY_PORT:-22} =~ $port_re ]] || { echo "::error::DEPLOY_PORT must be a port number"; exit 1; }
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the project
+        if: steps.settings.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up SSH
+        if: steps.settings.outputs.ready == 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/linksink_deploy
+          chmod 600 ~/.ssh/linksink_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/linksink_known_hosts
+          {
+            echo "Host linksink-server"
+            echo "  HostName $DEPLOY_HOST"
+            echo "  Port ${DEPLOY_PORT:-22}"
+            echo "  User $DEPLOY_USER"
+            echo "  IdentityFile ~/.ssh/linksink_deploy"
+            echo "  IdentitiesOnly yes"
+            echo "  UserKnownHostsFile ~/.ssh/linksink_known_hosts"
+            echo "  StrictHostKeyChecking yes"
+            echo "  BatchMode yes"
+            echo "  ConnectTimeout 20"
+          } > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      # The commit's compose.yaml, Caddyfile and update script; the server's .env and its data are never touched here.
+      - name: Copy the compose files to the server
+        if: steps.settings.outputs.ready == 'true'
+        run: tar -cf - compose.yaml deploy/Caddyfile deploy/update.sh | ssh linksink-server "mkdir -p $DEPLOY_PATH && tar -xf - -C $DEPLOY_PATH"
+
+      - name: Pull, restart and check on the server
+        if: steps.settings.outputs.ready == 'true'
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:$TAG"
+          echo "Deploying $image to $DEPLOY_HOST:$DEPLOY_PATH"
+          ssh linksink-server "cd $DEPLOY_PATH && sh deploy/update.sh $image" < /dev/null
+
+      - name: Check https://<host>/login from here
+        if: steps.settings.outputs.ready == 'true'
+        run: |
+          for _ in $(seq 1 20); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "https://$DEPLOY_HOST/login" || true)
+            [ "$code" = 200 ] && break
+            sleep 3
+          done
+          echo "https://$DEPLOY_HOST/login: $code"
+          [ "$code" = 200 ]
+          echo "### Deployed \`$TAG\` to https://$DEPLOY_HOST" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/linksink_deploy

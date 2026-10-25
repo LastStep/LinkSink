@@ -1,15 +1,22 @@
-# LinkSink behind Caddy (T-0005): HTTPS only. compose passes LINKSINK_HOST from the .env beside compose.yaml.
+# LinkSink behind Caddy (T-0005, T-0029): HTTPS only. compose passes LINKSINK_HOST from the .env beside compose.yaml.
 #
-# - localhost (and *.localhost): a certificate from Caddy's own local authority; browsers warn until it is trusted
-#   (deploy/README.md). Any other host name: a public certificate from Let's Encrypt, which needs the name to point
-#   at this machine and ports 80 and 443 open to the internet.
-# - Plain http only redirects to https. Strict-Transport-Security for every host but localhost, so a browser never
-#   remembers HTTPS-only for localhost and every other local app on it.
+# - A local name or an address gets a certificate from Caddy's own local authority, which browsers warn about until
+#   it is trusted (deploy/README.md): localhost and *.localhost, *.local, *.internal, *.home.arpa, and a private IP
+#   address. Any other host name gets a public certificate from Let's Encrypt, which needs the name to point at this
+#   machine and ports 80 and 443 open to the internet.
+# - Plain http only redirects to https.
+# - Strict-Transport-Security only for a host name with a public certificate. A browser that has seen it refuses to
+#   let anyone past a certificate warning for that name for a year, so it is never sent for a local name or any IP
+#   address: the person can still click past the local certificate's warning, and other local apps on the same name
+#   are not held to HTTPS.
 # - The app is reached on the compose network only. With no trusted_proxies, Caddy replaces any X-Forwarded-For the
 #   client sent with the client's own address, which the app keys its sign-in rate limit on.
 {
 	# From inside a container Caddy cannot add its local root to this machine's trust store.
 	skip_install_trust
+	# A browser sends no server name when it is given an address (https://192.168.1.20): answer with the certificate
+	# for LINKSINK_HOST then, since the address Caddy sees itself at is the container's, not the one the browser used.
+	default_sni {$LINKSINK_HOST}
 }
 
 http://{$LINKSINK_HOST} {
@@ -17,7 +24,8 @@ http://{$LINKSINK_HOST} {
 }
 
 {$LINKSINK_HOST} {
-	@not_localhost not host localhost
-	header @not_localhost Strict-Transport-Security "max-age=31536000"
+	# Local names (as above) and IP addresses: only digits and dots (IPv4), or a colon (IPv6).
+	@public_name not expression `{http.request.host}.matches("(?i)^(localhost|.*[.](localhost|local|internal|home[.]arpa)|[0-9.]+|.*:.*)[.]?$")`
+	header @public_name Strict-Transport-Security "max-age=31536000"
 	reverse_proxy app:3000
 }
