@@ -16,11 +16,11 @@ Built with AI, in the open: [Claude](https://claude.com) ❤️ writes it. [How 
 
 ## What it does today
 
-- **Save in one paste.** Press Ctrl/Cmd+V anywhere in the app, or use the paste box. A link you already saved is
+- **Save in one paste.** Press Ctrl/Cmd+V on any list of links, or use the paste box. A link you already saved is
   shown to you instead of being saved twice.
 - **Details fill in by themselves.** Title, description, site icon, preview image, **Source** (YouTube, GitHub, …,
-  renamable) and **Media** (Video, Article, Post, Repo, Podcast, Image, PDF or Page), plus author, publish date and a
-  video's length when the site gives them. Anything you edit stays yours: a later fetch never overwrites it. Pages
+  renamable) and **Media** (Video, Article, Post, Repo, Podcast, Image, PDF or Page). The author, publish date and a
+  video's length are kept with the link when the site gives them. Anything you edit stays yours: a later fetch never overwrites it. Pages
   are fetched carefully: an honest User-Agent, size and time limits, and no requests to private network addresses.
 - **Organise your way.** Tags and projects (as many per link as you like), a status (To read, In progress, Done) and
   a priority (Low, Medium, High). Links with no tag and no project wait in **Unsorted**. Archive what you are done
@@ -86,8 +86,11 @@ image to `ghcr.io/laststep/linksink`, so a host needs no source code and builds 
 sh deploy/update.sh
 ```
 
-It pulls the newest image and restarts LinkSink; the app applies database changes itself when it starts. Pushes to
-`main` can also deploy by themselves over SSH, once the deploy secrets are set ([`deploy/SERVER.md`](deploy/SERVER.md)).
+It pulls the image `.env` names in `LINKSINK_IMAGE` (the newest, `latest`, while that is empty) and restarts
+LinkSink; the app applies database changes itself when it starts. Naming an image pins it there:
+`sh deploy/update.sh ghcr.io/laststep/linksink:latest` moves a pinned machine back to the newest. Pushes to `main`
+can also deploy by themselves over SSH once the deploy secrets are set, each pinning the commit it deployed
+([`deploy/SERVER.md`](deploy/SERVER.md)).
 
 ### Settings
 
