@@ -103,6 +103,7 @@ export function createImportApi({
 					formatLabel: FORMAT_LABEL[parsed.format],
 					added: result.added,
 					duplicates: result.duplicates,
+					projectsMade: result.projectsMade,
 					failed: failures.length,
 					failures: failures.slice(0, FAILURES_SHOWN)
 				});

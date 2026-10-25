@@ -60,7 +60,10 @@ export interface Preview {
 	pocketRead: boolean;
 }
 
-/** Top-level folder names a browser makes itself (Chrome writes Other and Mobile bookmarks with no attribute). */
+/**
+ * Top-level folder names a browser or tool makes itself: Chrome writes Other and Mobile bookmarks with no attribute,
+ * and Raindrop exports its own Unsorted collection as a folder (the orchestrator's call, 2026-10-25, for the person).
+ */
 const CONTAINER_NAMES = new Set([
 	'bookmarks bar',
 	'bookmarks toolbar',
@@ -69,7 +72,8 @@ const CONTAINER_NAMES = new Set([
 	'other bookmarks',
 	'bookmarks menu',
 	'mobile bookmarks',
-	'mobile'
+	'mobile',
+	'unsorted'
 ]);
 
 export const folderKey = (path: string[]) => JSON.stringify(path);

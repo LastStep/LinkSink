@@ -23,6 +23,8 @@ export interface ImportResult {
 	failures: ImportFailure[];
 	/** The new links' ids, in file order. */
 	addedIds: string[];
+	/** Projects the import made (T-0019's summary); existing ones it joined are not counted. */
+	projectsMade: number;
 }
 
 /** An item checked and normalised before anything is written: one per address. */
@@ -63,6 +65,10 @@ function namer(w: SyncWriter) {
 	let count = live.length;
 	let position = Math.max(0, ...live.map((p) => p.position + 1));
 	return {
+		/** How many projects this write has made so far. */
+		get made() {
+			return count - live.length;
+		},
 		tag(name: string) {
 			let id = tagIds.get(name);
 			if (!id) {
@@ -168,7 +174,7 @@ function writeBatch(syncWrite: SyncWrite, userId: string, batch: Unique[]) {
 			for (const projectId of joined.keys()) w.insert(linkProjects, { linkId: id, projectId });
 			ids.push(id);
 		}
-		return ids;
+		return { ids, made: names.made };
 	});
 }
 
@@ -186,11 +192,14 @@ export function importItems(
 	const { unique, failures, duplicates: repeated } = uniqueItems(items);
 	let duplicates = repeated;
 	const addedIds: string[] = [];
+	let projectsMade = 0;
 	for (let i = 0; i < unique.length; i += IMPORT_BATCH) {
 		const batch = unique.slice(i, i + IMPORT_BATCH);
 		let ids: string[];
 		try {
-			ids = writeBatch(syncWrite, userId, batch);
+			const written = writeBatch(syncWrite, userId, batch);
+			ids = written.ids;
+			projectsMade += written.made;
 		} catch (error) {
 			// The batch rolled back; the batches before it stay written.
 			throw new ImportStopped(addedIds.length, error);
@@ -199,7 +208,7 @@ export function importItems(
 		addedIds.push(...ids);
 		for (const id of ids) onCreated(id);
 	}
-	return { added: addedIds.length, duplicates, failures, addedIds };
+	return { added: addedIds.length, duplicates, failures, addedIds, projectsMade };
 }
 
 /**

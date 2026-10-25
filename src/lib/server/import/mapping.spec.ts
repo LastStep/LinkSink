@@ -134,7 +134,8 @@ describe('defaults', () => {
 					make('Parent Folder / Child Folder') as FolderChoice
 				],
 				[['Parent Folder'], 1, make('Parent Folder') as FolderChoice],
-				[['Unsorted'], 1, make('Unsorted') as FolderChoice]
+				// Raindrop's own Unsorted collection: links that were in no collection there land in Unsorted here.
+				[['Unsorted'], 1, none as FolderChoice]
 			]
 		]
 	];
@@ -315,7 +316,8 @@ describe('POST /api/import with a mapping', () => {
 			chrome()
 		);
 		expect(res.status).toBe(200);
-		expect(res.body).toMatchObject({ added: 4, duplicates: 0, failed: 1 });
+		// One project made (Code); the existing one is joined, not counted.
+		expect(res.body).toMatchObject({ added: 4, duplicates: 0, failed: 1, projectsMade: 1 });
 		expect(seen(alice.id)).toEqual([
 			{ url: 'https://github.com/sveltejs/kit', tags: [], projects: ['Code'], status: null },
 			{
@@ -411,6 +413,8 @@ describe('POST /api/import with a mapping', () => {
 			bigFile(1201)
 		);
 		expect(res.body.added).toBe(1201);
+		// Nine folders made nine projects, across three batches.
+		expect(res.body.projectsMade).toBe(9);
 		expect(version(alice.id)).toBe(3);
 		expect(listProjects(t.db, alice.id)).toHaveLength(9);
 	});
