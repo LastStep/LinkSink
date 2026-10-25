@@ -20,13 +20,15 @@
 	import { byDay, plural, shortDate, timeOf } from './format.ts';
 	import Icon from './Icon.svelte';
 	import StateMark from './StateMark.svelte';
+	import type { Snippet } from 'svelte';
 
 	let {
 		view,
 		title,
 		sub = '',
-		empty
-	}: { view: View; title: string; sub?: string; empty: string } = $props();
+		empty,
+		heading
+	}: { view: View; title: string; sub?: string; empty: string; heading?: Snippet } = $props();
 
 	// The details, the organiser and the bulk bar load on first use, not with the list (the first-load budget).
 	const loadDetail = () => import('./Detail.svelte');
@@ -544,7 +546,8 @@
 		<div class="title-row">
 			<div>
 				<!-- On a phone the top bar names the screen; the heading stays for screen readers. -->
-				<h1>{title}</h1>
+				<!-- A screen that lets the person change its name (a project's, T-0027) draws the heading itself. -->
+				{#if heading}{@render heading()}{:else}<h1>{title}</h1>{/if}
 				{#if sub}<p class="sub muted">{sub}</p>{/if}
 			</div>
 			{#if links.length}
