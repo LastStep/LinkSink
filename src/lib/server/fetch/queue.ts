@@ -14,14 +14,26 @@ export interface QueueOptions {
 	retries?: number;
 	retryDelayMs?: number;
 	log?: (...args: unknown[]) => void;
+	/** Called whenever a link leaves the queue (done, or given up): the feeder tops the queue up from here. */
+	onRoom?: () => void;
 }
 
 export interface FetchQueue {
 	enqueue(linkId: string): void;
 	/** Resolves once nothing is queued, waiting or running. */
 	idle(): Promise<void>;
+	/** Links waiting, delayed for a retry, or running. */
 	readonly pending: number;
+	/** Their ids. */
+	queuedIds(): string[];
 }
+
+/**
+ * One turn of the event loop. Each job starts on its own turn, so a run of fetches that fail at once never holds
+ * the loop: requests are answered, and the native memory of finished database statements (better-sqlite3 frees it
+ * in finalizers that run only between turns) is given back as it goes.
+ */
+const nextTurn = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 export function createFetchQueue(options: QueueOptions): FetchQueue {
 	const concurrency = options.concurrency ?? 2;
@@ -57,6 +69,7 @@ export function createFetchQueue(options: QueueOptions): FetchQueue {
 
 	async function run(job: { id: string; attempt: number }) {
 		try {
+			await nextTurn();
 			await options.work(job.id);
 			finish(job.id);
 		} catch (error) {
@@ -85,6 +98,7 @@ export function createFetchQueue(options: QueueOptions): FetchQueue {
 	function finish(id: string) {
 		queued.delete(id);
 		if (again.delete(id)) enqueue(id);
+		else options.onRoom?.();
 	}
 
 	function enqueue(id: string) {
@@ -107,20 +121,38 @@ export function createFetchQueue(options: QueueOptions): FetchQueue {
 			}),
 		get pending() {
 			return queued.size;
-		}
+		},
+		queuedIds: () => [...queued]
 	};
 }
 
-let appQueue: Promise<FetchQueue> | null = null;
+type AppQueue = FetchQueue & { kick(): void };
+let appQueue: Promise<AppQueue> | null = null;
+
+function app(): Promise<AppQueue> {
+	appQueue ??= import('./app.ts').then((m) => m.createAppQueue());
+	return appQueue;
+}
 
 /**
  * Queues a fetch of the link's page details; returns at once. The save path calls this after its insert. The app's
  * queue (and its database, guarded fetch and image folder) is made on first use.
  */
 export function enqueueFetch(linkId: string): void {
-	appQueue ??= import('./app.ts').then((m) => m.createAppQueue());
-	appQueue.then(
+	app().then(
 		(queue) => queue.enqueue(linkId),
+		(error) => console.error('[fetch] queue unavailable', error)
+	);
+}
+
+/**
+ * Tells the app's queue there are links waiting for their details (`meta_state = 'pending'`): its feeder reads them
+ * from the database a few at a time (fetch/feeder.ts), so any number of them costs no memory. An import calls this
+ * once it has written its links, and the server once when it starts, so work cut off by a restart resumes.
+ */
+export function kickFetches(): void {
+	app().then(
+		(queue) => queue.kick(),
 		(error) => console.error('[fetch] queue unavailable', error)
 	);
 }

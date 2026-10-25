@@ -1,0 +1,2 @@
+title,url,time_added,cursor,tags,status
+With a cursor column,https://example.com/cursor,1600000000,abc123,one|two,archive

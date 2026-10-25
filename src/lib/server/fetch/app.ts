@@ -2,6 +2,7 @@ import { MAIL_TRANSPORT, NODE_ENV, ORIGIN, TEST_ONLY_FETCH_ALLOW } from '$app/en
 import { db, syncWrite } from '../db/index.ts';
 import { parseTestFetchAllow } from './allow.ts';
 import { mediaDir } from './paths.ts';
+import { createFeeder, nextPending } from './feeder.ts';
 import { createFetchQueue } from './queue.ts';
 import { markFailed, refreshLink, type FetchDeps } from './refresh.ts';
 import { createSafeFetch, linkSinkUserAgent } from './safe.ts';
@@ -10,7 +11,10 @@ async function refuseEveryName(host: string): Promise<string[]> {
 	throw new Error(`the e2e server fetches only its fixture site, not ${host}`);
 }
 
-/** The app's fetch queue, on the app's database, with the one guarded fetch and LinkSink's own User-Agent. */
+/**
+ * The app's fetch queue, on the app's database, with the one guarded fetch and LinkSink's own User-Agent, and its
+ * feeder: links still waiting for their details are read from the database as the queue has room.
+ */
 export function createAppQueue() {
 	const host = URL.parse(ORIGIN ?? '')?.host || 'localhost';
 	const allow = parseTestFetchAllow(TEST_ONLY_FETCH_ALLOW, MAIL_TRANSPORT, NODE_ENV);
@@ -26,7 +30,8 @@ export function createAppQueue() {
 		}),
 		mediaDir: mediaDir()
 	};
-	return createFetchQueue({
+	const queue = createFetchQueue({
+		onRoom: () => feeder.fill(),
 		work: (id) => refreshLink(deps, id),
 		onGiveUp: (id, error) => {
 			console.warn(
@@ -37,4 +42,9 @@ export function createAppQueue() {
 			markFailed(deps, id);
 		}
 	});
+	const feeder = createFeeder({
+		queue,
+		next: (after, limit, exclude) => nextPending(db, after, limit, exclude)
+	});
+	return Object.assign(queue, { kick: feeder.kick });
 }
