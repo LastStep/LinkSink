@@ -38,3 +38,11 @@ The rest of plan P-T-0002 step 3 under ADR-0004, after T-0005's Docker setup. It
 The app image and compose file themselves (T-0005), except what backups add to them.
 
 ## Notes
+
+- From T-0005's security check (M-2026-10-25-d3972a53, non-blocking): console mail is not refused on a server, so
+  the server's .env must not start from deploy/env.example as it is (Resend, LINKSINK_LISTEN empty, HTTP port 80);
+  check the client address Caddy sees on the VPS (IPv6 included) for the rate limit; a .env without LINKSINK_LISTEN
+  publishes on every address; pin both images by digest; Caddy runs as root in its container; the app image keeps
+  npm and yarn.
+- From builder@T-0005: open 80 and 443 on the VPS; an ACME contact email if wanted; build off the VPS (116 MB to
+  pull); the backups mount the `data` volume.

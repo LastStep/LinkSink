@@ -12,9 +12,12 @@ Rewritten whole whenever where the project stands changes; never appended to. A 
 
 ## Now
 
-The session wrapped up cleanly on 2026-10-25 at the person's word. Main is green: `bonsai ladder` at c2bece2 passed
-624 unit and 67 e2e tests, and the first load on `/` is 58.22 KB of 60. No task reads `running`, no worktree is left
-(all merged branches remain), and no process is running.
+T-0005, the Docker setup, landed on 2026-10-25 (304f5b6): the app image, and compose.yaml with Caddy serving HTTPS
+only. The person asked to run it themselves on this machine first: `deploy/README.md` holds the steps
+(https://localhost; http on 8080, since Apache in WSL holds port 80; the confirm link in `docker compose logs app`).
+Main is green: `bonsai ladder` at 304f5b6 passed 624 unit and 67 e2e tests; the first load on `/` is 58.22 KB of
+60. No task reads `running`. The worktree ../LinkSink-t0005 is kept until the person has run it. No process or
+container of the agents' is running.
 
 **Built and waiting for the person's test at the end** (they said "i will test everything in the end"; each reads
 `verify`, or `done` for light tasks):
@@ -28,6 +31,7 @@ The session wrapped up cleanly on 2026-10-25 at the person's word. Main is green
 | T-0019 | import preview with folder mapping | 153c7d5 |
 | T-0009 | search as you type, filters, sort, keys, palette | c2bece2 |
 | T-0016 | the director-lane options (OPT-0003 decided) | — |
+| T-0005 | the Docker setup: app image, compose with Caddy (HTTPS only), run here at https://localhost | 304f5b6 |
 
 Already done: T-0015 (BUG-001, BUG-002) and T-0017 (a paste on a tag or project page joins it).
 
@@ -53,16 +57,13 @@ is `<scratchpad>/playwright.lock`, used with flock. Each agent works in its own 
 
 1. **The person tests everything,** then closes each `verify` task or files notes. Triage the notes into bugs and
    tasks (workflow:brief).
-2. **T-0005, deploy** (Docker Compose, ADR-0004). It waits for the person's VPS facts (Open questions). The parts
-   that need no VPS (Dockerfile, compose, Caddy, backups, CI) can be built once Docker works in WSL: the person turns
-   on Docker Desktop → Settings → Resources → WSL Integration. T-0005 carries:
-   - BODY_SIZE_LIMIT=Infinity (the hooks hold every route at 512 KB, and the import reads at most 20 MB);
-   - ORIGIN at build time (a build without it breaks /api/auth: the runner hit this);
-   - the rate-limit client IP behind Caddy (Better Auth `advanced.ipAddress`);
-   - FTS5 keyed on rowid vs `VACUUM INTO`;
-   - building in CI;
-   - the drizzle-kit audit findings;
-   - HTTPS only.
+2. **T-0020, backups, the VPS deploy and CI** (todo). It waits for the person's VPS facts (Open questions). It
+   carries: Litestream and restic as compose services; FTS5 keyed on rowid vs `VACUUM INTO`; building in CI and the
+   ladder there; the drizzle-kit audit (dev only, not in the image); a server's .env (Resend, LINKSINK_LISTEN empty,
+   port 80), never deploy/env.example as it is; the client address Caddy sees on the VPS; images pinned by digest.
+   Its Notes list them all. Also **T-0021** (light, todo): the fetch queue stops on SIGTERM, so `docker compose stop`
+   mid-fetch exits 0 (today Docker kills it after 10 s; nothing is lost). And two small README follow-ups in T-0005's
+   run report (the trusted local root has no name constraints; the root's name carries its year).
 3. **T-0010, sync and offline** (ADR-0001), then T-0011 (PWA and phone capture), then T-0013 (measure at scale).
    These are steps 8, 9 and 11 of the approved plan P-T-0002.
 4. **Proposed follow-ups,** not yet tasks; the details are in the run reports.
@@ -84,7 +85,7 @@ is `<scratchpad>/playwright.lock`, used with flock. Each agent works in its own 
 
 ## Open questions
 
-- **Before T-0005 (deploy), from the person:**
+- **Before T-0020 (deploy), from the person:**
   - the VPS provider, OS and RAM;
   - a domain or subdomain pointing at it;
   - SSH access;
@@ -98,6 +99,9 @@ is `<scratchpad>/playwright.lock`, used with flock. Each agent works in its own 
 
 ## Decided lately
 
+- 2026-10-25 T-0005 settles ADR-0004's open question: the origin is set at run time. The image carries none
+  (adapter-node derives https://<Host> behind Caddy), so one image serves any host. Backups, the VPS and CI are
+  T-0020 (the person: run it here first).
 - 2026-10-25 ADR-0005: rows are two lines with a fixed status/priority cell (f3), status and priority are radio lists
   (c3), and the Fable redesign of the details, frame and phone is taken whole. It amends ADR-0003.
 - 2026-10-25 import gets a preview with per-folder mapping (the person: "a screen which allows for mapping and
