@@ -11,14 +11,14 @@ The defects someone has seen or proven and nobody has fixed yet. How to add or f
 
 | Id | What goes wrong | Where | Found by |
 |---|---|---|---|
-| **BUG-003** | With many projects (an import of 342 Firefox bookmarks), the sidebar's project list runs past the screen and pushes Settings and the controls below it out of view; the list does not scroll on its own | the desktop sidebar, src/lib/ui/Shell.svelte | the person, 2026-10-25, in Docker (T-0022) |
-| **BUG-004** | After an import, the open page never shows the details fetched for the imported links (titles, icons, previews) until a full reload, and nothing says that fetching is under way. The fetch itself works: 342 links in about 7 min, 189 with details, 153 failed on dead or refusing sites (48 answered 404, 44 answered 403, 26 domains gone, 15 timed out) | the client store: `store.refresh()` runs only on a full page load (Shell.svelte onMount); src/lib/store/api.ts polls details only for a pasted link, for 10 s | the person, 2026-10-25; cause by the orchestrator from the app's log and database (T-0023) |
-| **BUG-005** | The browser tab shows Svelte's default logo, not LinkSink's mark | src/lib/assets/favicon.svg (the template's), src/routes/+layout.svelte | the person, 2026-10-25 (T-0028) |
 
 ## Fixed
 
 | Id | What went wrong | Fixed in | Task |
 |---|---|---|---|
+| **BUG-003** | With many projects the sidebar's project list ran past the screen and pushed Settings out of view | e2c5e7b: the list scrolls in its own area; Settings and Log out stay fixed (e51a96e) | T-0022 |
+| **BUG-004** | After an import the open page never showed the details fetched later, and nothing said fetching was under way | 8ecee76: rows fill in as details arrive, with a "Fetching details: N left" line (e51a96e) | T-0023 |
+| **BUG-005** | The browser tab showed Svelte's default logo | 437f890: LinkSink's mark as the SVG, 32 px and apple-touch icons on every page (e51a96e) | T-0028 |
 | **BUG-001** | In a link's details, "Add to project" opened the tag picker, and a project could not be made from there | 90334de: the picker opens on tags only or projects only ("Add to project" makes a project from a new name) | T-0015 |
 | **BUG-002** | A list did not follow the store: a link stayed on a tag's page (and on a project's page and Unsorted) after a change took it out | 90334de: every list keeps only the links that fit its view; the open link stays reachable until its panel closes | T-0015 |
 

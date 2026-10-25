@@ -6,7 +6,7 @@ role: builder
 model: sonnet
 started: 2026-10-25 14:10
 finished: 2026-10-25 15:05
-outcome: verify
+outcome: merged
 commits: ["bc9e11f", "829fd2f", "8ecee76"]
 labels: {}
 ---
@@ -75,3 +75,16 @@ The person may change the list of sorts when they look. The board view (T-0026) 
 ## Verifier
 
 > Added by the verifier, in a fresh context. Pass or fail, with reasons.
+
+## Landing (orchestrator, 2026-10-25 16:30 UTC)
+
+- **Round:** this task landed with six others in one combined round (the person: "only run one verifier for all
+  combined"): T-0029, T-0022, T-0027, T-0028, T-0023, T-0025, T-0030, merged into combined-2026-10-25 and from there
+  no-ff into main as e51a96e.
+- **Verifier (one, four lenses):** FAIL M-2026-10-25-6a8d2866 at 6d4b3f6, 2 blocking, both held (deploy/SERVER.md's
+  update wording and its deploy-user steps; README's update wording); 0 did not hold. Fix rounds:
+  M-2026-10-25-824f9f4e (builder@T-0029, 4efcff0), README 7fd78c1 and make-icons.mjs 19ec036 (orchestrator). Re-check
+  PASS M-2026-10-25-6aa15134 at 8b74890.
+- **Ladder:** `bonsai ladder --task` for each of the seven at 8b74890, clean, under the shared Playwright lock: rungs
+  0-5 green, unit 645, e2e 80, first load on / 58.53 KB of 60. GitHub Actions on the branch: run 40209525137, green.
+- **My read of the diff:** each branch's diff against its task before combining; the merge was clean.

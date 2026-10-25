@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0030
 title: A README for the project, with how to host it, and the GitHub repository's description and topics
-status: running
+status: done
 lane: light
 done_when:
   - "README.md at the top says what LinkSink is, what works today and what does not yet, with screenshots; how to run it for development; how to run it with Docker on one machine and host it on a server or another Docker machine (pointing to deploy/README.md and deploy/SERVER.md); its settings; how to update; and where the plans live. Each command in it matches the files it names"
@@ -12,7 +12,7 @@ depends_on: []
 blocked_by: null
 created: 2026-10-25
 started: 2026-10-25
-finished: null
+finished: 2026-10-25
 labels:
   bonsai.branch: t0030-readme
   bonsai.ladder: []

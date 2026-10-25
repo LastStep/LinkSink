@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0027
 title: A project can be renamed from its own page, as well as from the Projects page
-status: running
+status: done
 lane: light
 done_when:
   - "On a project's page its name can be edited in place (click or a Rename action, Enter saves, Escape cancels); the sidebar, the lists and the address follow at once"
@@ -13,7 +13,7 @@ depends_on: []
 blocked_by: null
 created: 2026-10-25
 started: 2026-10-25
-finished: null
+finished: 2026-10-25
 labels:
   bonsai.branch: t0022-sidebar-rename-icon
   bonsai.ladder: []

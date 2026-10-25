@@ -5,8 +5,8 @@ task: T-0022
 role: builder
 model: sonnet
 started: 2026-10-25 19:30
-finished: 2026-10-25 20:30
-outcome: needs-verifier
+finished: 2026-10-25 15:00
+outcome: merged
 commits: ["e2c5e7b", "739ce31", "437f890"]
 labels: {}
 ---
@@ -59,3 +59,16 @@ none (checked with `ps -eo pid,etime,cmd`; my e2e servers on 4920/4921 are gone)
 ## What is next
 
 The one verifier for the round checks this with T-0027 and T-0028.
+
+## Landing (orchestrator, 2026-10-25 16:30 UTC)
+
+- **Round:** this task landed with six others in one combined round (the person: "only run one verifier for all
+  combined"): T-0029, T-0022, T-0027, T-0028, T-0023, T-0025, T-0030, merged into combined-2026-10-25 and from there
+  no-ff into main as e51a96e.
+- **Verifier (one, four lenses):** FAIL M-2026-10-25-6a8d2866 at 6d4b3f6, 2 blocking, both held (deploy/SERVER.md's
+  update wording and its deploy-user steps; README's update wording); 0 did not hold. Fix rounds:
+  M-2026-10-25-824f9f4e (builder@T-0029, 4efcff0), README 7fd78c1 and make-icons.mjs 19ec036 (orchestrator). Re-check
+  PASS M-2026-10-25-6aa15134 at 8b74890.
+- **Ladder:** `bonsai ladder --task` for each of the seven at 8b74890, clean, under the shared Playwright lock: rungs
+  0-5 green, unit 645, e2e 80, first load on / 58.53 KB of 60. GitHub Actions on the branch: run 40209525137, green.
+- **My read of the diff:** each branch's diff against its task before combining; the merge was clean.

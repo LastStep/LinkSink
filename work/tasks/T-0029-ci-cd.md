@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0029
 title: CI/CD on GitHub — the ladder and bonsai check on every push, the image published to GHCR, a deploy over SSH, and steps for running LinkSink on another Docker machine
-status: running
+status: verify
 lane: full
 done_when:
   - "On every push and pull request, GitHub Actions runs the ladder's rungs 1 to 5 (types, lint, unit, e2e in Chromium, build and size) and `bonsai check` (base:ci); any failure fails the run. Shown by a green run on the task's branch, and a red run on a throwaway branch with one unit test broken (that branch deleted afterwards)"

@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0022
 title: The sidebar's project list scrolls on its own; Settings and everything below it stay in place
-status: running
+status: done
 lane: light
 done_when:
   - "With 300 projects the desktop sidebar fits the window: the project list scrolls inside its own area, and Settings and every control below it stay visible and fixed at the bottom (e2e at 1440x900 and 1280x720)"
@@ -13,7 +13,7 @@ depends_on: []
 blocked_by: null
 created: 2026-10-25
 started: 2026-10-25
-finished: null
+finished: 2026-10-25
 labels:
   bonsai.branch: t0022-sidebar-rename-icon
   bonsai.ladder: []

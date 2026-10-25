@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0025
 title: A sort control beside the filters, sorting by status and priority as well as dates and title
-status: running
+status: done
 lane: light
 done_when:
   - "A sort control sits beside the filter button on every list screen (desktop and phone), showing the current sort, and changes the order at once"
@@ -14,7 +14,7 @@ depends_on: []
 blocked_by: null
 created: 2026-10-25
 started: 2026-10-25
-finished: null
+finished: 2026-10-25
 labels:
   bonsai.branch: t0023-details-and-sort
   bonsai.ladder: []

@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0028
 title: LinkSink's mark is the app's icon everywhere — the browser tab, bookmarks and a phone's home screen
-status: running
+status: done
 lane: light
 done_when:
   - "The browser tab shows LinkSink's mark (the one top left, src/lib/ui/Mark.svelte), legible in light and dark browser themes; Svelte's logo is gone from the app"
@@ -13,7 +13,7 @@ depends_on: []
 blocked_by: null
 created: 2026-10-25
 started: 2026-10-25
-finished: null
+finished: 2026-10-25
 labels:
   bonsai.branch: t0022-sidebar-rename-icon
   bonsai.ladder: []

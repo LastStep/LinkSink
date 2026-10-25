@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0023
 title: Details fetched after an import show up on the open page, with a line saying how many are still being fetched
-status: running
+status: done
 lane: light
 done_when:
   - "After an import, while the server fetches page details, the open list fills in each link's title, icon and preview as it arrives, with no reload (e2e on the fixture site)"
@@ -14,7 +14,7 @@ depends_on: []
 blocked_by: null
 created: 2026-10-25
 started: 2026-10-25
-finished: null
+finished: 2026-10-25
 labels:
   bonsai.branch: t0023-details-and-sort
   bonsai.ladder: []
