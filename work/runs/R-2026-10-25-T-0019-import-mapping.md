@@ -5,9 +5,9 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: 2026-10-25 07:31
+finished: 2026-10-25 07:41
 outcome: needs-verifier
-commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8"]
+commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120"]
 labels: {}
 ---
 
@@ -125,7 +125,7 @@ The e2e servers were started by Playwright and stopped with each run; checked wi
 
 ## What it cost
 
-About 30 minutes of wall clock (07:17 to about 07:50), the merges included. Spend: not known; the hours are in
+About 25 minutes of wall clock to the final climb (07:17 to 07:41), the merges included. Spend: not known; the hours are in
 `.bonsai/sessions.md`.
 
 ## Left for next time
