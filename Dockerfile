@@ -6,8 +6,9 @@
 # Host header (protocol https), and compose passes ORIGIN at run time for Better Auth, so one image serves any host
 # name behind Caddy.
 
-# Node 22 on Debian slim (glibc): better-sqlite3, sharp and @node-rs/argon2 ship prebuilt binaries for it.
-ARG NODE_IMAGE=node:22.23.4-trixie-slim
+# Node 22 on Debian slim (glibc): better-sqlite3, sharp and @node-rs/argon2 ship prebuilt binaries for it. Pinned by
+# its digest (the multi-platform index), so CI and every machine build on the same base; the tag is for people.
+ARG NODE_IMAGE=node:22.23.4-trixie-slim@sha256:8eb619e402eaede1748a3c8173bffab391592812e85136452f781741c7242ddf
 
 # Compilers for a native module with no prebuilt binary for the platform (better-sqlite3 then builds from source).
 FROM ${NODE_IMAGE} AS toolchain
