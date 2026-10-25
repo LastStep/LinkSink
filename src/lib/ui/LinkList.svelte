@@ -613,6 +613,7 @@
 			<button
 				class="btn filter-btn"
 				type="button"
+				aria-label="Filters"
 				aria-haspopup="dialog"
 				aria-expanded={panelOpen}
 				class:on={filterCount(filters) > 0 || filters.sort !== 'saved'}
@@ -1370,7 +1371,16 @@
 		.search {
 			flex: 1;
 			width: auto;
+			min-width: 0;
 			height: 38px;
+		}
+		/* on a phone the button is its icon and its count; its name stays "Filters" */
+		.filter-btn {
+			flex: none;
+			height: 38px;
+		}
+		.fb-word {
+			display: none;
 		}
 		.row,
 		.selecting .row {

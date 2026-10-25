@@ -218,19 +218,18 @@
 
 				<fieldset class="group">
 					<legend>Media</legend>
-					<div class="scroll">
-						{#each MEDIA as m (m)}
-							<label class="opt">
-								<input
-									type="checkbox"
-									checked={filters.media.includes(m as Media)}
-									onchange={() => toggle('media', m)}
-								/>
-								<span class="box" aria-hidden="true"><Icon name="check" size={12} /></span>
-								<span class="name">{MEDIA_LABEL[m]}</span>
-							</label>
-						{/each}
-					</div>
+
+					{#each MEDIA as m (m)}
+						<label class="opt">
+							<input
+								type="checkbox"
+								checked={filters.media.includes(m as Media)}
+								onchange={() => toggle('media', m)}
+							/>
+							<span class="box" aria-hidden="true"><Icon name="check" size={12} /></span>
+							<span class="name">{MEDIA_LABEL[m]}</span>
+						</label>
+					{/each}
 				</fieldset>
 
 				<fieldset class="group">
