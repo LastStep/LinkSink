@@ -173,3 +173,28 @@ Playwright runs and the ladder ran under the shared flock (`scratchpad/playwrigh
 ## Verifier
 
 > Added by the verifier, in a fresh context. Pass or fail, with reasons.
+
+## Landing (orchestrator, 2026-10-25 10:24 UTC)
+
+- **Briefs:**
+  - M-2026-10-25-342d8204 (the build);
+  - fix round M-2026-10-25-76c4ef9e;
+  - lint after merge M-2026-10-25-7d821957.
+  - Reports: M-2026-10-25-84e4385a, M-2026-10-25-0d506440 and M-2026-10-25-76f9f80d.
+- **Security:** PASS M-2026-10-25-97c4921a at bf5a9fb.
+- **Tests:** PASS M-2026-10-25-b55a521d at bf5a9fb.
+- **QA:**
+  - FAIL M-2026-10-25-3447f5c0 at bf5a9fb (held: the "/" hint click; the focus-within rule hides it before the click).
+  - PASS M-2026-10-25-0a1fc2ab at c9b8303.
+- **Blocking findings:** 1 held, 0 did not hold.
+- **The orchestrator's read:**
+  - the fix round's test changes, including the t0018 empty-Unsorted e2e: it now reads every page, with the assertion unchanged;
+  - the merge of main (c52b2f6, clean);
+  - the two spread-to-loop lint fixes.
+- **Merged:** no-ff into main as c2bece2, after T-0012 and T-0019. `bonsai ladder --task T-0009` on main at c2bece2 (clean, under the shared Playwright lock): rungs 0-5 green, unit 624, e2e 67. First load: / 58.22 KB, /login 49.34, /signup 49.4 (limit 60).
+- **Status:** T-0009 → verify. The person tests it at the end.
+- **Carried and proposed:**
+  - retire toFtsQuery;
+  - an index for sorting by edited, if T-0013 finds it slow;
+  - pushState for filter history (Back currently skips earlier filters);
+  - the budget is tight: the next list feature loads lazily.
