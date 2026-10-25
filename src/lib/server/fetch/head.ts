@@ -64,6 +64,7 @@ function decodeWindows1252(body: Buffer): string {
 	let out = '';
 	for (let i = 0; i < body.length; i += 8192) {
 		const chunk = body.subarray(i, i + 8192);
+		// eslint-disable-next-line no-restricted-syntax -- bounded: each chunk is at most 8,192 bytes (the loop above)
 		out += String.fromCharCode(...chunk.map((b) => b)).replace(/[\x80-\x9f]/g, (c) =>
 			CP1252.charAt(c.charCodeAt(0) - 0x80)
 		);

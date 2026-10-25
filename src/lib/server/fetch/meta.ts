@@ -44,6 +44,11 @@ function clean(value: unknown, max = TITLE_MAX): string | null {
 }
 
 function first<T>(...values: (T | null | undefined)[]): T | null {
+	return firstOf(values);
+}
+
+/** The first value that is not null, from an array of any length (a fetched page's JSON-LD can hold any number). */
+function firstOf<T>(values: readonly (T | null | undefined)[]): T | null {
 	for (const v of values) if (v !== null && v !== undefined) return v;
 	return null;
 }
@@ -108,14 +113,26 @@ function mainLd(objects: Record<string, unknown>[]): Record<string, unknown> | n
 
 function ldName(value: unknown): string | null {
 	if (typeof value === 'string') return clean(value);
-	if (Array.isArray(value)) return first(...value.map(ldName));
+	if (Array.isArray(value)) {
+		for (const v of value) {
+			const name = ldName(v);
+			if (name !== null) return name;
+		}
+		return null;
+	}
 	if (value && typeof value === 'object') return clean((value as Record<string, unknown>).name);
 	return null;
 }
 
 function ldUrl(value: unknown): string | null {
 	if (typeof value === 'string') return value;
-	if (Array.isArray(value)) return first(...value.map(ldUrl));
+	if (Array.isArray(value)) {
+		for (const v of value) {
+			const url = ldUrl(v);
+			if (url !== null) return url;
+		}
+		return null;
+	}
 	if (value && typeof value === 'object') {
 		const v = value as Record<string, unknown>;
 		return ldUrl(v.url ?? v.contentUrl);
@@ -126,8 +143,12 @@ function ldUrl(value: unknown): string | null {
 function sizeOf(sizes: string | null): number | null {
 	if (!sizes) return null;
 	if (/any/i.test(sizes)) return Infinity;
-	const all = [...sizes.matchAll(/(\d+)x(\d+)/gi)].map((m) => Number(m[1]));
-	return all.length ? Math.max(...all) : null;
+	let largest: number | null = null;
+	for (const m of sizes.matchAll(/(\d+)x(\d+)/gi)) {
+		const size = Number(m[1]);
+		if (largest === null || size > largest) largest = size;
+	}
+	return largest;
 }
 
 /** The icon closest to 64 px: the smallest of 64 px or more, else SVG, else apple-touch, else the largest, else /favicon.ico. */

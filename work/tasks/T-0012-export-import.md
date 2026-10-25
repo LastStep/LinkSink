@@ -2,14 +2,14 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0012
 title: Export (bookmark HTML and full JSON) and import (bookmark HTML and Pocket CSV)
-status: running
+status: verify
 lane: full
 done_when:
   - "GET /api/export.html returns a Netscape bookmark file of the signed-in user's live links: one folder per project (a link in several projects appears in each), links in no project at the top level, TAGS, ADD_DATE, LAST_MODIFIED, notes as <DD>; Firefox and Chromium import it (e2e imports it into a fresh account round trip)"
   - "GET /api/export.json returns {\"format\":\"linksink.export/1\"} with every link and all its fields, sources, tags and projects, archived links included, deleted ones not; another user's data never appears (API test with two users)"
   - "Import accepts a Netscape HTML file (browsers, Raindrop, Pinboard, linkding fixtures) and a Pocket CSV: folders become projects (nested names joined with \" / \"), TAGS become tags, ADD_DATE becomes created_at, <DD> becomes notes, Pocket's read state becomes status done, saved_via = 'import' (unit table per fixture)"
   - "Duplicates (by url_key, against saved links and within the file) are skipped; writes go through syncWrite in batches of 500; a 5,000-link file imports in under 10 s on this machine (test with timing)"
-  - "The import answers with a summary (added, skipped as duplicates, failed to parse, with the first failing lines) and the page shows it; metadata, source and media are then fetched in the background at concurrency 2 through enqueueFetch, never more than 2 at once (unit)"
+  - "The import answers with a summary (added, skipped as duplicates, failed to parse, with the first failing lines) and the page shows it; metadata, source and media are then fetched in the background through the fetch queue (fed from the database by the feeder after T-0012 round 2), never more than 2 at once (unit)"
   - "Malformed, oversized (over 20 MB) or non-bookmark files are refused with a clear message and nothing written; HTML in titles and notes is stored as text and never rendered as markup (unit + e2e)"
   - "Settings has an Export section (two download buttons) and an Import section (file picker, format detected, summary), at 390 and 1440, light and dark"
   - "The ladder climbs green at the branch's HEAD, first-load JS on / within 60 KB gzipped (Settings' import code loads on that page only)"

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { store, StoreError, type SourceJson } from '#lib/store/index.ts';
 	import Icon from '#lib/ui/Icon.svelte';
+	import ImportExport from './ImportExport.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -62,6 +63,8 @@
 			<p class="muted">Sources appear here once a saved link’s details are read.</p>
 		{/if}
 	</section>
+
+	<ImportExport />
 
 	<section class="card section" aria-labelledby="account-h">
 		<h2 id="account-h">Account</h2>

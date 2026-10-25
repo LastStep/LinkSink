@@ -1,0 +1,9 @@
+title,url,time_added,tags,status
+Example Domain,https://example.com/pocket-1,1600000000,,unread
+"Quoted, with a comma",https://example.com/pocket-2,1600000100,reading|later,archive
+"A ""quoted"" title
+over two lines",https://example.com/pocket-3,1600000200,later,unread
+,https://example.com/pocket-4?utm_medium=email,1600000300,,archive
+Not a link,ftp://example.com/file,1600000400,,unread
+No address,,1600000500,,unread
+Duplicate of the first,http://www.example.com/pocket-1/,1600000600,dupe,archive

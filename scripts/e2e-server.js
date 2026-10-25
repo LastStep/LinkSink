@@ -26,6 +26,9 @@ Object.assign(process.env, {
 	MAIL_OUTBOX: resolve(dir, 'outbox.jsonl'),
 	BETTER_AUTH_SECRET: 'e2e-only-secret-not-used-anywhere-else-0123456789',
 	MAIL_TRANSPORT: 'console',
+	// No server-wide body limit (T-0012): /api/import reads at most 20 MB and answers 413 with a message, and
+	// hooks.server.ts holds every other route to 512 KB, chunked bodies included.
+	BODY_SIZE_LIMIT: 'Infinity',
 	RESEND_API_KEY: '',
 	// The fetch guard's one exception, for the fixture site above; refused at startup without MAIL_TRANSPORT=console.
 	TEST_ONLY_FETCH_ALLOW: `127.0.0.1:${fixturePort}`
