@@ -101,13 +101,13 @@ jobs:
           "$RUNNER_TEMP/bonsai" ladder --ci --json > "$RUNNER_TEMP/climb.json"
           status=$?
           set -e
-          jq -r '"green: \(.ladder.green)", (.ladder.rungs[] | "rung \(.rung) \(.name): \(.status)\(if .reason then "\n" + .reason else "" end)"), (if .next then "next: \(.next | tostring)" else empty end)' "$RUNNER_TEMP/climb.json" || cat "$RUNNER_TEMP/climb.json"
+          jq -r '"green: \(.ladder.green)", (.ladder.rungs[] | "rung \(.rung) \(.name): \(.status)\(if .tests then " (\(.tests.seen) tests)" else "" end)\(if .reason then "\n" + .reason else "" end)"), (if .next then "next: \(.next | tostring)" else empty end)' "$RUNNER_TEMP/climb.json" || cat "$RUNNER_TEMP/climb.json"
           {
             echo "### Ladder: green $(jq -r .ladder.green "$RUNNER_TEMP/climb.json")"
             echo
-            echo "| Rung | Check | Result | Seconds |"
-            echo "| --- | --- | --- | --- |"
-            jq -r '.ladder.rungs[] | "| \(.rung) | \(.name) | \(.status) | \(if .duration_ms then (.duration_ms / 1000 | floor) else "" end) |"' "$RUNNER_TEMP/climb.json"
+            echo "| Rung | Check | Result | Tests | Seconds |"
+            echo "| --- | --- | --- | --- | --- |"
+            jq -r '.ladder.rungs[] | "| \(.rung) | \(.name) | \(.status) | \(.tests.seen // "") | \(if .duration_ms then (.duration_ms / 1000 | floor) else "" end) |"' "$RUNNER_TEMP/climb.json"
           } >> "$GITHUB_STEP_SUMMARY" || true
           exit "$status"
 
@@ -185,6 +185,8 @@ jobs:
             echo "LINKSINK_AUTH_SECRET=$(openssl rand -base64 32)"
             echo "LINKSINK_MAIL_TRANSPORT=console"
           } > .env
+          # Caddy from Docker Hub, by the digest compose.yaml pins; the app is the image just built, never pulled.
+          docker compose pull caddy
           docker compose up -d --no-build --pull never --wait --wait-timeout 180
           docker compose ps
 
