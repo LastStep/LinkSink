@@ -5,9 +5,9 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: 2026-10-25 09:16
+finished: 2026-10-25 09:41
 outcome: needs-verifier
-commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a", "523a3f3", "a320577"]
+commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a", "523a3f3", "a320577", "9067a28", "08e2851"]
 labels: {}
 ---
 
@@ -132,6 +132,20 @@ The next merge of T-0012 waits for the orchestrator's word.
   spreads are array literals (`[...new Set(...)]`), not call arguments.
 - The person's new rule: Playwright runs one at a time across agents. This round's climb ran under
   `flock …/scratchpad/playwright.lock`.
+
+- 9067a28 climbed green under the lock (495 unit, 59 e2e). Then the orchestrator moved the merge to T-0012's fix
+  round 4 (4fcd938), on top.
+- 08e2851 Merge of 4fcd938. One conflict, netscape.ts's import lines: T-0012's limits and T-0019's `ImportFolder`
+  both kept. The folder path uses T-0012's cut heading name. mapping.ts now cuts a name's raw text to
+  NAME_RAW_MAX before NFKC (as T-0012's writer does), takes NAME_MAX from limits.ts, and refuses a mapping name
+  longer than NAME_RAW_MAX before normalising it. The preview goes through `parseImport`, so T-0012's field cuts
+  and 100,000-link cap apply to it.
+- New tests: the preview refuses 100,001 links (400, nothing written); a 1 MB folder heading previews in under 2 s
+  with its name cut to 64; a default name of U+FDFA characters stays within 64; a mapping name of 100,000 U+FDFA is
+  refused with nothing written. That last test also passes with the raw-length check switched off (options are
+  capped at 512 KB, so normalising first is quick too): it proves the refusal, not which check made it. The
+  check stays as a bound before NFKC.
+- T-0012's test files are unchanged from 4fcd938 except the round-2 selector change. Server unit tests: 441 passed.
 
 ## Done when, and what proves it
 
