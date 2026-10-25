@@ -34,7 +34,7 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
      done; ladder green on main at 1b0add0 (367 unit, 38 e2e, 52.04 KB).
 2. T-0005 (deploy) is a Docker Compose setup (ADR-0004, the person's word) and waits for the person's VPS facts
    (Open questions); HTTPS only (Caddy redirect, HSTS, secure
-   cookies), the person's word. T-0005 also carries: rate-limit client IP behind Caddy (Better Auth
+   cookies), the person's word. T-0005 also carries: BODY_SIZE_LIMIT=21M for imports (T-0012); rate-limit client IP behind Caddy (Better Auth
    `advanced.ipAddress`; a direct caller can set x-forwarded-for), FTS5 rowid vs `VACUUM INTO`, building in CI with
    ORIGIN set (`kit.paths.origin` is build-time), drizzle-kit audit findings (moderate, dev only).
 3. Chromium for browser tests: `~/.cache/ms-playwright/chromium-1223`. Geist font is named in the tokens but not
