@@ -1,9 +1,14 @@
 # LinkSink on Docker Compose (T-0005, ADR-0004): the app, and Caddy in front of it serving HTTPS only.
-# Every setting comes from the .env beside this file; deploy/env.example lists each one. How to run it: deploy/README.md.
+# Every setting comes from the .env beside this file; deploy/env.example lists each one. How to run it: deploy/README.md
+# (this machine, built from the source) and deploy/SERVER.md (another machine: the published image, no source).
 name: linksink
 
 services:
   app:
+    # The image CI publishes (T-0029). LINKSINK_IMAGE names another: a version (ghcr.io/laststep/linksink:1.2.0), a
+    # commit (:sha-1a2b3c4), a digest (@sha256:...) or a fork's image. `docker compose up -d --build` builds it from
+    # the source here under the same name; `docker compose pull` fetches it, and with no source here, `up` pulls it.
+    image: ${LINKSINK_IMAGE:-ghcr.io/laststep/linksink:latest}
     build: .
     init: true
     restart: unless-stopped
@@ -36,7 +41,8 @@ services:
       start_interval: 1s
 
   caddy:
-    image: caddy:2.11.7-alpine
+    # Pinned by its digest (the multi-platform index), so every machine runs the same Caddy; the tag is for people.
+    image: caddy:2.11.7-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
     restart: unless-stopped
     depends_on:
       app:
