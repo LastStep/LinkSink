@@ -7,11 +7,10 @@ import type { DB } from '../db/open.ts';
 import { cleanUrl, normalise } from '../../url.ts';
 import { links, projects } from '../db/schema.ts';
 import { BadPatchError } from '../links.ts';
+import { cut, NAME_MAX, NAME_RAW_MAX } from './limits.ts';
 import { displayName, tagName } from '../organise.ts';
 import { ImportRefused, type ImportFailure, type ImportItem, type ParsedFile } from './types.ts';
 import { IMPORT_BATCH, uniqueItems } from './write.ts';
-
-const NAME_MAX = 64;
 
 /** What one folder becomes. */
 export type FolderChoice =
@@ -89,8 +88,9 @@ function containers(folder: NonNullable<ImportItem['folder']>): boolean[] {
 }
 
 /** A name cut to what the app stores: NFKC, trimmed, inner spaces collapsed, at most 64 characters. */
+// The raw text is cut before NFKC, as the writer does (T-0012 round 4): NFKC can make one character 18.
 const fitName = (s: string) =>
-	s.normalize('NFKC').trim().replace(/\s+/g, ' ').slice(0, NAME_MAX).trim();
+	cut(s, NAME_RAW_MAX).normalize('NFKC').trim().replace(/\s+/g, ' ').slice(0, NAME_MAX).trim();
 
 /**
  * The choice a folder starts on: none for the browser's own top folders; the existing project whose name matches
@@ -193,6 +193,10 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 /** A name as the app checks it, or a refusal naming the folder. */
 function checkedName(value: unknown, check: (s: unknown) => string, folder: string[]): string {
+	// A name sent far longer than any the app keeps is refused before it is normalised (NFKC can grow it 18 times).
+	if (typeof value === 'string' && value.length > NAME_RAW_MAX) {
+		throw refuse(`A name is at most ${NAME_MAX} characters (the folder ${folder.join(' › ')})`);
+	}
 	try {
 		return check(value);
 	} catch (error) {

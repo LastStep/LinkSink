@@ -24,13 +24,14 @@ export function csvHeader(line: string): string[] {
 
 /**
  * The format of a file from its start (the first 64 KB is plenty): a Netscape bookmark file (its DOCTYPE, or a
- * `<DT><A HREF` list as some tools write without one), or a CSV whose header has a `url` column (Pocket's export:
+ * `<DT><A HREF` list as some tools write without one; the attributes before HREF are read for at most 2 KB, so
+ * no backtracking grows with the text), or a CSV whose header has a `url` column (Pocket's export:
  * title,url,time_added,tags,status). Null for anything else.
  */
 export function sniffFormat(head: string): ImportFormat | null {
 	const text = head.replace(/^\uFEFF/, '').trimStart();
 	if (/^<!DOCTYPE\s+NETSCAPE-Bookmark-file/i.test(text)) return 'netscape';
-	if (text.startsWith('<') && /<dt>\s*<a\s[^>]*href\s*=/i.test(text)) return 'netscape';
+	if (text.startsWith('<') && /<dt>\s*<a\s[^>]{0,2048}href\s*=/i.test(text)) return 'netscape';
 	if (text.startsWith('<')) return null;
 	const first = text.split(/\r?\n/, 1)[0];
 	return csvHeader(first).includes('url') ? 'pocket-csv' : null;

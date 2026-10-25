@@ -10,15 +10,20 @@
 // A browser's own top-level containers (the bookmarks bar, Firefox's Other Bookmarks) are where everything lives,
 // not folders the person made, so they do not become projects; the folders inside them do.
 import { Tokenizer } from 'htmlparser2';
-import { fileTime, type ImportFailure, type ImportFolder, type ImportItem } from './types.ts';
+import { append, ATTRIBUTE_MAX, cut, FIELD_MAX, IMPORT_LINKS_MAX, NAME_MAX } from './limits.ts';
+import {
+	fileTime,
+	ImportRefused,
+	type ImportFailure,
+	type ImportFolder,
+	type ImportItem
+} from './types.ts';
 
 const LINKDING_ARCHIVED = 'linkding:bookmarks.archived';
 /** Folders deeper than this fold into the path of the folder at this depth. */
 export const FOLDER_DEPTH_MAX = 32;
 /** A folder's name is cut to the longest project name before it joins a path. */
-const FOLDER_NAME_MAX = 64;
-/** How much of a folder heading's text is read at all. */
-const NAME_READ_MAX = 1_000;
+const FOLDER_NAME_MAX = NAME_MAX;
 
 /** Line numbers (1-based) for offsets into `text`. */
 function lineIndex(text: string) {
@@ -38,21 +43,44 @@ function lineIndex(text: string) {
 
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
 
-/** A `<DD>`'s text: linkding's notes markers taken out, the description and the notes kept, a blank line apart. */
-function noteText(raw: string): string | null {
-	const text = raw.replace(/\r\n?/g, '\n').trim();
+const NOTES_OPEN = '[linkding-notes]';
+const NOTES_CLOSE = '[/linkding-notes]';
+
+/**
+ * A `<DD>`'s text, cut to the notes limit first: linkding's notes markers taken out, the description and the notes
+ * kept, a blank line apart. The markers are found with indexOf (a backtracking regex took quadratic time on a note
+ * that repeats the opening marker).
+ */
+export function noteText(raw: string): string | null {
+	const text = cut(raw, FIELD_MAX.notes).replace(/\r\n?/g, '\n').trim();
 	if (!text) return null;
-	const m = /^([\s\S]*?)\[linkding-notes\]([\s\S]*?)\[\/linkding-notes\]\s*$/.exec(text);
-	if (!m) return text;
-	return [m[1].trim(), m[2].trim()].filter(Boolean).join('\n\n') || null;
+	const open = text.indexOf(NOTES_OPEN);
+	const close = text.lastIndexOf(NOTES_CLOSE);
+	if (
+		open === -1 ||
+		close < open + NOTES_OPEN.length ||
+		text.slice(close + NOTES_CLOSE.length).trim()
+	) {
+		return text;
+	}
+	const description = text.slice(0, open).trim();
+	const notes = text.slice(open + NOTES_OPEN.length, close).trim();
+	return [description, notes].filter(Boolean).join('\n\n') || null;
 }
 
+/** A TAGS value's tags: the whole value cut to its limit before it is split. */
 export function splitTags(value: string | undefined): string[] {
 	if (!value) return [];
-	return value
+	return cut(value, FIELD_MAX.tags)
 		.split(',')
 		.map((t) => t.trim())
 		.filter(Boolean);
+}
+
+export function tooManyLinks() {
+	return new ImportRefused(
+		`That file holds more than ${IMPORT_LINKS_MAX.toLocaleString('en')} links; one import takes at most ${IMPORT_LINKS_MAX.toLocaleString('en')}. Split it, and import the parts one after another.`
+	);
 }
 
 /** Every link in a Netscape bookmark file, with its folder path; `<A>`s that are not links become failures. */
@@ -91,7 +119,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 		if (!anchor) return;
 		const { href, attrs, line } = anchor;
 		anchor = null;
-		const url = href?.trim();
+		const url = cut(href, FIELD_MAX.url).trim();
 		if (!url) {
 			failures.push({ line, reason: 'A bookmark with no address.' });
 			return;
@@ -104,7 +132,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 			title: squash(anchorText) || null,
 			tags: tags.filter((t) => t !== LINKDING_ARCHIVED),
 			projects: path ? [path] : [],
-			createdAt: fileTime(attrs.add_date),
+			createdAt: fileTime(cut(attrs.add_date, FIELD_MAX.date)),
 			notes: null,
 			status: null,
 			archived: tags.includes(LINKDING_ARCHIVED),
@@ -112,6 +140,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 		};
 		if (folder) item.folder = folder;
 		items.push(item);
+		if (items.length > IMPORT_LINKS_MAX) throw tooManyLinks();
 		last = item;
 	};
 
@@ -183,10 +212,10 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 	}
 
 	function onText(chunk: string) {
-		if (anchor) anchorText += chunk;
-		else if (heading) {
-			if (heading.name.length < NAME_READ_MAX) heading.name += chunk;
-		} else if (dd) dd.text += chunk;
+		// Each is read only up to its limit, so a field of any length costs no more than that.
+		if (anchor) anchorText = append(anchorText, chunk, FIELD_MAX.title);
+		else if (heading) heading.name = append(heading.name, chunk, FIELD_MAX.folder);
+		else if (dd) dd.text = append(dd.text, chunk, FIELD_MAX.notes);
 	}
 
 	// htmlparser2's Tokenizer reads tags, attributes and entities in one linear pass. Its Parser is not used: it keeps
@@ -210,10 +239,12 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 				attrValue = '';
 			},
 			onattribdata(start, end) {
-				attrValue += text.slice(start, end);
+				if (attrValue.length < ATTRIBUTE_MAX) {
+					attrValue += text.slice(start, Math.min(end, start + ATTRIBUTE_MAX - attrValue.length));
+				}
 			},
 			onattribentity(codepoint) {
-				attrValue += String.fromCodePoint(codepoint);
+				if (attrValue.length < ATTRIBUTE_MAX) attrValue += String.fromCodePoint(codepoint);
 			},
 			onattribend() {
 				if (!Object.hasOwn(attrs, attrName)) attrs[attrName] = attrValue;

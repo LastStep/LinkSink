@@ -673,3 +673,49 @@ describe('with T-0012’s limits', () => {
 		expect(everything()).toEqual(before);
 	});
 });
+
+// T-0012's fix round 4 (4fcd938): every raw field cut before any work on it, and at most 100,000 links per import.
+describe('the preview under T-0012’s field limits and link cap', () => {
+	it('a file of more than 100,000 links is refused by the preview, as by the import', async () => {
+		let csv = 'title,url,time_added,tags,status\n';
+		for (let i = 0; i <= 100_000; i++) csv += `,https://c.example.com/${i},,,\n`;
+		const before = everything();
+		const res = await preview(alice, csv);
+		expect(res.status).toBe(400);
+		expect(res.body.error).toMatch(/more than 100,000 links/);
+		expect(everything()).toEqual(before);
+	}, 60_000);
+
+	it('a folder heading of 1 MB is read only to its limit: the preview is quick and the name is cut to 64', async () => {
+		const name = 'x'.repeat(1024 * 1024);
+		const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>${name}</H3><DL><p><DT><A HREF="https://a.example.com">a</A></DL><p></DL><p>`;
+		const started = performance.now();
+		const { status, body } = await preview(alice, file);
+		expect(performance.now() - started).toBeLessThan(2000);
+		expect(status).toBe(200);
+		expect(body.folders[0].path[0].length).toBeLessThanOrEqual(64);
+		expect(body.folders[0].suggested).toEqual({ kind: 'new', name: 'x'.repeat(64) });
+	});
+
+	it('a mapping’s name of 100,000 U+FDFA (300 KB; NFKC makes each 18 long) is refused quickly, nothing written', async () => {
+		const before = everything();
+		const started = performance.now();
+		const res = await importMapped(
+			alice,
+			{ mapping: { [key('Other bookmarks')]: { kind: 'tag', name: '\uFDFA'.repeat(100_000) } } },
+			fixture('chrome.html')
+		);
+		expect(performance.now() - started).toBeLessThan(2000);
+		expect(res.status).toBe(400);
+		expect(res.body.error).toMatch(/at most 64/);
+		expect(everything()).toEqual(before);
+	});
+
+	it('a default name made of characters NFKC lengthens is cut to 64', () => {
+		const folder = '\uFDFA'.repeat(60);
+		const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>${folder}</H3><DL><p><DT><A HREF="https://a.example.com">a</A></DL><p></DL><p>`;
+		const [f] = foldersOf(parseImport(Buffer.from(file)).items, new Map());
+		expect(f.suggested.kind).toBe('new');
+		expect((f.suggested as { name: string }).name.length).toBeLessThanOrEqual(64);
+	});
+});
