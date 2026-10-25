@@ -71,6 +71,8 @@
 	}
 	@media (max-width: 759px) {
 		.bulkbar {
+			/* above the phone's tab bar */
+			bottom: calc(72px + env(safe-area-inset-bottom));
 			flex-wrap: wrap;
 			padding: 8px;
 			gap: 6px;

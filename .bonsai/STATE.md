@@ -28,7 +28,7 @@ tokens in `design/tokens.css`, and check/lint/unit/e2e/size tooling (36 KB gz fi
    T-0008 read `verify` (the person closes them). T-0014 and T-0015 (BUG-001, BUG-002, at 96062ea) are done.
    - T-0016 (director lane) reads `verify`: the person chose row f3, control c3 and the whole shared redesign
      (OPT-0003 decided, ADR-0005). T-0018 builds it (full lane, status `plan`); its plan `work/plans/P-T-0018.md`
-     was approved by the person (06:43 UTC 10-25); T-0018 approved and running (builder@T-0018). T-0012 (export/import) runs beside it (builder@T-0012), out of T-0018's files. Comparison page: https://claude.ai/artifact/5EHQa6dDUeoLn1jbyTLwf3.
+     was approved by the person (06:43 UTC 10-25); T-0018 (the redesign) landed at 2274706 and reads `verify`; the person tries it and closes it. T-0012 (export/import) was built beside it and is being verified (security + tests). T-0019 (import preview with folder mapping, the person's ask, plan approved) is building on T-0012's branch. Comparison page: https://claude.ai/artifact/5EHQa6dDUeoLn1jbyTLwf3.
      T-0009 (search as you type) follows T-0018 and is not approved yet.
    - T-0017 (a link pasted on a tag's or project's page joins it; a duplicate gets it too) landed at 8ded31c and is
      done; ladder green on main at 1b0add0 (367 unit, 38 e2e, 52.04 KB).

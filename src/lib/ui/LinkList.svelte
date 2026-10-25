@@ -10,6 +10,7 @@
 	import { displayHost } from '#lib/url.ts';
 	import { byDay, plural, timeOf } from './format.ts';
 	import Icon from './Icon.svelte';
+	import StateMark from './StateMark.svelte';
 
 	let {
 		view,
@@ -307,7 +308,7 @@
 	}
 
 	function onwindowkey(event: KeyboardEvent) {
-		if (event.key !== 'Escape' || pickerIds) return;
+		if (event.key !== 'Escape' || pickerIds || event.defaultPrevented) return;
 		if (openId) openId = null;
 		else if (selecting) endSelect();
 	}
@@ -330,6 +331,7 @@
 	<main class="page" data-ready={listening && !$store.loading}>
 		<div class="title-row">
 			<div>
+				<!-- On a phone the top bar names the screen; the heading stays for screen readers. -->
 				<h1>{title}</h1>
 				{#if sub}<p class="sub muted">{sub}</p>{/if}
 			</div>
@@ -375,6 +377,7 @@
 			<form class="search" method="get" role="search">
 				<Icon name="search" />
 				<input name="q" type="search" placeholder="Search" aria-label="Search" value={q} />
+				<kbd class="key" aria-hidden="true">/</kbd>
 			</form>
 			<span class="count muted num">{plural(links.filter((l) => !l.pending).length, 'link')}</span>
 		</div>
@@ -434,13 +437,13 @@
 									}}
 								/>
 							{/if}
-							{#if link.faviconPath}
-								<img class="icon" src="/media/{link.faviconPath}" alt="" width="16" height="16" />
-							{:else}
-								<span class="icon blank" aria-hidden="true"
-									>{displayHost(link.url).charAt(0).toUpperCase()}</span
-								>
-							{/if}
+							<span class="icon-tile" aria-hidden="true">
+								{#if link.faviconPath}
+									<img class="icon" src="/media/{link.faviconPath}" alt="" width="16" height="16" />
+								{:else}
+									<span class="icon blank">{displayHost(link.url).charAt(0).toUpperCase()}</span>
+								{/if}
+							</span>
 							<span class="c-title">
 								<!-- eslint-disable svelte/no-navigation-without-resolve -- a saved link points off-site -->
 								<a
@@ -453,39 +456,52 @@
 									>{link.title || link.url}</a
 								>
 								<!-- eslint-enable svelte/no-navigation-without-resolve -->
-								<span class="sub-line muted">
-									{#each rowProjects as p (p.id)}<span class="dot" style:--c="var(--dot-{p.color})"
-										></span>{/each}
-									{link.pending
-										? 'Saving…'
-										: [source?.name ?? displayHost(link.url), ...rowTags.map((t) => t.name)].join(
-												' · '
-											)}
+								<!-- Line two: source, projects (dot and name), tags as text. On a phone the status and priority
+								     lead it, and it holds one line: items that do not fit drop whole. -->
+								<span class="meta-line">
+									{#if link.pending}
+										<span class="m">Saving…</span>
+									{:else}
+										{#if link.status}<span class="m m-state"
+												><StateMark kind="status" value={link.status} size={12} />{STATUS_LABEL[
+													link.status as Status
+												]}</span
+											>{/if}
+										{#if link.priority}<span class="m m-state"
+												><StateMark
+													kind="priority"
+													value={link.priority}
+													size={12}
+												/>{PRIORITY_LABEL[link.priority as Priority]}</span
+											>{/if}
+										<span class="m m-src">{source?.name ?? displayHost(link.url)}</span>
+										<span class="c-proj">
+											{#each rowProjects as p (p.id)}<span class="m m-proj"
+													><span class="dot" style:--c="var(--dot-{p.color})"></span>{p.name}</span
+												>{/each}
+										</span>
+										<span class="c-tags">
+											{#each rowTags as t (t.id)}<span class="m m-tag">{t.name}</span>{/each}
+										</span>
+									{/if}
 								</span>
 							</span>
-							<span class="c-tags">
-								{#each rowTags.slice(0, 3) as t (t.id)}<span class="tag-chip">{t.name}</span>{/each}
-								{#if rowTags.length > 3}<span class="tag-chip">+{rowTags.length - 3}</span>{/if}
+							<span class="c-state">
+								<span class="st st-status" class:unset={!link.status}
+									><StateMark kind="status" value={link.status} />{#if link.status}{STATUS_LABEL[
+											link.status as Status
+										]}{:else}<span class="sr-only">No status</span>{/if}</span
+								>
+								<span class="st st-prio" class:unset={!link.priority}
+									><StateMark
+										kind="priority"
+										value={link.priority}
+									/>{#if link.priority}{PRIORITY_LABEL[link.priority as Priority]}{:else}<span
+											class="sr-only">No priority</span
+										>{/if}</span
+								>
 							</span>
-							<span
-								class="c-proj"
-								aria-label={rowProjects.map((p) => p.name).join(', ') || undefined}
-							>
-								{#each rowProjects as p (p.id)}<span
-										class="dot"
-										title={p.name}
-										style:--c="var(--dot-{p.color})"
-									></span>{/each}
-							</span>
-							<span class="c-status">
-								{#if link.status}<span class="pill {link.status}"
-										>{STATUS_LABEL[link.status as Status]}</span
-									>{/if}
-								{#if link.priority && link.priority > 1}<span class="prio p{link.priority}"
-										><Icon name="flag" size={12} />{PRIORITY_LABEL[link.priority as Priority]}</span
-									>{/if}
-							</span>
-							<time class="c-time muted num" datetime={new Date(link.createdAt).toISOString()}
+							<time class="c-time num" datetime={new Date(link.createdAt).toISOString()}
 								>{timeOf(link.createdAt)}</time
 							>
 							<span class="c-act">
@@ -516,7 +532,12 @@
 				{/each}
 			</ul>
 		{:else if !$store.loading}
-			<p class="empty-card">{q ? `Nothing matches “${q}”.` : empty}</p>
+			{@const words = q ? `Nothing matches “${q}”. Try fewer or shorter words.` : empty}
+			{@const cut = words.indexOf('. ')}
+			<div class="empty-card empty">
+				<p class="lead">{cut > 0 ? words.slice(0, cut + 1) : words}</p>
+				{#if cut > 0}<p>{words.slice(cut + 2)}</p>{/if}
+			</div>
 		{/if}
 
 		{#if selecting}
@@ -645,13 +666,14 @@
 		gap: 8px;
 		padding-top: 16px;
 	}
+	/* The search box (ADR-0005's look; it still searches on Enter until T-0009 makes it live). */
 	.search {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		width: 260px;
-		height: 32px;
-		padding: 0 10px;
+		width: 300px;
+		height: 34px;
+		padding: 0 6px 0 10px;
 		background: var(--surface);
 		border: 1px solid var(--control);
 		border-radius: var(--radius-control);
@@ -669,62 +691,94 @@
 		background: none;
 		color: var(--text);
 	}
+	.search input::placeholder {
+		color: var(--faint);
+	}
+	.search input::-webkit-search-cancel-button {
+		display: none;
+	}
+	.key {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 4px;
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		color: var(--muted);
+		font: inherit;
+		font-size: 11px;
+		line-height: 1;
+	}
+	.search:focus-within .key {
+		visibility: hidden;
+	}
 	.count {
 		margin-left: auto;
 		font-size: 13px;
 	}
+
+	/* ---------- the ledger: day names on the ground, each day's rows one card ---------- */
 	.ledger {
 		list-style: none;
 		margin: 20px 0 0;
 		padding: 0;
+		--act-width: 80px;
+		--state-width: 124px;
 	}
 	.day-h {
-		margin-top: var(--gap);
-		padding: 12px 14px 8px;
-		background: var(--surface);
-		border-radius: var(--radius-card) var(--radius-card) 0 0;
+		margin-top: 24px;
+		padding: 0 2px 8px;
 	}
 	.day-h:first-child {
 		margin-top: 0;
 	}
 	.day-h h2 {
 		margin: 0;
-		font-size: 14px;
+		font-size: 13px;
+		line-height: 18px;
 		font-weight: 500;
+		color: var(--muted);
 	}
 	.day-h .n {
 		margin-left: 6px;
-		font-size: 13px;
 		font-weight: 400;
-	}
-	.ledger {
-		--act-width: 88px;
+		color: var(--faint);
 	}
 	.selecting .row {
 		user-select: none;
 		-webkit-user-select: none;
 		-webkit-touch-callout: none;
 	}
+	/* Row r3 (ADR-0005): favicon, the title over its second line, a fixed state cell, the time, then the actions'
+	   own slot, so a click on the time never lands on a button. */
 	.row {
 		position: relative;
 		isolation: isolate;
 		display: grid;
-		grid-template-columns: 16px minmax(0, 1fr) auto auto auto var(--act-width) 0;
-		align-items: center;
-		gap: 14px;
-		min-height: var(--row-height);
-		padding: 0 14px;
+		grid-template-columns: 20px minmax(0, 1fr) var(--state-width) 44px var(--act-width);
+		align-items: start;
+		column-gap: 12px;
+		min-height: 56px;
+		padding: 8px 14px;
 		background: var(--surface);
 		cursor: pointer;
 		outline-offset: -2px;
 	}
+	.selecting .row {
+		grid-template-columns: 16px 20px minmax(0, 1fr) var(--state-width) 44px var(--act-width);
+	}
+	.day-h + .row {
+		padding-top: 12px;
+		border-radius: var(--radius-card) var(--radius-card) 0 0;
+	}
 	.row.last {
-		min-height: calc(var(--row-height) + 4px);
-		padding-bottom: 4px;
+		padding-bottom: 12px;
 		border-radius: 0 0 var(--radius-card) var(--radius-card);
 	}
-	.selecting .row {
-		grid-template-columns: 16px 16px minmax(0, 1fr) auto auto auto var(--act-width) 0;
+	.day-h + .row.last {
+		border-radius: var(--radius-card);
 	}
 	/* the ruled line between rows of a day */
 	.row:not(.day-h + .row)::before {
@@ -736,7 +790,7 @@
 		height: 1px;
 		background: var(--rule);
 	}
-	/* hover, open and selected: a 4 px inset tint inside the day's card */
+	/* hover, open and selected: an inset tint inside the day's card */
 	.row::after {
 		content: '';
 		position: absolute;
@@ -745,6 +799,9 @@
 		border-radius: 4px;
 		background: transparent;
 		transition: background-color var(--t-hover) var(--ease-out);
+	}
+	.day-h + .row::after {
+		top: 4px;
 	}
 	.row.last::after {
 		bottom: 4px;
@@ -761,6 +818,10 @@
 	.row.selected::after {
 		background: var(--active);
 	}
+	/* a selected row also carries a 2 px accent bar inside its left edge; the open row has the fill alone */
+	.row.selected {
+		box-shadow: inset 2px 0 0 var(--accent);
+	}
 	.row.open::before,
 	.row.open + .row::before,
 	.row.selected::before,
@@ -770,8 +831,18 @@
 	.chk {
 		width: 16px;
 		height: 16px;
-		margin: 0;
+		margin: 2px 0 0;
 		accent-color: var(--text);
+	}
+	/* the favicon sits on a tile: invisible in light, pale in dark so a black icon reads */
+	.icon-tile {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border-radius: 4px;
+		background: var(--icon-tile);
 	}
 	.icon {
 		width: 16px;
@@ -790,12 +861,14 @@
 	}
 	.c-title {
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
 	}
 	/* Only the title's text opens the site; the rest of the row opens the details. */
 	.t {
 		display: inline-block;
 		max-width: 100%;
-		vertical-align: top;
+		align-self: flex-start;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -808,35 +881,72 @@
 		text-decoration-color: var(--control);
 		text-underline-offset: 3px;
 	}
-	.sub-line {
+	/* line two: plain text in --meta; on a wide screen it ends in an ellipsis */
+	.meta-line {
+		display: block;
+		margin-top: 2px;
+		font-size: 13px;
+		line-height: 18px;
+		color: var(--meta);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.meta-line .m {
+		margin-right: 12px;
+	}
+	.meta-line .m-tag {
+		margin-right: 0;
+	}
+	.meta-line .m-tag:not(:last-child)::after {
+		content: ', ';
+	}
+	.meta-line .m-state {
 		display: none;
 	}
-	.c-tags,
+	.meta-line .dot {
+		width: 7px;
+		height: 7px;
+		margin: 0 5px 1px 0;
+		vertical-align: middle;
+	}
 	.c-proj,
-	.c-status {
+	.c-tags {
+		display: contents;
+	}
+	/* the fixed state cell: status over priority, each a mark and a word, from one left edge */
+	.c-state {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+	.st {
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: 6px;
+		height: 18px;
+		font-size: 13px;
+		white-space: nowrap;
+		color: var(--text);
 	}
-	.c-status {
-		gap: 8px;
+	.st-status {
+		margin-top: 1px;
+	}
+	.st-prio {
+		margin-top: 2px;
+		color: var(--muted);
 	}
 	.c-time {
 		text-align: right;
 		font-size: 13px;
+		line-height: 20px;
+		color: var(--muted);
 	}
-	/* The row's buttons cover the time column only (it is as wide as they are), so a status or priority is never cut. */
 	.c-act {
-		position: absolute;
-		right: 14px;
-		width: var(--act-width);
-		top: 50%;
-		translate: 0 -50%;
 		display: flex;
 		justify-content: flex-end;
-		gap: 2px;
-		background: var(--raised);
-		border-radius: 4px;
+		gap: 0;
+		margin-top: -4px;
 		opacity: 0;
 		transition: opacity var(--t-hover) var(--ease-out);
 	}
@@ -852,12 +962,8 @@
 	.selecting .c-act {
 		display: none;
 	}
-	.row.open .c-act,
-	.row.selected .c-act {
-		background: var(--active);
-	}
 	.c-act .icon-btn {
-		width: 28px;
+		width: 26px;
 		height: 28px;
 	}
 	.c-act .icon-btn:disabled {
@@ -880,6 +986,18 @@
 	}
 	.empty-card {
 		margin: 20px 0 0;
+		padding: 32px 24px;
+	}
+	.empty p {
+		margin: 0;
+		max-width: 52ch;
+	}
+	.empty .lead {
+		color: var(--text);
+		font-weight: 500;
+	}
+	.empty .lead + p {
+		margin-top: 4px;
 	}
 	@media (prefers-reduced-motion: no-preference) {
 		.row {
@@ -899,16 +1017,25 @@
 			padding-top: 16px;
 		}
 	}
+	/* The phone row: favicon, the title on up to two lines, the time at the right; line two leads with the status
+	   and priority and holds one line, where whole items drop when they do not fit (a wrapping line clipped to one
+	   line's height), so nothing is cut mid-word. */
 	@media (max-width: 759px) {
 		.page {
 			--pad: 16px;
-			padding: 0 16px 96px;
+			padding: 0 16px calc(96px + env(safe-area-inset-bottom));
 		}
 		.title-row {
-			padding-top: 12px;
+			padding-top: 4px;
+			align-items: center;
 		}
 		h1 {
-			font-size: 22px;
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
 		}
 		.paste {
 			margin-top: 14px;
@@ -930,40 +1057,22 @@
 		.search {
 			flex: 1;
 			width: auto;
+			height: 38px;
 		}
 		.row,
 		.selecting .row {
-			grid-template-columns: 16px minmax(0, 1fr) auto;
-			grid-template-rows: auto auto;
-			align-items: start;
-			gap: 2px 10px;
+			grid-template-columns: 20px minmax(0, 1fr) auto;
+			column-gap: 10px;
 			padding: 10px 14px;
+		}
+		.day-h + .row {
+			padding-top: 14px;
 		}
 		.row.last {
 			padding-bottom: 14px;
 		}
 		.selecting .row {
-			grid-template-columns: 16px 16px minmax(0, 1fr) auto;
-		}
-		.icon {
-			grid-column: 1;
-			grid-row: 1;
-			margin-top: 2px;
-		}
-		.c-title {
-			grid-column: 2;
-			grid-row: 1 / 3;
-		}
-		.chk {
-			grid-column: 1;
-			grid-row: 1;
-			margin-top: 2px;
-		}
-		.selecting .icon {
-			grid-column: 2;
-		}
-		.selecting .c-title {
-			grid-column: 3;
+			grid-template-columns: 16px 20px minmax(0, 1fr) auto;
 		}
 		.t {
 			white-space: normal;
@@ -972,34 +1081,38 @@
 			line-clamp: 2;
 			-webkit-box-orient: vertical;
 		}
-		.sub-line {
-			display: block;
-			margin-top: 2px;
-			font-size: 13px;
-			line-height: 18px;
+		.meta-line {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			column-gap: 12px;
+			margin-top: 4px;
+			height: 18px;
 			overflow: hidden;
-			text-overflow: ellipsis;
 			white-space: nowrap;
 		}
-		.sub-line .dot {
-			width: 7px;
-			height: 7px;
-			margin-right: 3px;
+		.meta-line .m,
+		.meta-line .m-tag {
+			margin: 0;
+			display: inline-flex;
+			align-items: center;
+			gap: 5px;
+			max-width: 100%;
+			height: 18px;
 		}
-		.c-tags,
-		.c-proj,
+		.meta-line .m-tag:not(:last-child)::after {
+			content: none;
+		}
+		.meta-line .m-state {
+			display: inline-flex;
+			color: var(--text);
+		}
+		.meta-line .dot {
+			margin: 0;
+		}
+		.c-state,
 		.c-act {
 			display: none;
-		}
-		.c-status {
-			grid-column: -2;
-			grid-row: 1;
-			justify-content: flex-end;
-		}
-		.c-time {
-			grid-column: -2;
-			grid-row: 2;
-			align-self: end;
 		}
 		.toolbar .count {
 			display: none;

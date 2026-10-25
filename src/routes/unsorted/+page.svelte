@@ -16,5 +16,5 @@
 	view={{ kind: 'unsorted' }}
 	title="Unsorted"
 	{sub}
-	empty="Nothing to sort. Every link has a tag or a project."
+	empty="Nothing waiting. Every link has a tag or a project, so there is nothing to sort."
 />

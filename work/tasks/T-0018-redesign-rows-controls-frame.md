@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0018
 title: Build ADR-0005 — two-line rows with a fixed state cell, radio-list status and priority, and the shared redesign of details, frame and phone
-status: running
+status: verify
 lane: full
 done_when:
   - "Every list (/, a tag, a project, Unsorted, Archive) shows rows as ADR-0005 says: title on line one; source, projects (dot and name) and tags as text on line two; a fixed cell on the right with the status (mark and word) over the priority (bars and word). Across all rows the status cell starts at one left edge at 1440 (e2e measures the rects)"
