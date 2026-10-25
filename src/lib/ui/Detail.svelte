@@ -68,7 +68,8 @@
 	function autosize(node: HTMLTextAreaElement) {
 		const fit = () => {
 			node.style.height = 'auto';
-			node.style.height = `${node.scrollHeight}px`;
+			// border-box: the height takes the borders as well as the text
+			node.style.height = `${node.scrollHeight + node.offsetHeight - node.clientHeight}px`;
 		};
 		fit();
 		node.addEventListener('input', fit);
