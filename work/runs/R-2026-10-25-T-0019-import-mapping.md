@@ -5,7 +5,7 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: 2026-10-25 08:31
+finished: 2026-10-25 08:17
 outcome: needs-verifier
 commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f"]
 labels: {}
@@ -21,13 +21,13 @@ Choosing a file in Settings → Import no longer saves anything. It shows what t
 you already have, how many lines could not be read, and every folder with its full path and link count. Each folder
 gets one choice: a new project (name editable), an existing project (picked for you when one has the folder's name),
 a tag (name editable), or no project (its links land in Unsorted). The browser's own top folders (Bookmarks bar,
-Other Bookmarks, Bookmarks Menu, Mobile) start on No project, the rest on New project. Two switches: keep the file's
+Other Bookmarks, Bookmarks Menu, Mobile, and Raindrop's own Unsorted) start on No project, the rest on New project. Two switches: keep the file's
 tags, and, for Pocket files only, mark links you'd read as Done. Import saves exactly that; Cancel throws it away.
 A file with 200 folders keeps them in their own scrolling box, at most half the screen tall.
 
 ## Deviations from the plan
 
-1. **The import button reads "Import", not "Import N links".** The count sits beside it: "5 links will be added,
+1. **(Closed in round 2: the button now reads "Import N links", 1d5919f.)** **The import button read "Import", not "Import N links".** The count sits beside it: "5 links will be added,
    1 duplicate skipped." T-0012's e2e tests (still being verified on its branch) click a button named exactly
    "Import"; renaming it means editing T-0012's test file here, which would conflict with T-0012's fixes and is a
    test edit this builder should not make. One-line follow-up once T-0012 lands (proposed below).
@@ -131,7 +131,8 @@ the report message to the orchestrator (the HEAD it was climbed at is named ther
 - The button label in the plan collides with T-0012's e2e; see Deviation 1.
 - Not built: a "set every folder to…" control. With 200 folders, changing all of them is 200 picks. Proposed below.
 - Raindrop's own "Unsorted" collection defaults to a new project called "Unsorted" (the done_when names only browser
-  folders). Probably wants No project; proposed below rather than decided here.
+  folders). Probably wants No project; proposed below rather than decided here. (Round 2: done, the orchestrator's
+  call for the person.)
 - On a phone a long default name ("Reading / Long reads") is cut off inside its field; the field scrolls, the full
   path is on the line above.
 
@@ -164,9 +165,10 @@ About 25 minutes of wall clock to the final climb (07:17 to 07:41), the merges i
 
 ## Left for next time
 
-- After T-0012 lands: rename the button to "Import N links" and change T-0012's e2e clicks to match (small task).
+- ~~Rename the button to "Import N links"~~: done in round 2 (1d5919f).
 - "Set every folder to…" for files with many folders (proposed task).
-- Default Raindrop's "Unsorted" collection to No project (the person's call: a default).
+- ~~Default Raindrop's "Unsorted" collection to No project~~: done in round 2 (7a83064).
+- Merge T-0012's fix round 2 when the orchestrator says it has landed, then climb again.
 - `/api/import/preview` as its own path needs the hook's list widened (outside this task); not needed now.
 
 ## Verifier
