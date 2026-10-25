@@ -35,10 +35,20 @@ T-0029 lands.
 
 ## Scope
 
-README.md, two screenshots under docs/, and the repository's description and topics on GitHub.
+README.md, two screenshots under docs/, .github/FUNDING.yml, and the repository's description and topics on GitHub.
 
 ## Out of scope
 
-.github/ (T-0029's), deploy/ (T-0005's and T-0029's), a licence (the person's choice).
+The workflows in .github/workflows/ (T-0029's), deploy/ (T-0005's and T-0029's), a licence (the person's choice).
 
 ## Notes
+
+- The person, 14:22 UTC: "also in the readme make sure to add my https://buymeacoffee.com/trinetra link, if anyone
+  wants to support. make sure to check online first to see how others do it, and then find the best way of doing
+  this"; 14:23 UTC: "also be open about the app being built using AI (which in this instance is claude). put a red
+  heart besides it". Done as: GitHub's own Sponsor button (.github/FUNDING.yml `buy_me_a_coffee: trinetra`, a key
+  GitHub's docs list), a badge at the README's top and Buy Me a Coffee's own button in a Support section; a line
+  under the intro and a "Built with Claude" section.
+- f03b305 on t0030-readme. Description and 16 topics set on GitHub at 14:27 UTC. When T-0029 lands, check the
+  README's hosting section against deploy/SERVER.md (the server settings example's name, the image setting, the
+  deploy secrets) and add the CI badge.
