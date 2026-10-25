@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0012
 title: Export (bookmark HTML and full JSON) and import (bookmark HTML and Pocket CSV)
-status: approved
+status: running
 lane: full
 done_when:
   - "GET /api/export.html returns a Netscape bookmark file of the signed-in user's live links: one folder per project (a link in several projects appears in each), links in no project at the top level, TAGS, ADD_DATE, LAST_MODIFIED, notes as <DD>; Firefox and Chromium import it (e2e imports it into a fresh account round trip)"
@@ -16,7 +16,7 @@ done_when:
 depends_on: [T-0008]
 blocked_by: null
 created: 2026-10-25
-started: null
+started: 2026-10-25
 finished: null
 labels:
   bonsai.branch: t0012-export-import
