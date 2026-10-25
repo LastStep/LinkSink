@@ -167,8 +167,8 @@ test('the picker sets tags (find or create), projects, status, priority, source 
 	// The row shows the tag, the project's dot, the status and the priority.
 	await expect(r.locator('.c-tags')).toContainText('machine learning');
 	await expect(r.locator('.c-proj .dot')).toHaveCount(1);
-	await expect(r.locator('.pill')).toHaveText('In progress');
-	await expect(r.locator('.prio')).toContainText('High');
+	await expect(r.locator('.st-status')).toHaveText('In progress');
+	await expect(r.locator('.st-prio')).toContainText('High');
 });
 
 test('every hand edit of title, description, source and media joins user_set', async ({ page }) => {
@@ -631,13 +631,13 @@ test('with the details open at 1440 the row buttons never cover the status or pr
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('complementary', { name: 'Link details' })).toBeVisible();
 	await r.hover();
-	const prio = (await r.locator('.prio').boundingBox())!;
-	const pill = (await r.locator('.pill').boundingBox())!;
+	const prio = (await r.locator('.st-prio').boundingBox())!;
+	const pill = (await r.locator('.st-status').boundingBox())!;
 	const act = (await r.locator('.c-act').boundingBox())!;
 	expect(prio.x + prio.width).toBeLessThanOrEqual(act.x);
 	expect(pill.x + pill.width).toBeLessThanOrEqual(act.x);
-	expect(await r.locator('.prio').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-	await expect(r.locator('.prio')).toHaveText('High');
+	expect(await r.locator('.st-prio').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+	await expect(r.locator('.st-prio')).toHaveText('High');
 	await page.screenshot({ path: test.info().outputPath('details-open-1440.png') });
 });
 

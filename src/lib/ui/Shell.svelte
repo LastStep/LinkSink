@@ -8,7 +8,8 @@
 	import Mark from './Mark.svelte';
 	import type { Snippet } from 'svelte';
 
-	// The signed-in screens' frame: the sidebar on a wide screen, a top bar and a menu sheet on a phone.
+	// The signed-in screens' frame: the sidebar on a wide screen; a top bar and a menu sheet on a narrow one; on a phone
+	// (ADR-0005) a bottom tab bar, with the menu sheet behind More. Only Unsorted keeps a count: it is a queue.
 	let { children }: { children: Snippet } = $props();
 
 	let menuOpen = $state(false);
@@ -49,7 +50,6 @@
 		</a>
 		<a class="nav-item" class:on={path.startsWith('/tags')} href={resolve('/tags')}>
 			<Icon name="tag" /><span>Tags</span>
-			{#if $store.tags.length}<span class="n num">{$store.tags.length}</span>{/if}
 		</a>
 	</nav>
 	<p class="group-label">
@@ -63,7 +63,6 @@
 				href={resolve('/projects/[id]', { id: project.id })}
 			>
 				<span class="dot" style:--c="var(--dot-{project.color})"></span><span>{project.name}</span>
-				{#if project.count}<span class="n num">{project.count}</span>{/if}
 			</a>
 		{/each}
 		<a class="nav-item faint" href="{resolve('/projects')}?new=1">
@@ -87,7 +86,12 @@
 	</aside>
 
 	<header class="topbar">
-		<button class="icon-btn" type="button" aria-label="Menu" onclick={() => (menuOpen = true)}>
+		<button
+			class="icon-btn menu-btn"
+			type="button"
+			aria-label="Menu"
+			onclick={() => (menuOpen = true)}
+		>
 			<Icon name="menu" size={18} />
 		</button>
 		<p class="top-title"><Mark /><span>{screenName}</span></p>
@@ -115,6 +119,47 @@
 	<div class="main">
 		{@render children()}
 	</div>
+
+	<nav class="tabs" aria-label="Tabs">
+		<a class="tab" aria-current={path === '/' ? 'page' : undefined} href={resolve('/')}>
+			<Icon name="link" size={20} /><span>Links</span>
+		</a>
+		<a
+			class="tab"
+			aria-current={path === '/unsorted' ? 'page' : undefined}
+			href={resolve('/unsorted')}
+		>
+			<span class="tab-icon">
+				<Icon name="inbox" size={20} />
+				{#if $store.counts.unsorted}<span class="badge num" data-count
+						>{$store.counts.unsorted}</span
+					>{/if}
+			</span><span>Unsorted</span>
+		</a>
+		<a
+			class="tab"
+			aria-current={path.startsWith('/projects') ? 'page' : undefined}
+			href={resolve('/projects')}
+		>
+			<Icon name="folder" size={20} /><span>Projects</span>
+		</a>
+		<a
+			class="tab"
+			aria-current={path.startsWith('/tags') ? 'page' : undefined}
+			href={resolve('/tags')}
+		>
+			<Icon name="tag" size={20} /><span>Tags</span>
+		</a>
+		<button
+			class="tab"
+			type="button"
+			aria-haspopup="dialog"
+			aria-expanded={menuOpen}
+			onclick={() => (menuOpen = true)}
+		>
+			<Icon name="menu" size={20} /><span>More</span>
+		</button>
+	</nav>
 </div>
 
 <style>
@@ -264,6 +309,70 @@
 			height: 48px;
 			padding: 0 8px;
 			background: var(--ground);
+		}
+	}
+	.tabs {
+		display: none;
+	}
+	/* The phone: the top bar names the screen, the tab bar does the moving about. */
+	@media (max-width: 759px) {
+		.menu-btn {
+			display: none;
+		}
+		.topbar {
+			padding: 0 16px;
+		}
+		.main {
+			padding-bottom: calc(60px + env(safe-area-inset-bottom));
+		}
+		.tabs {
+			position: fixed;
+			z-index: 25;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			display: grid;
+			grid-template-columns: repeat(5, 1fr);
+			padding: 4px 4px env(safe-area-inset-bottom);
+			background: var(--surface);
+			border-top: 1px solid var(--border);
+		}
+		.tab {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 3px;
+			height: 52px;
+			border-radius: var(--radius-control);
+			color: var(--muted);
+			font-size: 11px;
+			line-height: 14px;
+			text-decoration: none;
+			cursor: pointer;
+		}
+		.tab[aria-current='page'] {
+			color: var(--text);
+			font-weight: 500;
+		}
+		.tab-icon {
+			position: relative;
+			display: inline-flex;
+		}
+		.badge {
+			position: absolute;
+			top: -5px;
+			right: -9px;
+			min-width: 16px;
+			height: 16px;
+			padding: 0 4px;
+			border-radius: 8px;
+			background: var(--text);
+			color: var(--surface);
+			font-size: 10px;
+			font-weight: 600;
+			line-height: 16px;
+			text-align: center;
 		}
 	}
 	@media (prefers-reduced-motion: no-preference) {
