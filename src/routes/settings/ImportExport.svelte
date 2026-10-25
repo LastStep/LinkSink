@@ -126,6 +126,7 @@
 			preview = null;
 			input.value = '';
 			store.refresh().catch(() => {});
+			store.checkDetails();
 		} catch {
 			error = 'The upload did not reach LinkSink. Check the connection and try again.';
 		} finally {
