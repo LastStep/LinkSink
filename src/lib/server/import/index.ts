@@ -3,8 +3,14 @@ import { parseNetscape } from './netscape.ts';
 import { parsePocketCsv } from './pocket.ts';
 import { ImportRefused, type ParsedFile } from './types.ts';
 
-export { importItems, IMPORT_BATCH, type ImportResult } from './write.ts';
-export { ImportRefused, type ImportFailure, type ImportItem, type ParsedFile } from './types.ts';
+export { importItems, IMPORT_BATCH, TAGS_MAX, type ImportResult } from './write.ts';
+export {
+	ImportRefused,
+	ImportStopped,
+	type ImportFailure,
+	type ImportItem,
+	type ParsedFile
+} from './types.ts';
 
 const NOT_BOOKMARKS =
 	'That is not a bookmarks file. Export your bookmarks as an HTML file (browsers, Raindrop, Pinboard, linkding) or a Pocket CSV, and choose that.';

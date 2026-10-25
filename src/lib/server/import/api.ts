@@ -5,7 +5,7 @@ import type { Caller } from '../api/links.ts';
 import type { DB } from '../db/open.ts';
 import { exportHtml, exportJson, exportName } from '../export.ts';
 import type { SyncWrite } from '../sync/write.ts';
-import { importItems, ImportRefused, parseImport } from './index.ts';
+import { importItems, ImportRefused, ImportStopped, parseImport } from './index.ts';
 
 /** How many failing lines the summary lists. */
 export const FAILURES_SHOWN = 5;
@@ -81,10 +81,17 @@ export function createImportApi({
 				});
 			} catch (error) {
 				if (error instanceof ImportRefused) return problem(error.status, error.message);
-				console.error('[import] failed', error);
+				if (error instanceof ImportStopped && error.saved > 0) {
+					console.error('[import] stopped part-way', error.saved, error.cause);
+					return problem(
+						500,
+						`Something went wrong part-way: ${error.saved.toLocaleString('en')} links were saved. Import the same file again and those are skipped as duplicates.`
+					);
+				}
+				console.error('[import] failed', error instanceof ImportStopped ? error.cause : error);
 				return problem(
 					500,
-					'Something went wrong importing that file. Nothing was lost; try again.'
+					'Something went wrong importing that file, and nothing was saved. Try again.'
 				);
 			}
 		},
@@ -96,6 +103,7 @@ export function createImportApi({
 				headers: {
 					'content-type': 'text/html; charset=utf-8',
 					'content-disposition': `attachment; filename="${exportName('bookmarks', 'html')}"`,
+					'x-content-type-options': 'nosniff',
 					'cache-control': 'no-store'
 				}
 			});
@@ -108,6 +116,7 @@ export function createImportApi({
 				headers: {
 					'content-type': 'application/json; charset=utf-8',
 					'content-disposition': `attachment; filename="${exportName('export', 'json')}"`,
+					'x-content-type-options': 'nosniff',
 					'cache-control': 'no-store'
 				}
 			});

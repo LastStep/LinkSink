@@ -40,6 +40,16 @@ export class ImportRefused extends Error {
 	}
 }
 
+/** A write that failed part-way: `saved` links (whole earlier batches) are written, the rest are not. */
+export class ImportStopped extends Error {
+	constructor(
+		readonly saved: number,
+		readonly cause: unknown
+	) {
+		super(`import stopped after ${saved} links`);
+	}
+}
+
 /** Seconds (or ms, or µs) since 1970 from a file, as ms; null when missing or not a plausible date. */
 export function fileTime(value: string | undefined | null): number | null {
 	if (!value || !/^\s*\d+\s*$/.test(value)) return null;
