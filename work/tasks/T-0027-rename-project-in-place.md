@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0027
 title: A project can be renamed from its own page, as well as from the Projects page
-status: todo
+status: running
 lane: light
 done_when:
   - "On a project's page its name can be edited in place (click or a Rename action, Enter saves, Escape cancels); the sidebar, the lists and the address follow at once"
@@ -12,10 +12,15 @@ done_when:
 depends_on: []
 blocked_by: null
 created: 2026-10-25
-started: null
+started: 2026-10-25
 finished: null
 labels:
+  bonsai.branch: t0022-sidebar-rename-icon
+  bonsai.ladder: []
+  bonsai.allows: []
+  bonsai.wants: []
   workflow.owner: builder
+  workflow.model: sonnet
   workflow.feature: F-web-mvp
   workflow.milestone: "MVP"
 ---
@@ -37,3 +42,6 @@ The project page's header; an e2e test.
 Tags (they rename on the Tags page); the sidebar's own menu.
 
 ## Notes
+
+- Started on the person's word, 2026-10-25 13:55 UTC: "okay do them. and only run one verifier for all combined". Built on
+  t0022-sidebar-rename-icon with the other tasks on that branch; one verifier checks every branch of this round together.

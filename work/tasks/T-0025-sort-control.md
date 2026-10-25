@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0025
 title: A sort control beside the filters, sorting by status and priority as well as dates and title
-status: todo
+status: running
 lane: light
 done_when:
   - "A sort control sits beside the filter button on every list screen (desktop and phone), showing the current sort, and changes the order at once"
@@ -13,10 +13,15 @@ done_when:
 depends_on: []
 blocked_by: null
 created: 2026-10-25
-started: null
+started: 2026-10-25
 finished: null
 labels:
+  bonsai.branch: t0023-details-and-sort
+  bonsai.ladder: []
+  bonsai.allows: []
+  bonsai.wants: []
   workflow.owner: builder
+  workflow.model: sonnet
   workflow.feature: F-web-mvp
   workflow.milestone: "MVP"
 ---
@@ -41,3 +46,6 @@ src/lib/search/filters.ts, the list's sort and grouping, the control beside the 
 The board view (T-0026).
 
 ## Notes
+
+- Started on the person's word, 2026-10-25 13:55 UTC: "okay do them. and only run one verifier for all combined". Built on
+  t0023-details-and-sort with the other tasks on that branch; one verifier checks every branch of this round together.

@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0023
 title: Details fetched after an import show up on the open page, with a line saying how many are still being fetched
-status: todo
+status: running
 lane: light
 done_when:
   - "After an import, while the server fetches page details, the open list fills in each link's title, icon and preview as it arrives, with no reload (e2e on the fixture site)"
@@ -13,10 +13,15 @@ done_when:
 depends_on: []
 blocked_by: null
 created: 2026-10-25
-started: null
+started: 2026-10-25
 finished: null
 labels:
+  bonsai.branch: t0023-details-and-sort
+  bonsai.ladder: []
+  bonsai.allows: []
+  bonsai.wants: []
   workflow.owner: builder
+  workflow.model: sonnet
   workflow.feature: F-web-mvp
   workflow.milestone: "MVP"
 ---
@@ -40,3 +45,6 @@ The client store (src/lib/store/), the list's status line, an e2e test.
 The fetcher, its pace, and a way to fetch details again for failed links (proposed separately if the person wants it).
 
 ## Notes
+
+- Started on the person's word, 2026-10-25 13:55 UTC: "okay do them. and only run one verifier for all combined". Built on
+  t0023-details-and-sort with the other tasks on that branch; one verifier checks every branch of this round together.
