@@ -13,6 +13,9 @@ const state = 'data/e2e/t0019-session.json';
 
 test.describe.configure({ mode: 'serial' });
 
+/** The import button, named for what it adds ("Import 5 links"). */
+const IMPORT_BUTTON = /^Import [\d,]+ links?$/;
+
 async function signIn(request: APIRequestContext) {
 	for (let attempt = 0; attempt < 6; attempt++) {
 		const res = await request.post('/api/auth/sign-in/email', {
@@ -179,7 +182,10 @@ test('choosing a file writes nothing: it shows links, duplicates, unreadable lin
 	// Links found, already saved (here: once more in the file), could not be read, folders.
 	await expect(facts(page)).toHaveText(['6', '1', '1', '5']);
 	await expect(page.getByText('Line 26: Not a web address (javascript:alert(1)).')).toBeVisible();
-	await expect(page.getByText('5 links will be added, 1 duplicate skipped.')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Import 5 links', exact: true })).toBeVisible();
+	await expect(
+		page.getByText('1 duplicate will be skipped: already saved, or twice in the file.')
+	).toBeVisible();
 
 	const kind = (path: string[]) =>
 		page.getByLabel(`What ${path.join(' › ')} becomes`, { exact: true });
@@ -207,8 +213,9 @@ test('choosing a file writes nothing: it shows links, duplicates, unreadable lin
 });
 
 test('Import writes what the mapping says: a renamed new project, an existing one, a tag, and no project (Unsorted)', async ({
-	page
-}) => {
+	page,
+	browserName
+}, testInfo) => {
 	await page.setViewportSize({ width: 1440, height: 1000 });
 	await clearMine(page);
 	const made = await page.request.post('/api/projects', { data: { name: 'T0019 Existing' } });
@@ -242,17 +249,45 @@ test('Import writes what the mapping says: a renamed new project, an existing on
 		'1 new project · 1 existing project · 1 tag · 2 folders to Unsorted'
 	);
 
+	// On a phone, "Existing project" fits its select (QA, M-2026-10-25-3cc04598).
+	await page.setViewportSize({ width: 390, height: 844 });
+	const existingKind = page.getByLabel('What Bookmarks bar › T0019 Existing becomes', {
+		exact: true
+	});
+	const fit = await existingKind.evaluate((el) => {
+		const select = el as HTMLSelectElement;
+		const style = getComputedStyle(select);
+		const probe = document.createElement('span');
+		probe.style.font = style.font;
+		probe.style.position = 'absolute';
+		probe.style.whiteSpace = 'nowrap';
+		probe.textContent = select.selectedOptions[0].text;
+		document.body.append(probe);
+		const text = probe.getBoundingClientRect().width;
+		probe.remove();
+		const room =
+			select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+		return { text: select.selectedOptions[0].text, fits: text <= room };
+	});
+	expect(fit).toEqual({ text: 'Existing project', fits: true });
+	await folder(page, 'Bookmarks bar', 'T0019 Existing').screenshot({
+		path: testInfo.outputPath(`existing-row-${browserName}-390.png`)
+	});
+	await page.setViewportSize({ width: 1440, height: 1000 });
+
 	// A blank name holds the import back.
 	await page.getByLabel('New project name for Bookmarks bar › Reading', { exact: true }).fill(' ');
 	await expect(page.getByText('One folder needs a name or a project.')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeDisabled();
+	await expect(page.getByRole('button', { name: IMPORT_BUTTON })).toBeDisabled();
 	await page
 		.getByLabel('New project name for Bookmarks bar › Reading', { exact: true })
 		.fill('T0019 Shelf');
 
-	await page.getByRole('button', { name: 'Import', exact: true }).click();
+	await page.getByRole('button', { name: IMPORT_BUTTON }).click();
 	const summary = page.getByTestId('import-summary');
 	await expect(summary).toContainText('5 links added');
+	// T0019 Shelf made; T0019 Existing joined, not counted.
+	await expect(summary).toContainText('1 project made');
 	await expect(summary).toContainText('1 duplicate skipped');
 	await expect(summary).toContainText('1 line could not be read');
 	await expect(page.getByTestId('import-preview')).toHaveCount(0);
@@ -307,7 +342,7 @@ test('keep tags off drops the file’s tags; the Pocket switch shows for Pocket 
 	await expect(done).toBeChecked();
 	await done.uncheck();
 	await page.getByLabel('Keep the file’s tags').uncheck();
-	await page.getByRole('button', { name: 'Import', exact: true }).click();
+	await page.getByRole('button', { name: IMPORT_BUTTON }).click();
 	await expect(page.getByTestId('import-summary')).toContainText('2 links added');
 	expect(mine(await exported(page))).toEqual([
 		{ url: 'https://pocket.t0019.example/1', tags: [], projects: [], status: null },
@@ -323,7 +358,7 @@ test('keep tags off drops the file’s tags; the Pocket switch shows for Pocket 
 		buffer: Buffer.from(pocket)
 	});
 	await expect(page.getByTestId('import-preview')).toBeVisible();
-	await page.getByRole('button', { name: 'Import', exact: true }).click();
+	await page.getByRole('button', { name: IMPORT_BUTTON }).click();
 	await expect(page.getByTestId('import-summary')).toContainText('2 links added');
 	expect(mine(await exported(page))).toEqual([
 		{ url: 'https://pocket.t0019.example/1', tags: ['t0019-pocket'], projects: [], status: 'done' },

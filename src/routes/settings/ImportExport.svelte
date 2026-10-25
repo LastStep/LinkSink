@@ -25,6 +25,8 @@
 		formatLabel: string;
 		added: number;
 		duplicates: number;
+		/** Projects the import made (T-0019). */
+		projectsMade: number;
 		failed: number;
 		failures: { line: number; reason: string }[];
 	}
@@ -188,6 +190,7 @@
 					{summary.formatLabel}: <strong>{plural(summary.added, 'link')} added</strong>.
 				</p>
 				<ul class="counts">
+					{#if summary.projectsMade}<li>{plural(summary.projectsMade, 'project')} made</li>{/if}
 					<li>{plural(summary.duplicates, 'duplicate')} skipped</li>
 					<li>{plural(summary.failed, 'line')} could not be read</li>
 				</ul>

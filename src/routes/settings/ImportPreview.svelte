@@ -235,16 +235,13 @@
 				<span class="error"
 					>{missing === 1 ? 'One folder needs' : `${missing} folders need`} a name or a project.</span
 				>
-			{:else}
-				<strong>{plural(preview.adding, 'link')}</strong> will be added{#if preview.duplicates}, {plural(
-						preview.duplicates,
-						'duplicate'
-					)} skipped{/if}.
+			{:else if preview.duplicates}
+				{plural(preview.duplicates, 'duplicate')} will be skipped: already saved, or twice in the file.
 			{/if}
 		</p>
 		<div class="actions">
 			<button class="btn primary" type="button" disabled={busy || missing > 0} onclick={submit}>
-				{busy ? 'Importing…' : 'Import'}
+				{busy ? 'Importing…' : `Import ${plural(preview.adding, 'link')}`}
 			</button>
 			<button class="btn" type="button" disabled={busy} onclick={oncancel}>Cancel</button>
 		</div>
@@ -351,7 +348,7 @@
 	}
 	.choice {
 		display: grid;
-		grid-template-columns: 148px minmax(0, 1fr);
+		grid-template-columns: 160px minmax(0, 1fr);
 		gap: 8px;
 		align-items: center;
 	}
@@ -395,9 +392,6 @@
 		gap: 10px 16px;
 		padding-top: 4px;
 	}
-	.adding strong {
-		font-weight: 500;
-	}
 	.error {
 		color: var(--negative);
 	}
@@ -414,7 +408,7 @@
 			gap: 6px;
 		}
 		.choice {
-			grid-template-columns: 136px minmax(0, 1fr);
+			grid-template-columns: 156px minmax(0, 1fr);
 		}
 		.go,
 		.actions {

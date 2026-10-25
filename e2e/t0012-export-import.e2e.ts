@@ -15,6 +15,9 @@ const state = 'data/e2e/t0012-session.json';
 
 test.describe.configure({ mode: 'serial' });
 
+/** The import button, named for what it adds since T-0019's preview ("Import 4 links"). */
+const IMPORT_BUTTON = /^Import [\d,]+ links?$/;
+
 async function signIn(request: APIRequestContext) {
 	for (let attempt = 0; attempt < 6; attempt++) {
 		const res = await request.post('/api/auth/sign-in/email', {
@@ -189,7 +192,7 @@ test('a bookmarks file imported from Settings, exported, cleared and imported ba
 	await importFile(page, 'bookmarks.html', bookmarks);
 	await expect(page.getByTestId('import-chosen')).toContainText('bookmarks.html');
 	await expect(page.getByTestId('import-chosen')).toContainText('Bookmarks file (HTML)');
-	await page.getByRole('button', { name: 'Import', exact: true }).click();
+	await page.getByRole('button', { name: IMPORT_BUTTON }).click();
 	const summary = page.getByTestId('import-summary');
 	await expect(summary).toContainText('4 links added');
 	await expect(summary).toContainText('1 duplicate skipped');
@@ -285,7 +288,7 @@ test('a bookmarks file imported from Settings, exported, cleared and imported ba
 	expect(mine(await exported(page))).toEqual([]);
 	await openSettings(page);
 	await importFile(page, file.suggestedFilename(), html);
-	await page.getByRole('button', { name: 'Import', exact: true }).click();
+	await page.getByRole('button', { name: IMPORT_BUTTON }).click();
 	await expect(page.getByTestId('import-summary')).toContainText('4 links added');
 	expect(mine(await exported(page))).toEqual(first);
 	await page.screenshot({
@@ -383,7 +386,7 @@ test('a file that is not bookmarks, or over 20 MB, is refused with a message and
 	await expect(page.getByRole('alert')).toHaveText(
 		'That is not a bookmarks file. Choose an HTML bookmarks export or a Pocket CSV.'
 	);
-	await expect(page.getByRole('button', { name: 'Import', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: IMPORT_BUTTON })).toHaveCount(0);
 
 	await importFile(
 		page,
@@ -435,7 +438,7 @@ test('Settings at 390 and 1440, light and dark, with an import summary', async (
 			await openSettings(page);
 			await importFile(page, 'pocket.csv', pocket, 'text/csv');
 			await expect(page.getByTestId('import-chosen')).toContainText('Pocket export (CSV)');
-			await page.getByRole('button', { name: 'Import', exact: true }).click();
+			await page.getByRole('button', { name: IMPORT_BUTTON }).click();
 			await expect(page.getByTestId('import-summary')).toContainText('added');
 			await expect(page.getByTestId('import-summary')).toContainText(
 				'Line 4: A row with no address.'
