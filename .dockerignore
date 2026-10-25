@@ -1,0 +1,23 @@
+# What `docker compose build` never sends to the build: settings and secrets, local data, outputs and tools' state.
+# The build reads src/, static/, design/ (tokens.css), drizzle/, package*.json, .npmrc, vite.config.ts, tsconfig.json.
+.env
+.env.*
+data
+*.db
+*.db-*
+node_modules
+build
+.svelte-kit
+.git
+.bonsai
+.claude
+work
+e2e
+test-results
+playwright-report
+blob-report
+.vitest
+deploy
+compose.yaml
+Dockerfile
+.dockerignore
