@@ -5,9 +5,9 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: 2026-10-25 09:41
+finished: 2026-10-25 09:58
 outcome: needs-verifier
-commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a", "523a3f3", "a320577", "9067a28", "08e2851"]
+commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a", "523a3f3", "a320577", "9067a28", "08e2851", "9ed4783", "1c872f8"]
 labels: {}
 ---
 
@@ -146,6 +146,11 @@ The next merge of T-0012 waits for the orchestrator's word.
   capped at 512 KB, so normalising first is quick too): it proves the refusal, not which check made it. The
   check stays as a bound before NFKC.
 - T-0012's test files are unchanged from 4fcd938 except the round-2 selector change. Server unit tests: 441 passed.
+- Climb at 9ed4783: red at rung 0. The guard refused `.bonsai/sessions.md` and `.bonsai/tasks.md` against base
+  4fcd938: T-0012 had landed on main (042eceb), so the base moved, and my branch held the older main copies of
+  those generated tables (from the T-0018 merge). I did not edit them. Fix: 1c872f8 merges current main, which
+  carries T-0012's landing; both tables now equal main's, and the merge changed no code (records only). Not taken:
+  the guard's suggested `git checkout 4fcd938 -- <path>`, which would have rolled main's tables back.
 
 ## Done when, and what proves it
 
