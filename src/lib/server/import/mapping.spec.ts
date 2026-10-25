@@ -140,7 +140,8 @@ describe('defaults', () => {
 		]
 	];
 	it.each(table)('%s', (name, want) => {
-		const folders = foldersOf(parseImport(fixture(name)).items, new Map());
+		const parsed = parseImport(fixture(name));
+		const folders = foldersOf(parsed.items, new Map(), parsed.raindrop);
 		expect(folders.map((f) => [f.path, f.count, f.suggested])).toEqual(want);
 		expect(folders.map((f) => f.key)).toEqual(want.map(([path]) => folderKey(path)));
 	});
@@ -717,5 +718,62 @@ describe('the preview under T-0012’s field limits and link cap', () => {
 		const [f] = foldersOf(parseImport(Buffer.from(file)).items, new Map());
 		expect(f.suggested.kind).toBe('new');
 		expect((f.suggested as { name: string }).name.length).toBeLessThanOrEqual(64);
+	});
+});
+
+// Raindrop's own Unsorted collection defaults to No project in a Raindrop file only (done_when 2, tests re-check
+// M-2026-10-25-423bd975): a folder the person named Unsorted in a browser's file is theirs, and starts on New project.
+describe('Unsorted: Raindrop’s collection, or the person’s folder', () => {
+	const unsortedIn = (head: string, attrs = '') => `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+${head}
+<DL><p>
+<DT><H3>Unsorted</H3>
+<DL><p><DT><A HREF="https://u.example.com/" ${attrs}>u</A></DL><p>
+</DL><p>`;
+	const suggestedFor = async (file: string) => {
+		const { status, body } = await preview(alice, file);
+		expect(status).toBe(200);
+		return body.folders.find((f: { key: string }) => f.key === key('Unsorted')).suggested;
+	};
+
+	it('a Chrome file’s top-level folder named Unsorted starts on New project', async () => {
+		expect(await suggestedFor(unsortedIn('<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>'))).toEqual({
+			kind: 'new',
+			name: 'Unsorted'
+		});
+	});
+
+	it('a Firefox file’s top-level folder named Unsorted starts on New project', async () => {
+		expect(
+			await suggestedFor(unsortedIn('<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks Menu</H1>'))
+		).toEqual({ kind: 'new', name: 'Unsorted' });
+	});
+
+	it('Raindrop’s own Unsorted starts on No project: the fixture, a file known by its title, one known by DATA-COVER', async () => {
+		const { body } = await preview(alice, fixture('raindrop.html'));
+		expect(body.folders.find((f: { key: string }) => f.key === key('Unsorted')).suggested).toEqual({
+			kind: 'none'
+		});
+		expect(
+			await suggestedFor(
+				unsortedIn('<TITLE>Raindrop.io Bookmarks</TITLE>\n<H1>Raindrop.io Bookmarks</H1>')
+			)
+		).toEqual({ kind: 'none' });
+		expect(
+			await suggestedFor(
+				unsortedIn('<H1>Bookmarks</H1>', 'DATA-COVER="https://u.example.com/c.png"')
+			)
+		).toEqual({ kind: 'none' });
+	});
+
+	it('in a Raindrop file, only the top-level Unsorted is Raindrop’s: one inside a collection is the person’s', async () => {
+		const file = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<TITLE>Raindrop.io Bookmarks</TITLE>
+<DL><p>
+<DT><H3>Work</H3>
+<DL><p><DT><H3>Unsorted</H3><DL><p><DT><A HREF="https://w.example.com/">w</A></DL><p></DL><p>
+</DL><p>`;
+		const { body } = await preview(alice, file);
+		expect(body.folders[0].suggested).toEqual({ kind: 'new', name: 'Work / Unsorted' });
 	});
 });

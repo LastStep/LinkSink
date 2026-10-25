@@ -83,9 +83,19 @@ export function tooManyLinks() {
 	);
 }
 
-/** Every link in a Netscape bookmark file, with its folder path; `<A>`s that are not links become failures. */
-export function parseNetscape(text: string): { items: ImportItem[]; failures: ImportFailure[] } {
+/**
+ * Every link in a Netscape bookmark file, with its folder path; `<A>`s that are not links become failures.
+ * `raindrop`: the file is Raindrop's export (its title, or a DATA-COVER attribute only Raindrop writes), whose own
+ * top-level Unsorted collection the import preview starts on No project (T-0019).
+ */
+export function parseNetscape(text: string): {
+	items: ImportItem[];
+	failures: ImportFailure[];
+	raindrop: boolean;
+} {
 	const lineAt = lineIndex(text);
+	// Raindrop's header: <TITLE>Raindrop.io Bookmarks</TITLE> and the same <H1>, before the first list.
+	let raindrop = /<(?:title|h1)>\s*Raindrop\.io\b/i.test(text.slice(0, 2048));
 	const items: ImportItem[] = [];
 	const failures: ImportFailure[] = [];
 
@@ -189,6 +199,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 				last = null;
 				break;
 			case 'a':
+				if (Object.hasOwn(attrs, 'data-cover')) raindrop = true;
 				anchor = { href: attrs.href, attrs, line: lineAt(at) };
 				anchorText = '';
 				break;
@@ -276,5 +287,5 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 	tokenizer.end();
 	endNote();
 	endAnchor();
-	return { items, failures };
+	return { items, failures, raindrop };
 }

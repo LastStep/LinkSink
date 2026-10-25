@@ -59,10 +59,7 @@ export interface Preview {
 	pocketRead: boolean;
 }
 
-/**
- * Top-level folder names a browser or tool makes itself: Chrome writes Other and Mobile bookmarks with no attribute,
- * and Raindrop exports its own Unsorted collection as a folder (the orchestrator's call, 2026-10-25, for the person).
- */
+/** Top-level folder names a browser makes itself (Chrome writes Other and Mobile bookmarks with no attribute). */
 const CONTAINER_NAMES = new Set([
 	'bookmarks bar',
 	'bookmarks toolbar',
@@ -71,8 +68,7 @@ const CONTAINER_NAMES = new Set([
 	'other bookmarks',
 	'bookmarks menu',
 	'mobile bookmarks',
-	'mobile',
-	'unsorted'
+	'mobile'
 ]);
 
 export const folderKey = (path: string[]) => JSON.stringify(path);
@@ -80,11 +76,18 @@ export const folderKey = (path: string[]) => JSON.stringify(path);
 /** A link with a web address, as the writer takes it. */
 const readable = (item: ImportItem) => normalise(item.url) !== null && cleanUrl(item.url) !== null;
 
-/** Which segments of a path are the browser's own containers: one that says so, or a known name at the very top. */
-function containers(folder: NonNullable<ImportItem['folder']>): boolean[] {
-	return folder.path.map(
-		(name, i) => folder.container[i] || (i === 0 && CONTAINER_NAMES.has(name.toLowerCase()))
-	);
+/**
+ * Which segments of a path are the browser's own containers: one that says so, or a known name at the very top; in
+ * a Raindrop file, also its own top-level Unsorted collection (done_when 2: Raindrop's only, the orchestrator's
+ * default of 2026-10-25 until the person looks). A folder named Unsorted in any other file is the person's.
+ */
+function containers(folder: NonNullable<ImportItem['folder']>, raindrop: boolean): boolean[] {
+	return folder.path.map((name, i) => {
+		if (folder.container[i]) return true;
+		if (i !== 0) return false;
+		const lower = name.toLowerCase();
+		return CONTAINER_NAMES.has(lower) || (raindrop && lower === 'unsorted');
+	});
 }
 
 /** A name cut to what the app stores: NFKC, trimmed, inner spaces collapsed, at most 64 characters. */
@@ -123,7 +126,8 @@ function liveProjects(db: DB, userId: string) {
 /** Every folder that holds a web link, in file order, with its count (copies included) and default choice. */
 export function foldersOf(
 	items: ImportItem[],
-	projectsByName: Map<string, string>
+	projectsByName: Map<string, string>,
+	raindrop = false
 ): PreviewFolder[] {
 	const byKey = new Map<string, PreviewFolder>();
 	for (const item of items) {
@@ -134,7 +138,7 @@ export function foldersOf(
 			known.count++;
 			continue;
 		}
-		const isContainer = containers(item.folder);
+		const isContainer = containers(item.folder, raindrop);
 		byKey.set(key, {
 			key,
 			path: [...item.folder.path],
@@ -181,7 +185,7 @@ export function previewImport(db: DB, userId: string, parsed: ParsedFile): Previ
 		unreadable: failures.length,
 		failures,
 		loose: parsed.items.filter((i) => !i.folder && readable(i)).length,
-		folders: foldersOf(parsed.items, liveProjects(db, userId).byName),
+		folders: foldersOf(parsed.items, liveProjects(db, userId).byName, parsed.raindrop),
 		tags: [...tags].sort(),
 		pocketRead: parsed.format === 'pocket-csv'
 	};
@@ -226,7 +230,9 @@ export function checkOptions(
 	}
 	if (!isRecord(mapping)) throw refuse('The folder mapping is not readable.');
 	const live = liveProjects(db, userId);
-	const folders = new Map(foldersOf(parsed.items, live.byName).map((f) => [f.key, f]));
+	const folders = new Map(
+		foldersOf(parsed.items, live.byName, parsed.raindrop).map((f) => [f.key, f])
+	);
 	const choices = new Map<string, FolderChoice>();
 	for (const [key, choice] of Object.entries(mapping)) {
 		const folder = folders.get(key);

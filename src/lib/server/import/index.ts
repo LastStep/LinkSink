@@ -39,7 +39,11 @@ export function parseImport(bytes: Uint8Array): ParsedFile {
 	if (text.includes('\u0000')) throw new ImportRefused(NOT_BOOKMARKS);
 	const format = sniffFormat(text.slice(0, 65_536));
 	if (!format) throw new ImportRefused(NOT_BOOKMARKS);
-	const { items, failures } = format === 'netscape' ? parseNetscape(text) : parsePocketCsv(text);
+	const {
+		items,
+		failures,
+		raindrop = false
+	} = format === 'netscape' ? parseNetscape(text) : { ...parsePocketCsv(text), raindrop: false };
 	if (items.length === 0) {
 		throw new ImportRefused(
 			failures.length
@@ -47,5 +51,5 @@ export function parseImport(bytes: Uint8Array): ParsedFile {
 				: 'There are no links in that file.'
 		);
 	}
-	return { format, items, failures };
+	return { format, items, failures, raindrop };
 }

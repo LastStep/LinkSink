@@ -41,6 +41,8 @@ export interface ParsedFile {
 	format: ImportFormat;
 	items: ImportItem[];
 	failures: ImportFailure[];
+	/** Raindrop's own export (T-0019): its top-level Unsorted is Raindrop's collection, not a folder the person made. */
+	raindrop?: boolean;
 }
 
 /** A file refused as a whole; nothing is written and the message is safe to show. */
