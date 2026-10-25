@@ -7,7 +7,7 @@ model: opus
 started: 2026-10-25 07:19
 finished: 2026-10-25 07:31
 outcome: needs-verifier
-commits: ["48dfb78", "828ef1b", "cdd2d54"]
+commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8"]
 labels: {}
 ---
 
@@ -61,6 +61,14 @@ A file with 200 folders keeps them in their own scrolling box, at most half the 
   Then 4/4 in Chromium, 4/4 in WebKit (QA config in the scratchpad, not the ladder). T-0012's 4 e2e tests green
   against the new screen.
 - Fixed from the shots: "tags· 1 tag" lost its space; now "Keep the file's tags · 1 tag in it".
+- 07:37 First climb green at 1346872 (before the merges below): rungs 0–5 green.
+- The orchestrator asked for T-0012's fix round (3bbce56) and main (T-0018) to be merged before the final climb.
+  22196f8 merges T-0012: conflicts in import/netscape.ts, write.ts, api.ts. T-0012's versions kept whole (Tokenizer
+  parser with a 32-level cap, names checked before any write, ImportStopped); T-0019's folder path, `uniqueItems` and
+  existing project ids re-applied on them. The folder path follows the same 32-level cap; a new unit test covers a
+  file nested 2,000 deep (one folder, 32 segments, under 1 s). Server unit tests after the merge: 401 passed.
+  Main merged cleanly after it (T-0018 touched no Settings file; Shell now has the phone tab bar).
+- After both merges: T-0012 + T-0019 e2e 9/9 in Chromium, T-0019 e2e 4/4 in WebKit; the 16 shots retaken.
 
 ## Done when, and what proves it
 
@@ -74,7 +82,7 @@ A file with 200 folders keeps them in their own scrolling box, at most half the 
 | Look at 390/1440, light/dark, Chromium/WebKit; 200 folders usable | e2e test 4: no horizontal overflow, folder list scrolls and is ≤ half the viewport, last of 200 folders reachable and changeable; 16 shots (below) |
 | Ladder green; first-load JS on / ≤ 60 KB | See Ladder; `npm run size`: / 52.24 KB, /login 46.03 KB, /signup 46.09 KB |
 
-Preview speed: 5,000-link file (0.37 MB, 2,500 already saved): **75 ms** (`[timing]` line in the unit run; the
+Preview speed: 5,000-link file (0.37 MB, 2,500 already saved): **75 ms** before the merges, **68 ms** after (`[timing]` line in the unit run; the
 test fails over 3 s).
 
 ## Ladder
@@ -108,7 +116,7 @@ To see it: Settings → Import → Choose a file.
 - `src/lib/server/import/write.ts`: existing project ids, re-checked inside the write; dedupe split out.
 - `src/lib/server/import/api.ts`, `src/routes/api/import/+server.ts`: `?preview`, and the options request type.
 - `src/routes/settings/ImportPreview.svelte`, `import-preview.ts` (new), `ImportExport.svelte`: the screen.
-- Tests: `src/lib/server/import/mapping.spec.ts` (30), `e2e/t0019-import-mapping.e2e.ts` (4). No existing test edited.
+- Tests: `src/lib/server/import/mapping.spec.ts` (31), `e2e/t0019-import-mapping.e2e.ts` (4). No existing test edited.
 
 ## Processes left running
 
@@ -117,7 +125,7 @@ The e2e servers were started by Playwright and stopped with each run; checked wi
 
 ## What it cost
 
-About 15 minutes of wall clock to this point (07:17 to 07:31). Spend: not known; the hours are in
+About 30 minutes of wall clock (07:17 to about 07:50), the merges included. Spend: not known; the hours are in
 `.bonsai/sessions.md`.
 
 ## Left for next time
