@@ -47,16 +47,16 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time, and a deploy is never cancelled halfway.
-concurrency:
-  group: deploy
-  cancel-in-progress: false
-
 jobs:
   deploy:
     name: deploy
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # One deploy at a time, and a deploy is never cancelled halfway; set on the job, so it holds whether ci.yml calls
+    # this workflow or a person runs it.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
     env:
       TAG: ${{ inputs.tag }}
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
