@@ -5,6 +5,7 @@ Active task when none is named: none (no task reads running)
 
 | Task | Title | Status | Lane | Started | Finished |
 |---|---|---|---|---|---|
+| T-0020 | Backups, the VPS deploy and CI — Litestream and restic services, deploy on the person's VPS, the ladder in CI | todo | full | | |
 | T-0019 | Import preview — see what a file holds and map each folder before anything is saved | verify | full | 2026-10-25 | |
 | T-0018 | Build ADR-0005 — two-line rows with a fixed state cell, radio-list status and priority, and the shared redesign of details, frame and phone | verify | full | 2026-10-25 | |
 | T-0017 | A link pasted on a tag's or a project's page joins that tag or project | done | light | 2026-10-24 | 2026-10-24 |
@@ -16,6 +17,7 @@ Active task when none is named: none (no task reads running)
 | T-0008 | Organising and the Ledger screens — tags, projects, status, priority, archive, bulk edit, Unsorted, source rename | verify | full | 2026-10-24 | |
 | T-0007 | Safe metadata fetcher — SSRF-guarded fetch, oEmbed and head parsing, image cache, Source and Media classifiers | verify | full | 2026-10-24 | |
 | T-0006 | Links and paste-to-save — links JSON API through syncWrite, URL normalise and duplicates, store interface, global paste with optimistic row, delete with undo | done | full | 2026-10-24 | 2026-10-24 |
+| T-0005 | Docker setup — an app image and a compose file with Caddy (HTTPS only), runnable on this machine at https://localhost | approved | full | | |
 | T-0004 | Design direction — three taste-skill directions for LinkSink's screens, rendered as real mockups, the person picks one | done | director | 2026-10-24 | 2026-10-24 |
 | T-0003 | Walking skeleton — SvelteKit 3 app with Better Auth sign-up, sync-ready SQLite, Ledger design tokens and the checks | done | full | 2026-10-24 | 2026-10-24 |
 | T-0002 | LinkSink web MVP — paste to save, organise, filter and search, on phone and desktop | approved | full | | |
