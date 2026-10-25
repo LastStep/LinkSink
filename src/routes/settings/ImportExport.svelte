@@ -130,8 +130,7 @@
 		{#if summary}
 			<div class="summary" data-testid="import-summary">
 				<p>
-					<strong>{plural(summary.added, 'link')} added</strong>
-					from the {summary.formatLabel.toLowerCase()}.
+					{summary.formatLabel}: <strong>{plural(summary.added, 'link')} added</strong>.
 				</p>
 				<ul class="counts">
 					<li>{plural(summary.duplicates, 'duplicate')} skipped</li>
