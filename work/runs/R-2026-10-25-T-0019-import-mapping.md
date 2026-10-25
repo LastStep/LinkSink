@@ -5,9 +5,9 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: 2026-10-25 09:45
+finished: 2026-10-25 10:10
 outcome: needs-verifier
-commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a", "523a3f3", "a320577", "9067a28", "08e2851", "9ed4783", "1c872f8", "0338010"]
+commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a", "523a3f3", "a320577", "9067a28", "08e2851", "9ed4783", "1c872f8", "0338010", "9e9caad", "1fe69ac", "e6572f3", "8c3f1c8"]
 labels: {}
 ---
 
@@ -151,6 +151,25 @@ The next merge of T-0012 waits for the orchestrator's word.
   those generated tables (from the T-0018 merge). I did not edit them. Fix: 1c872f8 merges current main, which
   carries T-0012's landing; both tables now equal main's, and the merge changed no code (records only). Not taken:
   the guard's suggested `git checkout 4fcd938 -- <path>`, which would have rolled main's tables back.
+
+- The climb at 9e9caad was green (read afterwards from the ladder result): 515 unit, 59 e2e.
+
+### Round 5 (brief M-2026-10-25-6db50f15): Raindrop's Unsorted only
+
+- 1fe69ac merges main for done_when 2's new wording: Raindrop's own Unsorted defaults to No project in a Raindrop
+  file only; a folder named Unsorted in any other file defaults to New project.
+- Tests first: Chrome and Firefox files with a top-level "Unsorted" folder start on New project. Both failed on the
+  code as at 9e9caad (mapping.ts unchanged since), as the brief asked.
+- e6572f3 The parser marks a Raindrop file (`raindrop`) by its header (`<TITLE>`/`<H1>` "Raindrop.io…" in the
+  first 2 KB) or any DATA-COVER attribute, which only Raindrop writes; `ParsedFile.raindrop` carries it. "unsorted"
+  left the general top-folder names; `containers()` takes it as a top folder only in a Raindrop file, at depth 0.
+  Tests: the fixture, a file known by its title only, one known by DATA-COVER only, and an Unsorted inside a
+  collection (stays the person's). Switching off detection, or either marker alone, turns a test red. My defaults
+  table now passes the parsed file's flag to `foldersOf`; its rows are unchanged.
+- 8c3f1c8 The optional item: a test that the folder heading is read only to FIELD_MAX.folder (256): a heading of
+  "a", 300 spaces, "b" gives the folder "a". With the cap removed (`heading.name += chunk`) it reads "a b" and the
+  test fails.
+- Server unit tests: 446 passed.
 
 ## Done when, and what proves it
 
