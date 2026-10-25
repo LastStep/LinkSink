@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0009
 title: Search, filters and keyboard — FTS5 search as you type, combined filters in the URL, sort, keys and the command palette
-status: approved
+status: running
 lane: full
 done_when:
   - "links_fts searches title, description, url, notes, tags_text and projects_text (unicode61 remove_diacritics 2, prefix '2 3'), soft-deleted rows excluded, kept current by triggers; GET /api/links?q= serves it"
@@ -16,7 +16,7 @@ done_when:
 depends_on: [T-0008, T-0018]
 blocked_by: null
 created: 2026-10-24
-started: null
+started: 2026-10-25
 finished: null
 labels:
   bonsai.branch: t0009-search-filters-keys
