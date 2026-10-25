@@ -81,12 +81,18 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Each value goes into a command line on the server: only plain characters.
-          echo "$TAG" | grep -Eqx '[A-Za-z0-9_][A-Za-z0-9._-]{0,127}' || { echo "::error::not an image tag: $TAG"; exit 1; }
-          echo "$DEPLOY_HOST" | grep -Eqx '[A-Za-z0-9.-]+' || { echo "::error::DEPLOY_HOST must be a host name"; exit 1; }
-          echo "$DEPLOY_USER" | grep -Eqx '[A-Za-z0-9_][A-Za-z0-9._-]*' || { echo "::error::DEPLOY_USER must be a user name"; exit 1; }
-          echo "$DEPLOY_PATH" | grep -Eqx '[A-Za-z0-9._/~-]+' || { echo "::error::DEPLOY_PATH must be a folder path with no spaces"; exit 1; }
-          echo "${DEPLOY_PORT:-22}" | grep -Eqx '[0-9]{1,5}' || { echo "::error::DEPLOY_PORT must be a port number"; exit 1; }
+          # Each value goes into a command line on the server: only plain characters, matched against the whole
+          # value (bash's =~ never matches across a newline, so a value of several lines is refused).
+          tag_re='^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'
+          host_re='^[A-Za-z0-9.-]+$'
+          user_re='^[A-Za-z0-9_][A-Za-z0-9._-]*$'
+          path_re='^[A-Za-z0-9._/~-]+$'
+          port_re='^[0-9]{1,5}$'
+          [[ $TAG =~ $tag_re ]] || { echo "::error::not an image tag: one line of letters, digits, '.', '_' and '-'"; exit 1; }
+          [[ $DEPLOY_HOST =~ $host_re ]] || { echo "::error::DEPLOY_HOST must be a host name"; exit 1; }
+          [[ $DEPLOY_USER =~ $user_re ]] || { echo "::error::DEPLOY_USER must be a user name"; exit 1; }
+          [[ $DEPLOY_PATH =~ $path_re ]] || { echo "::error::DEPLOY_PATH must be a folder path with no spaces"; exit 1; }
+          [[ ${DEPLOY_PORT:-22} =~ $port_re ]] || { echo "::error::DEPLOY_PORT must be a port number"; exit 1; }
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Check out the project

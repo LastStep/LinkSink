@@ -1,8 +1,9 @@
 # Running LinkSink on another Docker machine
 
 This is for running LinkSink somewhere other than the computer you develop on. That machine needs no source code
-and builds nothing: it runs the image GitHub publishes, `ghcr.io/laststep/linksink`, from three small files. For
-trying it on this computer, see `deploy/README.md` instead.
+and builds nothing: it runs the image GitHub publishes, `ghcr.io/laststep/linksink`, from four small files
+(`compose.yaml`, `deploy/Caddyfile`, `deploy/update.sh` and `.env`). For trying it on this computer, see
+`deploy/README.md` instead.
 
 There are two cases, and the steps say where they differ:
 
@@ -132,8 +133,10 @@ sh deploy/update.sh
 sign in with your usual email and password: every link, tag and project is there. Each device signs in again, since
 the address changed. Delete `linksink-data.tar.gz` from both machines once it works: it holds your whole account.
 
-If LinkSink already ran on the new machine, empty its volume first, which deletes what is in it:
-`docker compose down -v`, then the four lines above.
+If LinkSink already ran on the new machine, remove its data volume first, which deletes the account and links in it:
+`docker compose down`, then `docker volume rm linksink_data`, then the four lines above. Not `docker compose down -v`:
+that also deletes Caddy's volumes, its certificates among them, and on a home machine Caddy then makes a new local
+authority that every device has to trust again.
 
 ## 5. Update it
 
@@ -141,13 +144,23 @@ If LinkSink already ran on the new machine, empty its volume first, which delete
 cd ~/linksink && sh deploy/update.sh
 ```
 
-This takes the newest published image (`latest`). To run a given version, name it:
-`sh deploy/update.sh ghcr.io/laststep/linksink:sha-1a2b3c4` (each commit on `main` has one; a release tag `v1.2.0`
-publishes `:1.2.0`). The script writes the name into `.env` as `LINKSINK_IMAGE`, so the machine stays on it until
-the next update; empty that line to follow `latest` again. Older LinkSink images are removed once the new one
-answers. To update `compose.yaml` and the Caddyfile too, fetch them again as in step 1 (not `.env`).
+With no image named, it runs the image `.env` names in `LINKSINK_IMAGE`, pulled again, and
+`ghcr.io/laststep/linksink:latest` while that line is empty: a fresh machine follows `latest`.
 
-Your data stays in the volume through every update. `docker compose down -v` is the one command that deletes it.
+Naming an image pins the machine to it: `sh deploy/update.sh ghcr.io/laststep/linksink:sha-1a2b3c4` (each commit on
+`main` has one; a release tag `v1.2.0` publishes `:1.2.0`) runs that image and, once it answers, writes it into
+`.env` as `LINKSINK_IMAGE`. From then on a plain `sh deploy/update.sh` stays on it. Every deploy from GitHub (step 6)
+pins the machine the same way, to that commit's `sha-` image. To move a pinned machine to the newest image, name
+`latest`, which also makes later plain runs follow `latest` again:
+
+```bash
+sh deploy/update.sh ghcr.io/laststep/linksink:latest
+```
+
+Older LinkSink images are removed once the new one answers. To update `compose.yaml` and the Caddyfile too, fetch
+them again as in step 1 (not `.env`).
+
+Your data stays in the volume through every update. `docker compose down -v` deletes it, with Caddy's certificates.
 
 ## 6. Deploy from GitHub on every push (case A)
 
@@ -157,27 +170,39 @@ commit's image, and checks `https://<domain>/login` from GitHub. Until the secre
 notice ("Deploy skipped") and CI stays green. You can also run it by hand for any published tag: GitHub, Actions,
 **deploy**, **Run workflow**, and type the tag (`latest`, `1.2.0` or `sha-1a2b3c4`).
 
-1. **On the server**, as root: a user for deploys, allowed to run Docker, owning the LinkSink folder. Membership of
-   the `docker` group is as good as root on that machine, so the key below is for this alone.
+1. **On your computer**: a key pair for GitHub, with no passphrase. The second line prints its public half, one line
+   starting `ssh-ed25519`: copy it.
+
+   ```bash
+   ssh-keygen -t ed25519 -N '' -C linksink-deploy -f linksink-deploy
+   cat linksink-deploy.pub
+   ```
+
+2. **On the server**, as root (`sudo -i`): a user for deploys, allowed to run Docker, with that key as its only way
+   in (it has no password). Membership of the `docker` group is as good as root on that machine, so the key is for
+   this alone. Put the line you copied in place of `ssh-ed25519 AAAA... linksink-deploy`:
 
    ```bash
    adduser --disabled-password --gecos '' deploy
    usermod -aG docker deploy
+   install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+   echo 'ssh-ed25519 AAAA... linksink-deploy' > /home/deploy/.ssh/authorized_keys
+   chown deploy:deploy /home/deploy/.ssh/authorized_keys
+   chmod 600 /home/deploy/.ssh/authorized_keys
    ```
 
    Then do steps 1 to 3 as that user (`su - deploy`), so the folder is `/home/deploy/linksink`.
 
-2. **On your computer**: a key pair for GitHub, with no passphrase, and its public half on the server.
+3. **On your computer** again: check the key works, and record the server's own key for GitHub.
 
    ```bash
-   ssh-keygen -t ed25519 -N '' -C linksink-deploy -f linksink-deploy
-   ssh-copy-id -i linksink-deploy.pub deploy@links.example.com
+   ssh -i linksink-deploy deploy@links.example.com docker ps
    ssh-keyscan -t ed25519 links.example.com > linksink-known-hosts
    ```
 
-   `ssh -i linksink-deploy deploy@links.example.com docker ps` should list LinkSink's two containers.
+   The first line should list LinkSink's two containers.
 
-3. **On GitHub**: the repository, **Settings**, **Secrets and variables**, **Actions**, **New repository secret**,
+4. **On GitHub**: the repository, **Settings**, **Secrets and variables**, **Actions**, **New repository secret**,
    once for each:
 
    | Name                 | Value                                                                           |
@@ -209,14 +234,14 @@ Docker's IPv6 is off: write that down for T-0020, and LinkSink still works meanw
 
 ## What is where
 
-| Thing                       | Where                                                                           |
-| --------------------------- | ------------------------------------------------------------------------------- |
-| Settings                    | `.env` in the LinkSink folder (example: `deploy/server.env.example`)            |
-| The image it runs           | `LINKSINK_IMAGE` in `.env`; `ghcr.io/laststep/linksink:latest` when empty       |
-| Account, links, page images | the volume `linksink_data`                                                      |
-| Certificates                | the volume `linksink_caddy_data`                                                |
-| Logs                        | `docker compose logs app`, `docker compose logs caddy`                          |
-| Stop, start, remove         | `docker compose stop`, `start`, `down` (data stays); `down -v` deletes the data |
+| Thing                       | Where                                                                                                    |
+| --------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Settings                    | `.env` in the LinkSink folder (example: `deploy/server.env.example`)                                     |
+| The image it runs           | `LINKSINK_IMAGE` in `.env`; `ghcr.io/laststep/linksink:latest` when empty                                |
+| Account, links, page images | the volume `linksink_data`                                                                               |
+| Certificates                | the volume `linksink_caddy_data`                                                                         |
+| Logs                        | `docker compose logs app`, `docker compose logs caddy`                                                   |
+| Stop, start, remove         | `docker compose stop`, `start`, `down` (data stays); `down -v` deletes the data and Caddy's certificates |
 
 Backups of the volume (Litestream and restic) are not set up yet: that is T-0020. Until then, the file from step 4
 is a backup: make one now and then the same way.
