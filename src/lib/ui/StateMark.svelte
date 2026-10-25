@@ -10,7 +10,7 @@
 		size = 14
 	}: {
 		kind: 'status' | 'priority';
-		value: Status | Priority | number | null | undefined;
+		value: Status | Priority | string | number | null | undefined;
 		size?: number;
 	} = $props();
 

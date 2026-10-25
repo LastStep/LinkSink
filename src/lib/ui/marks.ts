@@ -8,7 +8,7 @@ export type MarkSpec =
 	| { kind: 'priority'; bars: 0 | 1 | 2 | 3; color: string };
 
 /** What a status looks like: unset is a dashed circle, then an empty circle, a half circle, a green check. */
-export function statusMark(value: Status | null | undefined): MarkSpec {
+export function statusMark(value: Status | string | null | undefined): MarkSpec {
 	switch (value) {
 		case 'to_read':
 			return { kind: 'status', shape: 'empty', color: 'var(--text)' };
