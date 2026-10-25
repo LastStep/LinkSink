@@ -1,7 +1,7 @@
 ---
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0020
-title: Backups, the VPS deploy and CI — Litestream and restic services, deploy on the person's VPS, the ladder in CI
+title: Backups and the deploy on the person's VPS — Litestream and restic services, the first deploy, a rehearsed restore
 status: todo
 lane: full
 done_when: []
@@ -15,7 +15,7 @@ labels:
   workflow.milestone: "MVP"
 ---
 
-# Backups, the VPS deploy and CI
+# Backups and the deploy on the person's VPS
 
 ## Context
 
@@ -28,14 +28,13 @@ The rest of plan P-T-0002 step 3 under ADR-0004, after T-0005's Docker setup. It
   `VACUUM INTO` snapshot backed up with restic (encrypted on the host) to a second bucket.
 - The deploy on the person's VPS over HTTPS, with Resend's DNS (SPF, DKIM) checked, and `curl -I https://<host>`.
 - A rehearsed restore from each backup into the volume, written in `deploy/RESTORE.md`, with a monthly reminder.
-- Where the image is built (CI or the person's machine) and pulled; a GitHub Actions workflow running the ladder and
-  `bonsai check` (base:ci).
+- The first deploy through T-0029's deploy job (its secrets set for the VPS).
 - Carried: FTS5 is keyed on rowid, and `VACUUM INTO` may renumber rowids, so check the snapshot's FTS index; the
   drizzle-kit audit findings (dev only: check they stay out of the image); a LUKS volume if the person wants one.
 
 ## Out of scope
 
-The app image and compose file themselves (T-0005), except what backups add to them.
+The app image and compose file (T-0005), and CI/CD (T-0029), except what backups add to them.
 
 ## Notes
 

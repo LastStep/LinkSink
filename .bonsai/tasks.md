@@ -5,6 +5,7 @@ Active task when none is named: none (no task reads running)
 
 | Task | Title | Status | Lane | Started | Finished |
 |---|---|---|---|---|---|
+| T-0029 | CI/CD on GitHub — the ladder and bonsai check on every push, the image published to GHCR, a deploy over SSH, and steps for running LinkSink on another Docker machine | approved | full | | |
 | T-0028 | LinkSink's mark is the app's icon everywhere — the browser tab, bookmarks and a phone's home screen | todo | light | | |
 | T-0027 | A project can be renamed from its own page, as well as from the Projects page | todo | light | | |
 | T-0026 | Options for a board view of links by status and priority, and the Obsidian-like link map | todo | director | | |
@@ -13,7 +14,7 @@ Active task when none is named: none (no task reads running)
 | T-0023 | Details fetched after an import show up on the open page, with a line saying how many are still being fetched | todo | light | | |
 | T-0022 | The sidebar's project list scrolls on its own; Settings and everything below it stay in place | todo | light | | |
 | T-0021 | The page-details fetch queue stops on shutdown, so the server exits cleanly mid-fetch | todo | light | | |
-| T-0020 | Backups, the VPS deploy and CI — Litestream and restic services, deploy on the person's VPS, the ladder in CI | todo | full | | |
+| T-0020 | Backups and the deploy on the person's VPS — Litestream and restic services, the first deploy, a rehearsed restore | todo | full | | |
 | T-0019 | Import preview — see what a file holds and map each folder before anything is saved | verify | full | 2026-10-25 | |
 | T-0018 | Build ADR-0005 — two-line rows with a fixed state cell, radio-list status and priority, and the shared redesign of details, frame and phone | verify | full | 2026-10-25 | |
 | T-0017 | A link pasted on a tag's or a project's page joins that tag or project | done | light | 2026-10-24 | 2026-10-24 |
