@@ -81,6 +81,29 @@ describe('the feeder', () => {
 	});
 });
 
+describe('kick()', () => {
+	it('starts again from the first waiting link: one with an id before the cursor is found by kick, not by fill', () => {
+		const ids = (n: number) => String(n).padStart(26, '0');
+		pending(8);
+		t.db.$client.exec(`UPDATE links SET meta_state = 'ok' WHERE id < '${ids(5)}'`);
+		const enqueued: string[] = [];
+		const feeder = createFeeder({
+			queue: { enqueue: (id) => enqueued.push(id), pending: 0, queuedIds: () => [] },
+			next: (after, limit, exclude) => nextPending(t.db, after, limit, exclude)
+		});
+		feeder.kick();
+		expect(enqueued).toEqual([ids(5), ids(6), ids(7)]);
+		// Those are done; a link before the cursor is waiting again (an import cut short and restarted, say).
+		t.db.$client.exec(`UPDATE links SET meta_state = 'ok' WHERE id >= '${ids(5)}'`);
+		t.db.$client.exec(`UPDATE links SET meta_state = 'pending' WHERE id = '${ids(3)}'`);
+		enqueued.length = 0;
+		feeder.fill();
+		expect(enqueued).toEqual([]);
+		feeder.kick();
+		expect(enqueued).toEqual([ids(3)]);
+	});
+});
+
 describe('the queue and the event loop', () => {
 	it('a run of fetches that fail at once lets timers and requests through between jobs', async () => {
 		let turns = 0;

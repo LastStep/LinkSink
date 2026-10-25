@@ -52,7 +52,8 @@ export function exportHtml(db: DB, userId: string): string {
 	let body = '';
 	for (const project of projects) {
 		const inside = json.filter((l) => l.projectIds.includes(project.id));
-		const latest = Math.max(project.createdAt, ...inside.map((l) => l.updatedAt));
+		let latest = project.createdAt;
+		for (const l of inside) if (l.updatedAt > latest) latest = l.updatedAt;
 		body += `    <DT><H3 ADD_DATE="${seconds(project.createdAt)}" LAST_MODIFIED="${seconds(latest)}">${escapeHtml(project.name)}</H3>\n`;
 		body += '    <DL><p>\n';
 		for (const link of inside) body += entry(link, '        ');
