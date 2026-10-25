@@ -5,9 +5,9 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: 2026-10-25 08:54
+finished: 2026-10-25 09:16
 outcome: needs-verifier
-commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a"]
+commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a", "523a3f3", "a320577"]
 labels: {}
 ---
 
@@ -124,6 +124,14 @@ The next merge of T-0012 waits for the orchestrator's word.
 - T-0012's test files are unchanged from b49f6c5 except the round-2 selector change in its e2e (checked with
   `git diff b49f6c5`). Server unit tests: 417 passed; T-0012 + T-0019 e2e: 10/10 in Chromium. WebKit not re-run:
   no screen code changed in this merge.
+
+### Round 4 (brief M-2026-10-25-32a2d3a2): merge T-0012's fix round 3 (7d3c4f4)
+
+- a320577 Merge, no conflicts. T-0012's new lint rule (no spread arguments into Math.max/min, push,
+  String.fromCharCode/fromCodePoint) finds nothing in T-0019's files: `npx eslint .` clean after the merge. T-0019's
+  spreads are array literals (`[...new Set(...)]`), not call arguments.
+- The person's new rule: Playwright runs one at a time across agents. This round's climb ran under
+  `flock …/scratchpad/playwright.lock`.
 
 ## Done when, and what proves it
 
