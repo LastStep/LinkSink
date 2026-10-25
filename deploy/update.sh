@@ -10,6 +10,8 @@
 # machine; then removes the older LinkSink images no container uses. Any failure stops it, with a non-zero exit.
 # It needs docker with compose, and curl. It never touches the data volumes.
 set -eu
+# The files it writes (.env's copy among them) are readable by this user alone.
+umask 077
 
 say() { printf 'update: %s\n' "$*"; }
 fail() {
@@ -30,7 +32,25 @@ setting() {
 		sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\\(.*\\)'\$/\\1/"
 }
 
-# 1. The image: the one named here, kept in .env so a later `docker compose up -d` runs it too.
+# 1. The settings a server must not get wrong, checked before anything changes.
+host=$(setting LINKSINK_HOST | tr '[:upper:]' '[:lower:]')
+host=${host:-localhost}
+listen=$(setting LINKSINK_LISTEN)
+mail=$(setting LINKSINK_MAIL_TRANSPORT)
+case "$host" in
+	localhost | *.localhost | *.local | *.internal | *.home.arpa) public=no ;;
+	*:*) public=no ;;
+	*[!0-9.]*) public=yes ;;
+	*) public=no ;;
+esac
+if [ "$public" = yes ] && [ "$mail" = console ]; then
+	fail "LINKSINK_MAIL_TRANSPORT=console on $host, a public name: every sign-in and reset link would be printed to the log. Set LINKSINK_MAIL_TRANSPORT=resend with LINKSINK_RESEND_API_KEY and LINKSINK_MAIL_FROM in .env"
+fi
+if [ "$public" = yes ] && [ "$listen" = 127.0.0.1 ]; then
+	say "warning: LINKSINK_LISTEN=127.0.0.1, so nothing outside this machine reaches $host, Let's Encrypt included"
+fi
+
+# 2. The image: the one named here, kept in .env so a later `docker compose up -d` runs it too.
 if [ $# -gt 0 ]; then
 	image=$1
 	printf '%s\n' "$image" | grep -Eqx '[a-z0-9][a-z0-9._/:@-]*' || fail "not an image name: $image"
@@ -48,24 +68,6 @@ if [ $# -gt 0 ]; then
 fi
 image=$(setting LINKSINK_IMAGE)
 image=${image:-ghcr.io/laststep/linksink:latest}
-
-# 2. The settings a server must not get wrong.
-host=$(setting LINKSINK_HOST | tr '[:upper:]' '[:lower:]')
-host=${host:-localhost}
-listen=$(setting LINKSINK_LISTEN)
-mail=$(setting LINKSINK_MAIL_TRANSPORT)
-case "$host" in
-	localhost | *.localhost | *.local | *.internal | *.home.arpa) public=no ;;
-	*:*) public=no ;;
-	*[!0-9.]*) public=yes ;;
-	*) public=no ;;
-esac
-if [ "$public" = yes ] && [ "$mail" = console ]; then
-	fail "LINKSINK_MAIL_TRANSPORT=console on $host, a public name: every sign-in and reset link would be printed to the log. Set LINKSINK_MAIL_TRANSPORT=resend with LINKSINK_RESEND_API_KEY and LINKSINK_MAIL_FROM in .env"
-fi
-if [ "$public" = yes ] && [ "$listen" = 127.0.0.1 ]; then
-	say "warning: LINKSINK_LISTEN=127.0.0.1, so nothing outside this machine reaches $host, Let's Encrypt included"
-fi
 
 # 3. Pull, then start what changed. --no-build: a machine running the published image never builds it.
 say "pulling $image"
