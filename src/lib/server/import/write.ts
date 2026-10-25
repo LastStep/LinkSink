@@ -7,7 +7,8 @@ import { linkProjects, links, linkTags, projects, tags } from '../db/schema.ts';
 import { displayName, tagName } from '../organise.ts';
 import type { SyncWrite, SyncWriter } from '../sync/write.ts';
 import { ulid } from '../ulid.ts';
-import { ImportStopped, type ImportFailure, type ImportItem } from './types.ts';
+import { ImportRefused, ImportStopped, type ImportFailure, type ImportItem } from './types.ts';
+import type { DB } from '../db/open.ts';
 
 export const IMPORT_BATCH = 500;
 const NAME_MAX = 64;
@@ -61,7 +62,9 @@ function namer(w: SyncWriter) {
 		.all();
 	const projectIds = new Map(live.map((p) => [p.name.toLowerCase(), p.id]));
 	let count = live.length;
-	let position = Math.max(0, ...live.map((p) => p.position + 1));
+	// A loop, not Math.max(...): spreading many thousands of projects overflows the call stack.
+	let position = 0;
+	for (const p of live) if (p.position + 1 > position) position = p.position + 1;
 	return {
 		tag(name: string) {
 			let id = tagIds.get(name);
@@ -144,17 +147,24 @@ function writeBatch(syncWrite: SyncWrite, userId: string, batch: Unique[]) {
 	});
 }
 
+/** The most new projects one import may make; a file that needs more is refused before anything is written. */
+export const NEW_PROJECTS_MAX = 1_000;
+
+/** One turn of the event loop between batches, so the server answers other requests during a long import. */
+const nextTurn = () => new Promise<void>((resolve) => setImmediate(resolve));
+
 /**
- * Saves the items as the user's links, `saved_via = 'import'`. An address already saved is skipped; one that comes
- * again in the file is skipped too, its tags, projects and notes joining the first. `onCreated` hears of each new
- * link once its batch is written (the app queues its page details fetch).
+ * Saves the items as the user's links, `saved_via = 'import'`, `meta_state = 'pending'` (the fetch queue's feeder
+ * picks them up from there). An address already saved is skipped; one that comes again in the file is skipped too,
+ * its tags, projects and notes joining the first. Refuses the whole file (ImportRefused) before any write when it
+ * would make more than NEW_PROJECTS_MAX projects. Yields to the event loop between batches.
  */
-export function importItems(
+export async function importItems(
+	db: DB,
 	syncWrite: SyncWrite,
 	userId: string,
-	items: ImportItem[],
-	onCreated: (linkId: string) => void = () => {}
-): ImportResult {
+	items: ImportItem[]
+): Promise<ImportResult> {
 	const failures: ImportFailure[] = [];
 	const byKey = new Map<string, Unique>();
 	let duplicates = 0;
@@ -173,8 +183,8 @@ export function importItems(
 		const first = byKey.get(key);
 		if (first) {
 			duplicates++;
-			first.tags.push(...item.tags);
-			first.projects.push(...item.projects);
+			for (const t of item.tags) first.tags.push(t);
+			for (const p of item.projects) first.projects.push(p);
 			first.notes ??= item.notes;
 			continue;
 		}
@@ -209,8 +219,28 @@ export function importItems(
 		u.title = u.title?.trim().slice(0, TITLE_MAX) || null;
 		u.notes = u.notes?.slice(0, NOTES_MAX) || null;
 	}
+	const existing = new Set(
+		db
+			.select({ name: projects.name })
+			.from(projects)
+			.where(and(eq(projects.userId, userId), isNull(projects.deletedAt)))
+			.all()
+			.map((p) => p.name.toLowerCase())
+	);
+	const created = new Set<string>();
+	for (const u of unique) {
+		for (const name of u.projectNames) {
+			if (!existing.has(name.toLowerCase())) created.add(name.toLowerCase());
+		}
+	}
+	if (created.size > NEW_PROJECTS_MAX) {
+		throw new ImportRefused(
+			`That file would make ${created.size.toLocaleString('en')} new projects (one for each folder); one import makes at most ${NEW_PROJECTS_MAX.toLocaleString('en')}. Nothing was imported.`
+		);
+	}
 	const addedIds: string[] = [];
 	for (let i = 0; i < unique.length; i += IMPORT_BATCH) {
+		if (i > 0) await nextTurn();
 		const batch = unique.slice(i, i + IMPORT_BATCH);
 		let ids: string[];
 		try {
@@ -220,8 +250,7 @@ export function importItems(
 			throw new ImportStopped(addedIds.length, error);
 		}
 		duplicates += batch.length - ids.length;
-		addedIds.push(...ids);
-		for (const id of ids) onCreated(id);
+		for (const id of ids) addedIds.push(id);
 	}
 	return { added: addedIds.length, duplicates, failures, addedIds };
 }

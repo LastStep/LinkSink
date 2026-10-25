@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { and, eq, isNull } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { links, projects, syncMeta, tags } from '../db/schema.ts';
+import { createFeeder, nextPending } from '../fetch/feeder.ts';
 import { createFetchQueue } from '../fetch/queue.ts';
 import { linksJson, patchLink, deleteLink, saveLink } from '../links.ts';
 import { createProject, createTag, listProjects, listTags } from '../organise.ts';
@@ -15,15 +16,16 @@ import type { ImportItem } from './types.ts';
 let t: ReturnType<typeof tempDatabase>;
 let syncWrite: SyncWrite;
 let api: ImportApi;
-let created: string[];
+/** How many times an import told the fetch queue there are links waiting. */
+let kicks: number;
 let alice: { id: string };
 let bob: { id: string };
 
 beforeEach(() => {
 	t = tempDatabase();
 	syncWrite = createSyncWrite(t.db);
-	created = [];
-	api = createImportApi({ db: t.db, syncWrite, onCreated: (id) => created.push(id) });
+	kicks = 0;
+	api = createImportApi({ db: t.db, syncWrite, onImported: () => kicks++ });
 	alice = { id: addUser(t.db, 'alice') };
 	bob = { id: addUser(t.db, 'bob') };
 });
@@ -121,11 +123,8 @@ describe('POST /api/import', () => {
 			expect(
 				userLinks(alice.id).every((l) => l.savedVia === 'import' && l.metaState === 'pending')
 			).toBe(true);
-			expect(created.sort()).toEqual(
-				userLinks(alice.id)
-					.map((l) => l.id)
-					.sort()
-			);
+			// The fetch queue's feeder reads the pending links from the database; the import tells it once.
+			expect(kicks).toBe(1);
 		}
 	);
 
@@ -299,7 +298,7 @@ describe('POST /api/import', () => {
 			expect(snapshot(t.db).versions).toEqual(before.versions);
 		}
 		expect(userLinks(alice.id)).toHaveLength(0);
-		expect(created).toEqual([]);
+		expect(kicks).toBe(0);
 	});
 
 	it('refuses a body announced over 20 MB before reading it', async () => {
@@ -350,27 +349,33 @@ describe('batches and speed', () => {
 });
 
 describe('background details', () => {
-	it('queues every new link for its details, never more than 2 fetches at once', async () => {
+	it('every new link gets its details through the feeder, never more than 2 fetches at once', async () => {
 		let running = 0;
 		let most = 0;
 		const done: string[] = [];
 		const queue = createFetchQueue({
+			onRoom: () => feeder.fill(),
 			work: async (id) => {
 				running++;
 				most = Math.max(most, running);
 				await new Promise((r) => setTimeout(r, 2));
+				t.db.update(links).set({ metaState: 'ok' }).where(eq(links.id, id)).run();
 				running--;
 				done.push(id);
 			},
 			onGiveUp: () => {}
 		});
-		const result = importItems(
+		const feeder = createFeeder({
+			queue,
+			next: (after, limit, exclude) => nextPending(t.db, after, limit, exclude)
+		});
+		const result = await importItems(
+			t.db,
 			syncWrite,
 			alice.id,
-			Array.from({ length: 40 }, (_, i) => item(`https://q.example.com/${i}`)),
-			queue.enqueue
+			Array.from({ length: 40 }, (_, i) => item(`https://q.example.com/${i}`))
 		);
-		expect(queue.pending).toBe(40);
+		feeder.kick();
 		await queue.idle();
 		expect(most).toBe(2);
 		expect(done.sort()).toEqual([...result.addedIds].sort());
@@ -395,7 +400,7 @@ function item(url: string, extra: Partial<ImportItem> = {}): ImportItem {
 describe('names', () => {
 	it('cuts a tag or project name to 64 characters, and drops one that is only spaces', async () => {
 		const long = 'x'.repeat(80);
-		importItems(syncWrite, alice.id, [
+		await importItems(t.db, syncWrite, alice.id, [
 			item('https://n.example.com', { tags: [long, '  '], projects: [long] })
 		]);
 		expect(listTags(t.db, alice.id).map((x) => x.name)).toEqual(['x'.repeat(64)]);

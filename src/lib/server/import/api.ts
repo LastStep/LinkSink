@@ -49,12 +49,15 @@ async function readCapped(request: Request, max: number): Promise<Uint8Array> {
 export function createImportApi({
 	db,
 	syncWrite,
-	onCreated = () => {}
+	onImported = () => {}
 }: {
 	db: DB;
 	syncWrite: SyncWrite;
-	/** Called with each new link's id once it is written: the app queues its page details fetch. */
-	onCreated?: (linkId: string) => void;
+	/**
+	 * Called once an import has written links (all of them, or some before a failure). The app tells its fetch
+	 * queue, whose feeder reads the waiting links from the database a few at a time (fetch/feeder.ts).
+	 */
+	onImported?: () => void;
 }) {
 	return {
 		/**
@@ -69,7 +72,8 @@ export function createImportApi({
 			}
 			try {
 				const parsed = parseImport(await readCapped(request, IMPORT_MAX_BYTES));
-				const result = importItems(syncWrite, caller.id, parsed.items, onCreated);
+				const result = await importItems(db, syncWrite, caller.id, parsed.items);
+				if (result.added) onImported();
 				const failures = [...parsed.failures, ...result.failures].sort((a, b) => a.line - b.line);
 				return Response.json({
 					format: parsed.format,
@@ -82,6 +86,7 @@ export function createImportApi({
 			} catch (error) {
 				if (error instanceof ImportRefused) return problem(error.status, error.message);
 				if (error instanceof ImportStopped && error.saved > 0) {
+					onImported();
 					console.error('[import] stopped part-way', error.saved, error.cause);
 					return problem(
 						500,
