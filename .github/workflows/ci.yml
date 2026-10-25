@@ -6,7 +6,7 @@
 # - image: the app image built, then started with compose behind Caddy (localhost, console mail), and checked:
 #   https://localhost/login answers 200 and plain http redirects to https.
 # Only on main and on v* tags, and only once all three pass, publish pushes that same image to
-# ghcr.io/<owner>/<repo> (tags latest, sha-<short>, and the version on a tag), and on main, deploy (deploy.yml) runs it
+# ghcr.io/<owner>/<repo> (sha-<short>; latest on main; the version on a v* tag), and on main, deploy (deploy.yml) runs it
 # on the server, or skips with a notice when its secrets are not set. A pull request, a fork's included, never
 # publishes and never sees a secret: those two jobs run on a push only, and no workflow here uses pull_request_target.
 # Every action is pinned by its full commit, its version in the comment beside it; move a pin only on purpose.
@@ -147,8 +147,12 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ steps.name.outputs.repository }}
+          # latest follows main only: never moved by a v* tag (latest=false turns off the action's own latest for a
+          # semver tag), so a tag cut from an older commit never rolls latest back.
+          flavor: |
+            latest=false
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short
             type=semver,pattern={{version}}
           labels: |
