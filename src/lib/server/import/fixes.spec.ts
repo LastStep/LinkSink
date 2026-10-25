@@ -135,6 +135,15 @@ describe('a write that fails part-way', () => {
 		expect(again.body).toMatchObject({ added: 700, duplicates: 500 });
 	});
 
+	it('tells the fetch queue after a part-way failure, so the links saved get their details without a restart', async () => {
+		let kicks = 0;
+		const api = createImportApi({ db: t.db, syncWrite: failingOn(2), onImported: () => kicks++ });
+		const res = await api.import(me, upload(file(1200)));
+		expect(res.status).toBe(500);
+		expect(live()).toHaveLength(500);
+		expect(kicks).toBe(1);
+	});
+
 	it('says nothing was saved when the first write fails', async () => {
 		const before = snapshot(t.db);
 		const res = await importAs(file(10), failingOn(1));
