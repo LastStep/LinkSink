@@ -260,3 +260,6 @@ an artifact for the person to open on phone and desktop).
 - 20:50 Fable spike report M-2026-10-24-d34fa073 done (f1/f2/f3, shared redesign). OPT-0003 updated: recommend r1 + c2 + shared redesign. Shots in design/options/T-0016/fable/ (email and password stripped from REPORT copy).
 - 06:41 (10-25) Person: "OPT-0003 picks: row f3, control c3, the whole shared redesign." ADR-0005 written; OPT-0003 decided (chosen C); T-0016 → verify; T-0018 (full) + P-T-0018 draft, waiting for approval. Comparison artifact https://claude.ai/artifact/5EHQa6dDUeoLn1jbyTLwf3.
 - 06:43 Person: "approve P-T-0018". T-0018 running.
+- 06:44 T-0018 approved (person's "approve P-T-0018"; approve-first needed its own commit, made on that word) and running: brief M-2026-10-25-d4383312 builder@T-0018 (opus, 180), worktree ../LinkSink-t0018, E2E 4720.
+- 06:44 Person: "you can start other tasks in parallel as well wherever possible to build/fix the app further". T-0012 (export/import, P-T-0002 step 10) approved on that word, running: brief M-2026-10-25-bedaf091 builder@T-0012 (opus, 180), worktree ../LinkSink-t0012, E2E 4730; told to stay out of T-0018's files.
+- Not parallel: T-0009 (same list screen; after T-0018), T-0010 sync (after T-0009 per plan). Docker part of T-0005 could run now if Docker works in WSL (it doesn't: Desktop's WSL integration is off) — asked the person.
