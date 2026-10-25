@@ -1,0 +1,301 @@
+# .github/workflows/ci.yml: LinkSink's CI/CD (T-0029).
+#
+# On every push and pull request, three jobs side by side, and any failure fails the run:
+# - bonsai: `bonsai check` (the skill base:ci; Bonsai's release archive, checked by its SHA-256 before it runs);
+# - ladder: `bonsai ladder --ci`, the rungs bonsai.yaml defines (types, lint, unit, e2e in Chromium, build and size);
+# - image: the app image built, then started with compose behind Caddy (localhost, console mail), and checked:
+#   https://localhost/login answers 200 and plain http redirects to https.
+# Only on main and on v* tags, and only once all three pass, publish pushes that same image to
+# ghcr.io/<owner>/<repo> (tags latest, sha-<short>, and the version on a tag), and on main, deploy (deploy.yml) runs it
+# on the server, or skips with a notice when its secrets are not set. A pull request, a fork's included, never
+# publishes and never sees a secret: those two jobs run on a push only, and no workflow here uses pull_request_target.
+# Every action is pinned by its full commit, its version in the comment beside it; move a pin only on purpose.
+# What it publishes, and how a machine runs it: deploy/SERVER.md.
+name: ci
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+
+# The token's rights for every job here; publish alone adds packages: write.
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request cancels the older run, except on main and tags, where every run
+# may publish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  # Bonsai 1.0.0, the project's own (bonsai --version: commit 48d5f3f0d387): the Linux archive and its SHA-256, from
+  # the release's checksums.txt (https://github.com/LastStep/Bonsai/releases/tag/v1.0.0).
+  BONSAI_URL: https://github.com/LastStep/Bonsai/releases/download/v1.0.0/bonsai_1.0.0_linux_amd64.tar.gz
+  BONSAI_SHA256: 5277cad9e36d4b1c520ea3b9be7a698965fa4757a0d4aa9a803b71c2469285e1
+
+jobs:
+  bonsai:
+    name: bonsai check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: project
+          persist-credentials: false
+
+      - name: Get bonsai
+        run: |
+          curl -fsSL -o bonsai.tar.gz "$BONSAI_URL"
+          echo "$BONSAI_SHA256  bonsai.tar.gz" | sha256sum -c -
+          tar -xzf bonsai.tar.gz bonsai
+
+      # Exit 0 with no finding, 1 with any; warnings never fail it. A Bonsai home of its own, empty.
+      - name: Run bonsai check
+        working-directory: project
+        env:
+          BONSAI_HOME: ${{ runner.temp }}/bonsai-home
+        run: ../bonsai check --json
+
+  ladder:
+    name: ladder
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      # The whole history: the guard rung (0) reads the branch against its base.
+      - name: Check out the project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Get bonsai
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL -o bonsai.tar.gz "$BONSAI_URL"
+          echo "$BONSAI_SHA256  bonsai.tar.gz" | sha256sum -c -
+          tar -xzf bonsai.tar.gz bonsai
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium for the e2e rung
+        run: npx playwright install --with-deps chromium
+
+      # Every rung bonsai.yaml defines, in order, stopping at the first required failure. The result goes to
+      # .bonsai/local/ladder/ci.json (mode ci, never a task's proof); the table below is its summary.
+      - name: Climb the ladder
+        env:
+          BONSAI_HOME: ${{ runner.temp }}/bonsai-home
+        run: |
+          set +e
+          "$RUNNER_TEMP/bonsai" ladder --ci --json > "$RUNNER_TEMP/climb.json"
+          status=$?
+          set -e
+          jq -r '"green: \(.ladder.green)", (.ladder.rungs[] | "rung \(.rung) \(.name): \(.status)\(if .reason then "\n" + .reason else "" end)"), (if .next then "next: \(.next | tostring)" else empty end)' "$RUNNER_TEMP/climb.json" || cat "$RUNNER_TEMP/climb.json"
+          {
+            echo "### Ladder: green $(jq -r .ladder.green "$RUNNER_TEMP/climb.json")"
+            echo
+            echo "| Rung | Check | Result | Seconds |"
+            echo "| --- | --- | --- | --- |"
+            jq -r '.ladder.rungs[] | "| \(.rung) | \(.name) | \(.status) | \(if .duration_ms then (.duration_ms / 1000 | floor) else "" end) |"' "$RUNNER_TEMP/climb.json"
+          } >> "$GITHUB_STEP_SUMMARY" || true
+          exit "$status"
+
+      - name: Keep the ladder's result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ladder
+          path: |
+            .bonsai/local/ladder/ci.json
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14
+
+  image:
+    name: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # GHCR names are lower case: LastStep/LinkSink publishes ghcr.io/laststep/linksink.
+      - name: Name the image
+        id: name
+        run: |
+          echo "repository=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # The tags it is published under, and the OCI labels naming the repository (source, revision, created, version).
+      - name: Tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ steps.name.outputs.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.title=LinkSink
+            org.opencontainers.image.description=LinkSink, a private place for links: the app server, run behind Caddy with compose.yaml
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Loaded into this runner's Docker, not pushed: it is started and checked below first.
+      - name: Build the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          push: false
+          provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # compose.yaml as a person runs it, with this image and the settings below: Caddy on ports 80 and 443 (free on
+      # GitHub's runners), its local certificate for localhost, mail printed to the log.
+      - name: Start it with compose
+        env:
+          LINKSINK_IMAGE: ${{ steps.name.outputs.repository }}:sha-${{ steps.name.outputs.short }}
+        run: |
+          {
+            echo "LINKSINK_IMAGE=$LINKSINK_IMAGE"
+            echo "LINKSINK_HOST=localhost"
+            echo "LINKSINK_LISTEN=127.0.0.1"
+            echo "LINKSINK_HTTP_PORT=80"
+            echo "LINKSINK_AUTH_SECRET=$(openssl rand -base64 32)"
+            echo "LINKSINK_MAIL_TRANSPORT=console"
+          } > .env
+          docker compose up -d --no-build --pull never --wait --wait-timeout 180
+          docker compose ps
+
+      - name: Check https://localhost/login answers 200 and http redirects
+        run: |
+          # Caddy's local authority, so curl checks the certificate rather than skipping the check.
+          for _ in $(seq 1 30); do
+            docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt "$RUNNER_TEMP/root.crt" 2>/dev/null && break
+            sleep 1
+          done
+          for _ in $(seq 1 30); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --cacert "$RUNNER_TEMP/root.crt" https://localhost/login || true)
+            [ "$code" = 200 ] && break
+            sleep 2
+          done
+          echo "https://localhost/login: $code"
+          [ "$code" = 200 ]
+
+          redirect=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' http://localhost/login)
+          echo "http://localhost/login: $redirect"
+          [ "$redirect" = "301 https://localhost/login" ]
+
+          # No Strict-Transport-Security for localhost: deploy/Caddyfile sends it only for public names.
+          headers=$(curl -sS -D - -o /dev/null --cacert "$RUNNER_TEMP/root.crt" https://localhost/login)
+          if printf '%s' "$headers" | grep -qi '^strict-transport-security'; then
+            echo "Strict-Transport-Security sent for localhost"; exit 1
+          fi
+          echo "no Strict-Transport-Security for localhost"
+
+      - name: The containers' logs, on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop it
+        if: always()
+        run: docker compose down -v
+
+      # Kept for publish, which pushes this very image once the other jobs have passed.
+      - name: Save the image for publish
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: docker save $TAGS | gzip -1 > "$RUNNER_TEMP/image.tar.gz"
+
+      - name: Keep the image for publish
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}/image.tar.gz
+          compression-level: 0
+          retention-days: 1
+
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+      repository: ${{ steps.name.outputs.repository }}
+      short: ${{ steps.name.outputs.short }}
+
+  publish:
+    name: publish
+    needs: [bonsai, ladder, image]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Get the image the image job checked
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+          path: ${{ runner.temp }}
+
+      - name: Load it
+        run: gunzip -c "$RUNNER_TEMP/image.tar.gz" | docker load
+
+      - name: Push it to GHCR
+        id: push
+        env:
+          TAGS: ${{ needs.image.outputs.tags }}
+          REPOSITORY: ${{ needs.image.outputs.repository }}
+          SHORT: ${{ needs.image.outputs.short }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for tag in $TAGS; do docker push "$tag"; done
+          digest=$(docker image inspect --format '{{index .RepoDigests 0}}' "$REPOSITORY:sha-$SHORT")
+          docker logout ghcr.io
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Published"
+            echo
+            for tag in $TAGS; do echo "- \`$tag\`"; done
+            echo "- \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+    outputs:
+      tag: sha-${{ needs.image.outputs.short }}
+
+  deploy:
+    name: deploy
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: ${{ needs.publish.outputs.tag }}
+    secrets:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
