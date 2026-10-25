@@ -372,3 +372,36 @@ Both findings came from the same cause: work done on raw input before it was cut
 ## Verifier
 
 > Added by the verifier, in a fresh context. Pass or fail, with reasons.
+
+## Landing (orchestrator, 2026-10-25 09:44 UTC)
+
+- **Briefs:**
+  - M-2026-10-25-bedaf091 (the build);
+  - fix rounds M-2026-10-25-b32f82f3, M-2026-10-25-e43d804d, M-2026-10-25-13483117 and M-2026-10-25-de517a71.
+  - Builder reports: M-2026-10-25-7c57d085, M-2026-10-25-86c549a4, M-2026-10-25-7a359196, M-2026-10-25-1788e646 and M-2026-10-25-3be63696.
+- **Tests lens** (verifier@T-0012#2):
+  - FAIL M-2026-10-25-440f4db7 at 91ab57f (B1, case-variant folders → 500; held).
+  - PASS M-2026-10-25-380f2208 at 3bbce56.
+  - PASS M-2026-10-25-a78c585a at b49f6c5.
+- **Security lens, verifier@T-0012:**
+  - FAIL M-2026-10-25-37dc62c2 at 91ab57f (deep nesting out of memory; chunked bodies bypassing the limit; both held).
+  - FAIL M-2026-10-25-efe1bb2e at 3bbce56 (a 100k-link import out of memory; the projects spread; both held, both already in 91ab57f).
+  - FAIL M-2026-10-25-723bd0ed at b49f6c5 (the export.ts:55 spread; held, already in 91ab57f).
+  - PASS M-2026-10-25-cf86824d at 7d3c4f4. This was its 4th run in one context, past the role's limit, so not counted alone.
+- **Security lens, fresh verifier@T-0012#3:**
+  - FAIL M-2026-10-25-97e02ec2 at 7d3c4f4 (linkding regex quadratic; NFKC before the cut; both held).
+  - PASS M-2026-10-25-bc908240 at 4fcd938.
+- **Blocking findings:** 9 held, 0 did not hold. The facts lens did not run.
+- **The orchestrator's read:** I read rounds 3–4 (b49f6c5..4fcd938) instead of a fourth tests run. They are narrow security fixes; each new test was shown failing on the round's base; no test line was removed.
+- **Merged:** no-ff into main as 9fb1e0c. `bonsai ladder --task T-0012` on main at 9fb1e0c (clean, under the shared Playwright lock): rungs 0-5 green, unit 472, e2e 54.
+- **Status:** T-0012 → verify. The person tests it at the end, including importing the exported bookmarks file into Chrome or Firefox once.
+- **Carried:**
+  - **T-0005:** BODY_SIZE_LIMIT=Infinity; rowid FTS vs VACUUM.
+  - **Follow-up tasks:**
+    - cap the raw tags per link (4×100) in splitTags and pocket.ts;
+    - cap attribute names per tag;
+    - stream large exports, or let them yield (a 500k-link account blocks for 7–9 s and uses 2.6 GB);
+    - TOREAD flag → To read;
+    - Raindrop CSV;
+    - Pocket's ril_export.html.
+- **Lint rule added** (workflow:correct): no spread arguments to Math.max/min, .push or String.fromCharCode/fromCodePoint.
