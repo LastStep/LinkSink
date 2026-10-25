@@ -12,6 +12,8 @@ const email = 'person@example.com';
 const password = 'correct horse battery staple';
 const state = 'data/e2e/t0023-session.json';
 const COUNT = 8;
+// saved now, so they are the newest and sit on the first page whatever the files before this one left
+const now = Math.floor(Date.now() / 1000);
 
 test.describe.configure({ mode: 'serial' });
 
@@ -54,7 +56,7 @@ test.use({ storageState: state });
 const bookmarks = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
 <TITLE>Bookmarks</TITLE>
 <DL><p>
-${Array.from({ length: COUNT }, (_, i) => `<DT><A HREF="${fixture}/article.html?n=${i}" ADD_DATE="${1_700_000_000 + i}"></A>`).join('\n')}
+${Array.from({ length: COUNT }, (_, i) => `<DT><A HREF="${fixture}/article.html?n=${i}" ADD_DATE="${now + i}"></A>`).join('\n')}
 </DL><p>
 `;
 

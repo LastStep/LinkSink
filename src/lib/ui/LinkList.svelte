@@ -627,7 +627,7 @@
 		{#if message}<p class="error" role="alert">{message}</p>{/if}
 		{#if notice}<p class="notice muted" role="status">{notice}</p>{/if}
 		{#if $store.detailsLeft > 0}
-			<p class="fetching muted num" role="status" data-testid="fetching">
+			<p class="fetching muted num" aria-live="polite" data-testid="fetching">
 				Fetching details: {$store.detailsLeft}{$store.detailsAtLeast ? '+' : ''} left
 			</p>
 		{/if}
