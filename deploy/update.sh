@@ -3,12 +3,13 @@
 #
 # Run it in LinkSink's folder (compose.yaml, deploy/Caddyfile and .env), by hand or from the deploy job over SSH:
 #   sh deploy/update.sh                                    # the image .env names (LINKSINK_IMAGE), else latest
-#   sh deploy/update.sh ghcr.io/laststep/linksink:1.2.0    # that image, written into .env as LINKSINK_IMAGE
+#   sh deploy/update.sh ghcr.io/laststep/linksink:1.2.0    # that image, kept in .env as LINKSINK_IMAGE once it runs
 #
 # In order: it refuses console mail on a public host name; pulls; starts what changed (Caddy too when the Caddyfile
 # changed) and waits until the app is healthy; checks that https://<LINKSINK_HOST>/login answers 200 on this
-# machine; then removes the older LinkSink images no container uses. Any failure stops it, with a non-zero exit.
-# It needs docker with compose, and curl. It never touches the data volumes.
+# machine; writes the image it named into .env; then removes the older LinkSink images no container uses. Any failure
+# stops it with a non-zero exit, and .env keeps naming the image that ran before. It needs docker with compose, and
+# curl. It never touches the data volumes.
 set -eu
 # The files it writes (.env's copy among them) are readable by this user alone.
 umask 077
@@ -50,24 +51,19 @@ if [ "$public" = yes ] && [ "$listen" = 127.0.0.1 ]; then
 	say "warning: LINKSINK_LISTEN=127.0.0.1, so nothing outside this machine reaches $host, Let's Encrypt included"
 fi
 
-# 2. The image: the one named here, kept in .env so a later `docker compose up -d` runs it too.
+# 2. The image: the one named here, else the one .env names, else latest. Given to compose through the environment,
+# which comes before .env; written into .env (step 5) only once it answers.
+named=no
 if [ $# -gt 0 ]; then
+	named=yes
 	image=$1
 	printf '%s\n' "$image" | grep -Eqx '[a-z0-9][a-z0-9._/:@-]*' || fail "not an image name: $image"
-	if grep -q '^LINKSINK_IMAGE=' .env; then
-		sed "s|^LINKSINK_IMAGE=.*|LINKSINK_IMAGE=$image|" .env > .env.update
-	else
-		{
-			cat .env
-			printf '\n# The image LinkSink runs, written by deploy/update.sh.\nLINKSINK_IMAGE=%s\n' "$image"
-		} > .env.update
-	fi
-	# Written back into the same file, so its owner and mode stay as they are.
-	cat .env.update > .env
-	rm -f .env.update
+else
+	image=$(setting LINKSINK_IMAGE)
+	image=${image:-ghcr.io/laststep/linksink:latest}
 fi
-image=$(setting LINKSINK_IMAGE)
-image=${image:-ghcr.io/laststep/linksink:latest}
+LINKSINK_IMAGE=$image
+export LINKSINK_IMAGE
 
 # 3. Pull, then start what changed. --no-build: a machine running the published image never builds it.
 say "pulling $image"
@@ -112,7 +108,22 @@ done
 [ "$code" = 200 ] || fail "$url answered $code on this machine: $(cat "$check/error"). See: docker compose logs caddy app"
 say "$url answers 200"
 
-# 5. The older LinkSink images, the ones no container uses (the running one stays).
+# 5. The image named here, kept in .env so a later `docker compose up -d` runs it too. Written back into the same
+# file, so its owner and mode stay as they are.
+if [ "$named" = yes ] && [ "$(setting LINKSINK_IMAGE)" != "$image" ]; then
+	if grep -q '^LINKSINK_IMAGE=' .env; then
+		sed "s|^LINKSINK_IMAGE=.*|LINKSINK_IMAGE=$image|" .env > .env.update
+	else
+		{
+			cat .env
+			printf '\n# The image LinkSink runs, written by deploy/update.sh.\nLINKSINK_IMAGE=%s\n' "$image"
+		} > .env.update
+	fi
+	cat .env.update > .env
+	rm -f .env.update
+fi
+
+# 6. The older LinkSink images, the ones no container uses (the running one stays).
 source=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.source" }}' "$image" 2> /dev/null || true)
 if [ -n "$source" ] && [ "$source" != '<no value>' ]; then
 	docker image prune -af --filter "label=org.opencontainers.image.source=$source" > /dev/null
