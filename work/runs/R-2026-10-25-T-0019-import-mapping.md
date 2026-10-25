@@ -5,9 +5,9 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: 2026-10-25 07:41
+finished: 2026-10-25 08:31
 outcome: needs-verifier
-commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120"]
+commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f"]
 labels: {}
 ---
 
@@ -70,6 +70,40 @@ A file with 200 folders keeps them in their own scrolling box, at most half the 
   Main merged cleanly after it (T-0018 touched no Settings file; Shell now has the phone tab bar).
 - After both merges: T-0012 + T-0019 e2e 9/9 in Chromium, T-0019 e2e 4/4 in WebKit; the 16 shots retaken.
 
+### Round 2 (brief M-2026-10-25-afa315a9, 08:02)
+
+All three verifiers passed c97c6ed (security M-2026-10-25-cdb1d853, tests M-2026-10-25-c87249d5, QA
+M-2026-10-25-3cc04598). This round: tests for four surviving mutants, the button as "Import N links", QA's two items.
+The next merge of T-0012 waits for the orchestrator's word.
+
+- 167e91d Four tests, each shown failing with its breakage applied to the code (then the code restored):
+  - container attribute ignored (`folder.container[i]` dropped): a German file whose top folders carry
+    PERSONAL_TOOLBAR_FOLDER / UNFILED_BOOKMARKS_FOLDER under names no list knows. Failed with the breakage.
+  - stored project names not lower-cased in `liveProjects`: an existing project named "READING". Failed.
+  - the user filter removed from the writer's re-check of project ids: `importItems` called directly, past
+    `checkOptions`, with Bob's project id for Alice. Failed (Bob's project got Alice's link).
+  - `uniqueItems` dropping a later copy's project ids: the existing project on the second copy, by `importItems`
+    and through the API (Raindrop's Unsorted copy of my-link-2). Both failed.
+- 7a83064 The summary counts projects made (`projectsMade`; a project joined is not counted); API tests assert
+  1 and 9. The orchestrator added an item (for the person): Raindrop's own "Unsorted" collection now defaults to
+  No project ("unsorted" joins the top-folder names). My own defaults row for raindrop.html changed from New
+  project to No project to match: a decision changed, not a test weakened.
+- 1d5919f The button reads "Import N links". T-0012's e2e: its four locators for the button changed from
+  `{ name: 'Import', exact: true }` to `{ name: /^Import [\d,]+ links?$/ }`. That is a selector change; no assertion
+  in that file changed. The sentence beside the button now names only the duplicates ("1 duplicate will be skipped:
+  already saved, or twice in the file."). "Existing project" fits at 390: the choice select is 156 px on a phone
+  (was 136) and 160 px on a desktop (was 148). A new e2e check measures the option's text against the select's
+  inner width at 390; at the old 136 px it fails ("fits": false), at 156 px it passes. The summary after Import
+  lists "N projects made" when the import made any; e2e test 2 asserts "1 project made".
+- Port 4800 was taken by another session's T-0012 server (pid 124788, cwd LinkSink-t0012), so my e2e runs and this
+  climb used E2E_PORT=4810. I left that server alone.
+- A slip, caught and fixed: to undo the 136 px check I ran `git checkout` on ImportPreview.svelte, which also
+  dropped this round's uncommitted edits to that file. I re-applied them (the same diff) and committed;
+  the e2e runs after the commit are the ones reported.
+- After 1d5919f: T-0012 + T-0019 e2e 9/9 in Chromium, T-0019 e2e 4/4 in WebKit; 18 shots (16 plus the existing row
+  at 390 in each browser).
+- Not changed: a long project name inside the existing-project select is cut off at 390, as a select cuts its
+  text.
 ## Done when, and what proves it
 
 | Done when | Proof |
@@ -116,7 +150,7 @@ To see it: Settings → Import → Choose a file.
 - `src/lib/server/import/write.ts`: existing project ids, re-checked inside the write; dedupe split out.
 - `src/lib/server/import/api.ts`, `src/routes/api/import/+server.ts`: `?preview`, and the options request type.
 - `src/routes/settings/ImportPreview.svelte`, `import-preview.ts` (new), `ImportExport.svelte`: the screen.
-- Tests: `src/lib/server/import/mapping.spec.ts` (31), `e2e/t0019-import-mapping.e2e.ts` (4). No existing test edited.
+- Tests: `src/lib/server/import/mapping.spec.ts` (36), `e2e/t0019-import-mapping.e2e.ts` (4). No existing test edited.
 
 ## Processes left running
 
