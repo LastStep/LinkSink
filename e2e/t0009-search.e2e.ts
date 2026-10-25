@@ -48,6 +48,29 @@ test.beforeAll(async ({ browser }) => {
 });
 test.use({ storageState: state });
 
+// The links this file made go again at the end (soft-deleted), so later files see the account as they would without
+// it: t0018 empties Unsorted by tagging one page of it.
+test.afterAll(async ({ browser }) => {
+	const context = await browser.newContext({ baseURL: origin, storageState: state });
+	for (const word of [
+		't9type',
+		't9phrase',
+		't9filter',
+		't9page',
+		't9leave',
+		't9keys',
+		't9palette'
+	]) {
+		const res = await context.request.get(`/api/links?q=${word}&archived=include&limit=200`);
+		for (const link of (await res.json()).links as { id: string }[]) {
+			await context.request.delete(`/api/links/${link.id}`, {
+				headers: { 'content-type': 'application/json' }
+			});
+		}
+	}
+	await context.close();
+});
+
 type Link = { id: string; url: string; title: string };
 
 const save = async (page: Page, url: string, title: string, patch: object = {}): Promise<Link> => {
