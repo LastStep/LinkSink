@@ -1,19 +1,23 @@
-import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { MEDIA, PRIORITIES, STATUSES, type SavedVia, type UserSetField } from '../fields.ts';
 import type { LinkJson, View } from '../store/types.ts';
 import { ULID_PATTERN } from '../ulid.ts';
 import { cleanUrl, displayHost, normalise } from '../url.ts';
 import type { DB } from './db/open.ts';
-import { linkProjects, links, linkTags, sources } from './db/schema.ts';
-import { organisingOf, setOrganising, unsortedSql } from './organise.ts';
+import { links, sources } from './db/schema.ts';
+import { organisingOf, setOrganising } from './organise.ts';
+import { searchLinks } from './search.ts';
+import { NO_FILTERS } from '../search/filters.ts';
 import type { SyncWrite } from './sync/write.ts';
 import { ulid } from './ulid.ts';
 
 export type Link = typeof links.$inferSelect;
 
 /**
- * Turns what a person typed into an FTS5 query: each word quoted (so no FTS5 syntax gets through) and matched as a
- * prefix, all words required. Returns null when nothing searchable is left.
+ * Turns what a person typed into an FTS5 query with every word a prefix: each word quoted (so no FTS5 syntax gets
+ * through), all words required; null when nothing searchable is left. The app's search no longer uses it: it goes
+ * through the shared parser (src/lib/search/query.ts, prefix on the last word only, quoted phrases). Kept, with its
+ * tests, until a task retires it.
  */
 export function toFtsQuery(input: string): string | null {
 	const words = input
@@ -23,28 +27,6 @@ export function toFtsQuery(input: string): string | null {
 		.slice(0, 16);
 	if (words.length === 0) return null;
 	return words.map((w) => `"${w.replaceAll('"', '""')}"*`).join(' ');
-}
-
-/** The SQL condition for the links a view shows (archived links only in Archive). */
-function viewSql(view: View) {
-	switch (view.kind) {
-		case 'archive':
-			return isNotNull(links.archivedAt);
-		case 'unsorted':
-			return and(isNull(links.archivedAt), unsortedSql);
-		case 'project':
-			return and(
-				isNull(links.archivedAt),
-				sql`EXISTS (SELECT 1 FROM ${linkProjects} lp WHERE lp.link_id = "links"."id" AND lp.project_id = ${view.id} AND lp.deleted_at IS NULL)`
-			);
-		case 'tag':
-			return and(
-				isNull(links.archivedAt),
-				sql`EXISTS (SELECT 1 FROM ${linkTags} lt WHERE lt.link_id = "links"."id" AND lt.tag_id = ${view.id} AND lt.deleted_at IS NULL)`
-			);
-		default:
-			return isNull(links.archivedAt);
-	}
 }
 
 /** Reads a view from a list request's query: `view=unsorted|archive`, `project=<id>` or `tag=<id>`. */
@@ -60,7 +42,7 @@ export function parseView(params: URLSearchParams): View {
 
 /**
  * The user's live links in a view (every unarchived link by default), newest first; with `q`, only those matching
- * it in the full-text index.
+ * it in the full-text index (the shared parser, src/lib/search/query.ts). One page of `searchLinks`.
  */
 export function listLinks(
 	db: DB,
@@ -69,28 +51,7 @@ export function listLinks(
 	limit = 200,
 	view: View = { kind: 'all' }
 ): Link[] {
-	const live = and(eq(links.userId, userId), isNull(links.deletedAt), viewSql(view));
-	const match = q ? toFtsQuery(q) : null;
-	if (!match) {
-		return db
-			.select()
-			.from(links)
-			.where(live)
-			.orderBy(desc(links.createdAt), desc(links.id))
-			.limit(limit)
-			.all();
-	}
-	return db
-		.select()
-		.from(links)
-		.where(
-			and(
-				live,
-				sql`${links}.rowid IN (SELECT rowid FROM links_fts WHERE links_fts MATCH ${match} ORDER BY rank LIMIT ${limit})`
-			)
-		)
-		.orderBy(desc(links.createdAt), desc(links.id))
-		.all();
+	return searchLinks(db, userId, view, { ...NO_FILTERS, q: q ?? '' }, { limit }).links;
 }
 
 /** A link the person typed that cannot be saved; its message is safe to show them. */

@@ -10,7 +10,6 @@ import {
 	InvalidLinkError,
 	linkJson,
 	linksJson,
-	listLinks,
 	parsePatch,
 	parseView,
 	patchLink,
@@ -37,7 +36,9 @@ import {
 	updateTag,
 	viewCounts
 } from '../organise.ts';
+import { searchLinks } from '../search.ts';
 import type { SyncWrite } from '../sync/write.ts';
+import { parseFilters } from '../../search/filters.ts';
 
 /** Who is calling: the signed-in user's id, or null. */
 export type Caller = { id: string } | null;
@@ -107,16 +108,23 @@ export function createLinksApi({
 
 	return {
 		/**
-		 * GET /api/links?q=&view=unsorted|archive&project=<id>&tag=<id> : the live links in a view (every unarchived
-		 * link by default), newest first (search with q), with each view's count.
+		 * GET /api/links?q=&view=unsorted|archive&project=<id>&tag=<id> and the filters of src/lib/search/filters.ts
+		 * (source, media, tags, tagmode, projects, status, priority, archived, sort): one page of the live links in a
+		 * view (every unarchived link by default), 50 by default (`limit`, up to 200), the next page from `after` (the
+		 * last page's `next`); with each view's count and, on a first page, `total`, how many match in all.
 		 */
 		list(caller: Caller, url: URL) {
 			return guard(() => {
 				if (!caller) return signedIn(caller)!;
-				const q = url.searchParams.get('q')?.trim() || null;
-				const view = parseView(url.searchParams);
+				const params = url.searchParams;
+				const page = searchLinks(db, caller.id, parseView(params), parseFilters(params), {
+					after: params.get('after'),
+					limit: Number(params.get('limit')) || undefined
+				});
 				return json({
-					links: linksJson(db, caller.id, listLinks(db, caller.id, q, 200, view)),
+					links: linksJson(db, caller.id, page.links),
+					next: page.next,
+					total: page.total,
 					counts: viewCounts(db, caller.id)
 				});
 			});

@@ -21,7 +21,7 @@ describe('openDatabase', () => {
 		const applied = client.prepare('SELECT count(*) AS n FROM __drizzle_migrations').get() as {
 			n: number;
 		};
-		expect(applied.n).toBe(5);
+		expect(applied.n).toBe(6);
 		const tables = (
 			client.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as {
 				name: string;
@@ -82,7 +82,7 @@ describe('openDatabase', () => {
 			.get() as {
 			n: number;
 		};
-		expect(applied.n).toBe(5);
+		expect(applied.n).toBe(6);
 		expect(second.$client.prepare('SELECT count(*) AS n FROM user').get()).toEqual({ n: 1 });
 		second.$client.close();
 	});
