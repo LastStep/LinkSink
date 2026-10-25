@@ -268,7 +268,7 @@ describe('the list query', () => {
 				else expect(page.total).toBeNull();
 				first = false;
 				sizes.push(page.links.length);
-				seen.push(...page.links.map((l) => l.id));
+				for (const l of page.links) seen.push(l.id);
 				after = page.next;
 			} while (after);
 			expect(sizes, sort).toEqual([50, 50, 19]);

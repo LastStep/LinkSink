@@ -524,7 +524,7 @@ test('a tag or project with no links, a search with no match and an empty Unsort
 				`/api/links?view=unsorted${after ? `&after=${encodeURIComponent(after)}` : ''}`
 			)
 		).json();
-		waiting.push(...pageOf.links);
+		for (const l of pageOf.links) waiting.push(l);
 		after = pageOf.next;
 	} while (after);
 	for (const l of waiting)
