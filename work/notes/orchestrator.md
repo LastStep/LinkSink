@@ -259,3 +259,4 @@ an artifact for the person to open on phone and desktop).
 - 20:15 Person: "do a fable redesign on this and improve everything if possible". Second spike, builder@T-0016#2 on fable, brief M-2026-10-24-e0c7ad67 (150 min): rows and controls variants plus details, frame, empty states, phone; folder scratchpad T-0016/fable, port 4810. OPT-0003 stays open; the pick includes this pass.
 - 20:50 Fable spike report M-2026-10-24-d34fa073 done (f1/f2/f3, shared redesign). OPT-0003 updated: recommend r1 + c2 + shared redesign. Shots in design/options/T-0016/fable/ (email and password stripped from REPORT copy).
 - 06:41 (10-25) Person: "OPT-0003 picks: row f3, control c3, the whole shared redesign." ADR-0005 written; OPT-0003 decided (chosen C); T-0016 → verify; T-0018 (full) + P-T-0018 draft, waiting for approval. Comparison artifact https://claude.ai/artifact/5EHQa6dDUeoLn1jbyTLwf3.
+- 06:43 Person: "approve P-T-0018". T-0018 running.
