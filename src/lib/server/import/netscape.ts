@@ -57,6 +57,10 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 
 	// One entry per open <DL>: the folder name it lists, or null (the top list, or a browser container).
 	const folders: (string | null)[] = [];
+	// The same lists, keeping the browser's containers by name for the import preview (T-0019); null for the top
+	// list or a folder with no name.
+	const trail: ({ name: string; container: boolean } | null)[] = [];
+	let pendingTrail: { name: string; container: boolean } | null | undefined;
 	let heading: { name: string; container: boolean } | null = null;
 	let pendingFolder: string | null | undefined; // a closed <H3> waiting for its <DL>
 	let anchor: { href: string | undefined; attrs: Record<string, string>; line: number } | null =
@@ -80,6 +84,8 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 					case 'dl':
 						folders.push(pendingFolder ?? null);
 						pendingFolder = undefined;
+						trail.push(pendingTrail ?? null);
+						pendingTrail = undefined;
 						last = null;
 						break;
 					case 'h3':
@@ -110,6 +116,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 				if (name === 'h3' && heading) {
 					const folder = squash(heading.name);
 					pendingFolder = heading.container || !folder ? null : folder;
+					pendingTrail = folder ? { name: folder, container: heading.container } : null;
 					heading = null;
 				} else if (name === 'a' && anchor) {
 					const { href, attrs, line } = anchor;
@@ -121,6 +128,7 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 					}
 					const tags = splitTags(attrs.tags);
 					const path = folders.filter((f): f is string => f !== null).join(' / ');
+					const named = trail.filter((f) => f !== null);
 					const item: ImportItem = {
 						url,
 						title: squash(anchorText) || null,
@@ -132,11 +140,18 @@ export function parseNetscape(text: string): { items: ImportItem[]; failures: Im
 						archived: tags.includes(LINKDING_ARCHIVED),
 						line
 					};
+					if (named.length) {
+						item.folder = {
+							path: named.map((f) => f.name),
+							container: named.map((f) => f.container)
+						};
+					}
 					items.push(item);
 					last = item;
 				} else if (name === 'dl') {
 					endNote();
 					folders.pop();
+					trail.pop();
 					last = null;
 				} else if (name === 'dd') {
 					endNote();

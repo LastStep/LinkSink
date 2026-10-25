@@ -6,6 +6,7 @@ import type { DB } from '../db/open.ts';
 import { exportHtml, exportJson, exportName } from '../export.ts';
 import type { SyncWrite } from '../sync/write.ts';
 import { importItems, ImportRefused, parseImport } from './index.ts';
+import { applyMapping, checkOptions, previewImport } from './mapping.ts';
 
 /** How many failing lines the summary lists. */
 export const FAILURES_SHOWN = 5;
@@ -15,6 +16,15 @@ export const FAILURES_SHOWN = 5;
  * text/plain), so a browser sends one only from this site's own page, after a CORS preflight anywhere else.
  */
 const UPLOAD_TYPES = ['application/octet-stream', 'text/html', 'text/csv'];
+
+/**
+ * An import with its options (T-0019): one line of JSON (`{mapping, keepTags, pocketReadDone}`), a newline, then the
+ * file's bytes. Its own type, so like the others a cross-site page can send it only after a CORS preflight.
+ */
+export const IMPORT_WITH_OPTIONS = 'application/vnd.linksink.import';
+
+/** The options line is at most this long; with the 20 MB file it stays inside BODY_SIZE_LIMIT (21M). */
+export const OPTIONS_MAX = 512 * 1024;
 
 const problem = (status: number, message: string) => Response.json({ error: message }, { status });
 
@@ -64,12 +74,29 @@ export function createImportApi({
 		async import(caller: Caller, request: Request): Promise<Response> {
 			if (!caller) return problem(401, 'Sign in first.');
 			const type = request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() ?? '';
-			if (!UPLOAD_TYPES.includes(type)) {
+			const withOptions = type === IMPORT_WITH_OPTIONS;
+			if (!UPLOAD_TYPES.includes(type) && !withOptions) {
 				return problem(415, 'Send the file itself as the body (application/octet-stream).');
 			}
 			try {
-				const parsed = parseImport(await readCapped(request, IMPORT_MAX_BYTES));
-				const result = importItems(syncWrite, caller.id, parsed.items, onCreated);
+				let body = await readCapped(request, IMPORT_MAX_BYTES + (withOptions ? OPTIONS_MAX : 0));
+				let options: unknown = null;
+				if (withOptions) {
+					const end = body.subarray(0, OPTIONS_MAX + 1).indexOf(0x0a);
+					if (end === -1) throw new ImportRefused('The import options are not readable.');
+					try {
+						options = JSON.parse(new TextDecoder().decode(body.subarray(0, end)));
+					} catch {
+						throw new ImportRefused('The import options are not readable.');
+					}
+					body = body.subarray(end + 1);
+				}
+				const parsed = parseImport(body);
+				// The file alone (T-0012's request) is imported as T-0012 did; with options, as the mapping says.
+				const items = withOptions
+					? applyMapping(parsed.items, checkOptions(db, caller.id, parsed, options), parsed.format)
+					: parsed.items;
+				const result = importItems(syncWrite, caller.id, items, onCreated);
 				const failures = [...parsed.failures, ...result.failures].sort((a, b) => a.line - b.line);
 				return Response.json({
 					format: parsed.format,
@@ -86,6 +113,32 @@ export function createImportApi({
 					500,
 					'Something went wrong importing that file. Nothing was lost; try again.'
 				);
+			}
+		},
+
+		/**
+		 * POST /api/import?preview, the file as the body: 200 with what it holds (Preview: links, duplicates, the lines
+		 * that could not be read, every folder with its count and default choice), nothing written; 400 or 413 with
+		 * {error} when the file is refused.
+		 */
+		async preview(caller: Caller, request: Request): Promise<Response> {
+			if (!caller) return problem(401, 'Sign in first.');
+			const type = request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() ?? '';
+			if (!UPLOAD_TYPES.includes(type)) {
+				return problem(415, 'Send the file itself as the body (application/octet-stream).');
+			}
+			try {
+				const parsed = parseImport(await readCapped(request, IMPORT_MAX_BYTES));
+				const preview = previewImport(db, caller.id, parsed);
+				return Response.json({
+					...preview,
+					formatLabel: FORMAT_LABEL[parsed.format],
+					failures: preview.failures.slice(0, FAILURES_SHOWN)
+				});
+			} catch (error) {
+				if (error instanceof ImportRefused) return problem(error.status, error.message);
+				console.error('[import] preview failed', error);
+				return problem(500, 'Something went wrong reading that file. Try again.');
 			}
 		},
 
