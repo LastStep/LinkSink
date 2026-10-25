@@ -13,7 +13,8 @@ done_when:
   - "The database and the media cache live on a named volume at /data: after `docker compose down` then `docker compose up -d`, the account and the saved link are still there"
   - "Behind Caddy the sign-in rate limit keys on the client: the app's log has no 'Rate limiting could not determine a client IP' warning, and a fourth sign-in try within 10 s from one client answers 429"
   - "An import file bigger than 512 KB and under 20 MB is accepted through https://localhost; one over 20 MB answers the app's own 413 message"
-  - "`docker compose stop` stops the app within 10 s with exit code 0 (SIGTERM reaches node)"
+  - "With no page details being fetched, `docker compose stop` stops the app within 10 s with exit code 0 (SIGTERM reaches node); with fetches in flight Docker ends it after the grace period and the links still waiting are fetched again at the next start (a clean exit then is T-0021)"
+  - "On this machine Apache in WSL holds port 80: a setting publishes Caddy's plain-http port elsewhere (8080 here, 80 on a server), and `curl -I http://localhost:8080/login` answers a redirect to https://localhost/login"
   - "deploy/README.md tells the person how to run it on this machine in order: the .env to write, the commands, where the confirm link appears, the browser's certificate warning (and how to trust Caddy's local root on Windows, optional), how to stop, and how to wipe the data"
   - "The ladder climbs green at the branch's HEAD"
 depends_on: [T-0003]
@@ -71,5 +72,8 @@ change is expected, as long as the app's port is published nowhere.
 ## Notes
 
 - Approved on the person's word above (P-T-0002 step 3 was approved; ADR-0004 was the person's), as T-0012 was.
+- 2026-10-25, the orchestrator: done_when 9 narrowed to what builder@T-0005 measured (M-2026-10-25-26025368): idle
+  stop 0.85 s, exit 0; mid-fetch stop exit 137, 3 of 3, because the fetch queue outlives SIGTERM, an app change this
+  task leaves alone (T-0021). done_when 10 added: Apache holds port 80 here.
 - Local mail: `MAIL_TRANSPORT=console` prints the confirm link to the app's log (src/lib/server/config.ts). A real
   deploy uses Resend (T-0020).
