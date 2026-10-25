@@ -469,9 +469,15 @@
 	async function edit(link: StoreLink) {
 		openId = link.id;
 		await loadDetail();
-		await tick();
-		await tick();
-		document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Link title"]')?.focus();
+		// the details mount a frame or two later: wait for their title field (a second at most)
+		for (let frame = 0; frame < 60; frame++) {
+			await tick();
+			const field = document.querySelector<HTMLTextAreaElement>(
+				'textarea[aria-label="Link title"]'
+			);
+			if (field && openId === link.id) return field.focus();
+			await new Promise((r) => requestAnimationFrame(r));
+		}
 	}
 
 	function onwindowkey(event: KeyboardEvent) {

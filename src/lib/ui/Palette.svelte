@@ -151,7 +151,9 @@
 			const name = fold(item.label);
 			return want.every((w) => name.includes(w));
 		};
-		return [...actions, ...[...places, ...things].filter(hit).slice(0, 40)];
+		// What the words name comes first; searching the links for them is always there, last
+		const [add, find] = actions;
+		return [...[add, ...places, ...things].filter(hit).slice(0, 40), find];
 	});
 
 	$effect(() => {
