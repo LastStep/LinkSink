@@ -227,8 +227,19 @@
 		gap: 2px;
 		margin-top: 18px;
 	}
+	/* The project list scrolls inside its own area (BUG-003); everything above and below it stays where it is. The small
+	   padding and matching negative margin keep a focused row's ring from being cut at the scroll area's edge. */
 	.nav[aria-label='Projects'] {
-		margin-top: 0;
+		margin: -3px;
+		padding: 3px;
+		flex: 0 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+	/* A long list scrolls; its rows keep their height instead of squeezing to fit. */
+	.nav > .nav-item {
+		flex: none;
 	}
 	.nav-item {
 		display: flex;
@@ -279,6 +290,10 @@
 	.group-label a:hover,
 	.group-label a.on {
 		color: var(--text);
+	}
+	.group-label,
+	.side-foot {
+		flex: none;
 	}
 	.side-foot {
 		margin-top: auto;
