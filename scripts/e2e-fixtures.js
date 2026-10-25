@@ -21,7 +21,7 @@ export async function startFixtureSite(port) {
 <link rel="icon" href="/icon.png" sizes="32x32">
 </head><body><p>Fixture.</p></body></html>`;
 	const server = createServer((req, res) => {
-		if (req.url === '/article.html') {
+		if (req.url?.split('?')[0] === '/article.html') {
 			// A little slow, like a real site: the row shows its hostname first.
 			setTimeout(
 				() => res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(page),

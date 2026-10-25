@@ -1,7 +1,7 @@
 // The list query (plan P-T-0002, step 7): one SQL query for a view, its search, its filters and its sort, paged by
 // keyset. The rules are the shared ones in src/lib/search/ (the client checks a link it holds by the same rules).
 import { and, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
-import { PRIORITY_OF, type Filters, type Sort } from '../search/filters.ts';
+import { PRIORITY_OF, statusRank, type Filters, type Sort } from '../search/filters.ts';
 import { parseQuery, toFts } from '../search/query.ts';
 import type { View } from '../store/types.ts';
 import type { DB } from './db/open.ts';
@@ -112,6 +112,26 @@ function sortKey(sort: Sort): {
 	of: (l: Link) => (string | number)[];
 } {
 	switch (sort) {
+		case 'opened':
+			return {
+				columns: [
+					sql`coalesce("links"."opened_at", 0)`,
+					sql`"links"."created_at"`,
+					sql`"links"."id"`
+				],
+				desc: true,
+				of: (l) => [l.openedAt ?? 0, l.createdAt, l.id]
+			};
+		case 'status':
+			return {
+				columns: [
+					sql`CASE "links"."status" WHEN 'to_read' THEN 3 WHEN 'in_progress' THEN 2 WHEN 'done' THEN 1 ELSE 0 END`,
+					sql`"links"."created_at"`,
+					sql`"links"."id"`
+				],
+				desc: true,
+				of: (l) => [statusRank(l.status), l.createdAt, l.id]
+			};
 		case 'edited':
 			return {
 				columns: [sql`"links"."updated_at"`, sql`"links"."id"`],

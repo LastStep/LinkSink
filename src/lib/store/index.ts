@@ -6,4 +6,4 @@ import type { LinkStore } from './types.ts';
 export * from './types.ts';
 
 /** The app's store. */
-export const store: LinkStore = createApiStore();
+export const store: LinkStore = createApiStore(undefined, { watchLibrary: true });

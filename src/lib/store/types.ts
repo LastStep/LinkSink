@@ -135,6 +135,10 @@ export interface StoreState {
 	counts: ViewCounts;
 	/** True once the tags, projects, sources and counts have arrived. */
 	organised: boolean;
+	/** Links still waiting for their page details (T-0023); 0 when none, or before the first look. */
+	detailsLeft: number;
+	/** True when the library is bigger than the look reaches, so `detailsLeft` is a lower bound. */
+	detailsAtLeast: boolean;
 }
 
 /** A new link: no id the store knows. The store makes its id, so the optimistic row keeps it. */
@@ -203,6 +207,8 @@ export interface LinkStore {
 	more(): Promise<LinkJson[]>;
 	/** Loads the tags, projects, sources and counts. */
 	refresh(): Promise<void>;
+	/** Looks for links still waiting for their page details, and keeps looking while any does (T-0023). */
+	checkDetails(): void;
 	/**
 	 * Links the screen has open (details, organiser) stay in the store even when a change takes them out of the view,
 	 * so the open panel keeps working. Replaces the earlier set; links no longer held and out of the view go.
