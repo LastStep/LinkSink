@@ -7,11 +7,11 @@ import { linkProjects, links, linkTags, projects, tags } from '../db/schema.ts';
 import { displayName, tagName } from '../organise.ts';
 import type { SyncWrite, SyncWriter } from '../sync/write.ts';
 import { ulid } from '../ulid.ts';
+import { cut, NAME_MAX, NAME_RAW_MAX } from './limits.ts';
 import { ImportRefused, ImportStopped, type ImportFailure, type ImportItem } from './types.ts';
 import type { DB } from '../db/open.ts';
 
 export const IMPORT_BATCH = 500;
-const NAME_MAX = 64;
 const TITLE_MAX = 500;
 const NOTES_MAX = 20_000;
 /** The most tags one imported link takes; the rest are dropped. */
@@ -36,10 +36,15 @@ interface Unique extends ImportItem {
 	projectNames: string[];
 }
 
-/** A name cut to the longest the app stores, then checked as the app checks it; null if nothing is left. */
+/**
+ * A name cut to the longest the app stores, then checked as the app checks it; null if nothing is left. The raw
+ * text is cut first: NFKC can make a character up to 18 long (U+FDFA), so normalising before cutting let a long
+ * TAGS value grow without bound.
+ */
 function named(input: string, check: (s: string) => string): string | null {
 	try {
-		return check(input.normalize('NFKC').trim().replace(/\s+/g, ' ').slice(0, NAME_MAX));
+		const raw = cut(input, NAME_RAW_MAX);
+		return check(raw.normalize('NFKC').trim().replace(/\s+/g, ' ').slice(0, NAME_MAX));
 	} catch {
 		return null;
 	}
