@@ -24,7 +24,8 @@ export async function bodyTooLarge(request: Request, pathname: string): Promise<
 		if (done) return null;
 		size += value.byteLength;
 		if (size > BODY_MAX) {
-			await reader.cancel().catch(() => {});
+			// Not awaited: cancelling one branch of a teed stream settles only once the other is cancelled too.
+			reader.cancel().catch(() => {});
 			return tooLarge();
 		}
 	}
