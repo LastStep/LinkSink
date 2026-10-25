@@ -54,3 +54,7 @@ The workflows in .github/workflows/ (T-0029's), deploy/ (T-0005's and T-0029's),
   deploy secrets) and add the CI badge.
 - The person, 14:32 UTC: "use AGPL-3.0". LICENSE is GitHub's canonical AGPL-3.0 text (gh api licenses/agpl-3.0), with a
   badge and a Licence section in the README naming Rohan Yadav as the copyright holder (the commits' author); c88ccf6.
+- The combined verifier (M-2026-10-25-6a8d2866) found the repository with 4 topics (bookmark-manager, self-hosted,
+  sqlite, svelte) and the description without "fast search": the About section was changed at 15:23 UTC, after the
+  16 topics were set at 14:27 (the gh output then listed all 16). Left as it is; the person is asked whether that
+  was them. README fixes from that check: 7fd78c1.
