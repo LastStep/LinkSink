@@ -1,0 +1,23 @@
+# LinkSink behind Caddy (T-0005): HTTPS only. compose passes LINKSINK_HOST from the .env beside compose.yaml.
+#
+# - localhost (and *.localhost): a certificate from Caddy's own local authority; browsers warn until it is trusted
+#   (deploy/README.md). Any other host name: a public certificate from Let's Encrypt, which needs the name to point
+#   at this machine and ports 80 and 443 open to the internet.
+# - Plain http only redirects to https. Strict-Transport-Security for every host but localhost, so a browser never
+#   remembers HTTPS-only for localhost and every other local app on it.
+# - The app is reached on the compose network only. With no trusted_proxies, Caddy replaces any X-Forwarded-For the
+#   client sent with the client's own address, which the app keys its sign-in rate limit on.
+{
+	# From inside a container Caddy cannot add its local root to this machine's trust store.
+	skip_install_trust
+}
+
+http://{$LINKSINK_HOST} {
+	redir https://{host}{uri} permanent
+}
+
+{$LINKSINK_HOST} {
+	@not_localhost not host localhost
+	header @not_localhost Strict-Transport-Security "max-age=31536000"
+	reverse_proxy app:3000
+}
