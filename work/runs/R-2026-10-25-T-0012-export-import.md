@@ -5,9 +5,9 @@ task: T-0012
 role: builder
 model: opus
 started: 2026-10-25 06:45
-finished: 2026-10-25 09:15
+finished: 2026-10-25 09:47
 outcome: needs-verifier
-commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1", "91ab57f", "5e8d44c", "836b54a", "38f1220", "d9c6016", "a845284", "277025c", "3bbce56", "b347107", "fae6bf9", "2bcbd9c", "6ca9ac3", "97806a3", "a048dff", "a7ecb3a", "b49f6c5", "64f4079", "04b4479", "ea82acd", "6865b01", "c6c82e0"]
+commits: ["d391bf1", "7e87e70", "57d814d", "f994dd1", "91ab57f", "5e8d44c", "836b54a", "38f1220", "d9c6016", "a845284", "277025c", "3bbce56", "b347107", "fae6bf9", "2bcbd9c", "6ca9ac3", "97806a3", "a048dff", "a7ecb3a", "b49f6c5", "64f4079", "04b4479", "ea82acd", "6865b01", "c6c82e0", "ea8d6a5", "7d3c4f4", "f480661", "4250000", "1c3ec63", "44c06cf"]
 labels: {}
 ---
 
@@ -336,6 +336,38 @@ the class as well as the instance:
     found by `kick()` and not by `fill()`. With `cursor = ''` removed from `kick()`, it fails.
 - The ladder ran under the shared Playwright lock (the person's rule, given mid-round).
 - Processes: none started this round apart from the ladder's own.
+
+## Fix round 4 (brief M-2026-10-25-de517a71, 09:20 to 09:47)
+
+Both findings came from the same cause: work done on raw input before it was cut to size. This round closes that class:
+- **One limits module** (`src/lib/server/import/limits.ts`): `cut()`, `append()` and one limit per raw field.
+  - The limits: address 8,192, title 2,000, notes 20,000, TAGS 25,700 (100 tags of 256), folder 256, date 32,
+    status 32.
+  - At most 100,000 links per import.
+- **Netscape HTML** (f480661): text is read only up to its field's limit as it streams in (title, notes, folder),
+  each attribute up to 25,700, and the address, TAGS and ADD_DATE are cut before use.
+  - E1: `noteText` cuts to 20,000 first and finds linkding's markers with indexOf and lastIndexOf instead of the
+    backtracking regex.
+- **Pocket CSV** (f480661): each field is cut to its limit before trim, split or regex.
+- **E2** (4250000): `named()` cuts the raw name to 256 characters before NFKC.
+- **100,000 links:** both parsers throw `ImportRefused` at the 100,001st link, before any write: "That file holds
+  more than 100,000 links; one import takes at most 100,000. Split it, and import the parts one after another."
+- **Other regexes in the import:** the format sniff's `[^>]*` before `href` is now `[^>]{0,2048}` (1c3ec63). Measured
+  on 64 KB of `<dt><a ` with no `>`: 0 ms before and after, so it was not slow; the change is a precaution. The rest
+  (`\s+` squashes, the anchored date check, the CSV tokenizer) run once over input that is already cut and are
+  linear.
+- **Tests** (`import/round4.spec.ts`, 44c06cf; the limits are written out as numbers so the file runs on older
+  code). On 7d3c4f4's source (ran: git archive, the spec copied in):
+  - E1, a 1 MB note repeating `[linkding-notes]`: 12,755 ms there, under 100 ms here.
+  - E2, a TAGS value of 300,000 U+FDFA: normalize() ran on 300,000 characters there, at most 256 here (checked by
+    wrapping `String.prototype.normalize`).
+  - One row per raw field with 1 MB of hostile content, each parsed and imported in under 250 ms and cut to its
+    limit. On 7d3c4f4 the address, title, notes and tags rows fail (each passed on 1 MB); the folder, both date and
+    CSV status rows pass there, because those fields were already bounded or linear.
+  - 100,001 links (HTML) refused with the message and no row changed: 200 there. The same for a CSV: accepted
+    there. "100,000 links are read" passes on both, as a guard.
+- My new lint rule caught a spread in my own new test; it is a loop now.
+- Processes: none started this round apart from the ladder's own (under the Playwright lock).
 
 ## Verifier
 
