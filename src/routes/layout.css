@@ -272,6 +272,13 @@
 	}
 }
 
+/* On a phone the undo toast sits above the tab bar (Shell.svelte). */
+@media (max-width: 759px) {
+	.toast {
+		bottom: calc(76px + env(safe-area-inset-bottom));
+	}
+}
+
 @media (prefers-reduced-motion: no-preference) {
 	.btn:active,
 	.icon-btn:active,

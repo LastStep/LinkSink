@@ -15,5 +15,5 @@
 	view={{ kind: 'project', id }}
 	title={project?.name ?? 'Project'}
 	{sub}
-	empty="No links in this project yet. Add some from a link’s organiser."
+	empty="No links in this project yet. Paste a link on this page and it joins the project."
 />
