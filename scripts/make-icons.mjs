@@ -1,7 +1,7 @@
 // Draws the app's PNG icons from the mark (src/lib/ui/Mark.svelte): `node scripts/make-icons.mjs` (T-0028).
 // favicon-32.png: a white tile with a hairline edge and the mark in ink, for browsers that do not draw SVG icons;
 // it reads on a light and on a dark tab. apple-touch-icon.png: 180 px, ink tile and white mark, square corners (the
-// home screen rounds them itself and has no transparency). The SVG icon, src/lib/assets/favicon.svg, is written by hand.
+// home screen rounds them itself and has no transparency). The SVG icon, static/favicon.svg, is written by hand.
 import sharp from 'sharp';
 
 const INK = '#0a0a0a';
