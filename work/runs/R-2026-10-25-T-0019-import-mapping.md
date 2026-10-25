@@ -5,9 +5,9 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: 2026-10-25 08:17
+finished: 2026-10-25 08:54
 outcome: needs-verifier
-commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f"]
+commits: ["48dfb78", "828ef1b", "cdd2d54", "1346872", "22196f8", "ed6cc0e", "48d9120", "c97c6ed", "167e91d", "7a83064", "1d5919f", "fd7b2d2", "6e31fec", "a793b0a"]
 labels: {}
 ---
 
@@ -104,6 +104,27 @@ The next merge of T-0012 waits for the orchestrator's word.
   at 390 in each browser).
 - Not changed: a long project name inside the existing-project select is cut off at 390, as a select cuts its
   text.
+### Round 3 (brief M-2026-10-25-4fbfb516): merge T-0012's fix round 2 (b49f6c5)
+
+- a793b0a Merge. Conflicts in import/write.ts and import/api.ts, each resolved by taking T-0012's file whole and
+  re-applying T-0019's changes on top:
+  - write.ts: T-0012's async `importItems(db, …)` (links saved waiting for the feeder, a yield between batches,
+    loops instead of spreads, the 1,000 new-project cap checked before any write) kept. T-0019's parts re-applied:
+    `uniqueItems` (now the dedupe and normalising step, still using T-0012's push loops), existing project ids
+    (merged across copies, re-checked by user inside the write), `projectsMade`. A mapping's new projects reach the
+    writer as project names, so they count toward the cap; tag, none and existing choices do not.
+  - api.ts: T-0012's `onImported`, `readCapped` (release, not cancel) and `ImportStopped` handling kept; T-0019's
+    preview, options request and `projectsMade` re-applied. The `OPTIONS_MAX` comment no longer names the old 21M
+    limit (BODY_SIZE_LIMIT is now Infinity; the import reads at most the file's 20 MB plus the options line).
+  - My two writer tests moved to the async signature (`await importItems(t.db, …)`); no assertion changed.
+- New tests: a 1,001-folder file on defaults is refused before any write ("1,001 new projects"), and allowed once
+  two folders share one new name (1,000 made); tag and none choices make no project toward the cap; the preview
+  and the options import both answer a chunked 21 MB body with 413, in a unit test (streamed Request) and in e2e
+  against the real server (Transfer-Encoding: chunked, no Content-Length).
+- T-0012's test files are unchanged from b49f6c5 except the round-2 selector change in its e2e (checked with
+  `git diff b49f6c5`). Server unit tests: 417 passed; T-0012 + T-0019 e2e: 10/10 in Chromium. WebKit not re-run:
+  no screen code changed in this merge.
+
 ## Done when, and what proves it
 
 | Done when | Proof |
@@ -168,7 +189,7 @@ About 25 minutes of wall clock to the final climb (07:17 to 07:41), the merges i
 - ~~Rename the button to "Import N links"~~: done in round 2 (1d5919f).
 - "Set every folder to…" for files with many folders (proposed task).
 - ~~Default Raindrop's "Unsorted" collection to No project~~: done in round 2 (7a83064).
-- Merge T-0012's fix round 2 when the orchestrator says it has landed, then climb again.
+- ~~Merge T-0012's fix round 2~~: done in round 3 (a793b0a).
 - `/api/import/preview` as its own path needs the hook's list widened (outside this task); not needed now.
 
 ## Verifier
