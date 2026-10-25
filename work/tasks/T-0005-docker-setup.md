@@ -2,7 +2,7 @@
 format: bonsai.task/1   # fields: bonsai check --schema bonsai.task; how to fill: skill base:task
 id: T-0005
 title: Docker setup — an app image and a compose file with Caddy (HTTPS only), runnable on this machine at https://localhost
-status: approved
+status: running
 lane: full
 done_when:
   - "From a clean checkout with no .env and no ORIGIN in the environment, `docker compose build` builds the app image from a multi-stage Dockerfile on a pinned Node 22 slim (glibc) base; the final stage holds the built server, production node_modules only (no drizzle-kit, vite or playwright in it), package.json and drizzle/, and runs as a non-root user (`docker compose run --rm app id -u` is not 0)"
@@ -19,7 +19,7 @@ done_when:
 depends_on: [T-0003]
 blocked_by: null
 created: 2026-10-25
-started: null
+started: 2026-10-25
 finished: null
 labels:
   bonsai.branch: t0005-docker
