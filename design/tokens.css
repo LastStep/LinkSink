@@ -1,5 +1,5 @@
 /*
- * LinkSink design tokens: direction A, Ledger (ADR-0003).
+ * LinkSink design tokens: direction A, Ledger (ADR-0003), amended by ADR-0005.
  * Colour, type, spacing and radius from design/reference/a.css; motion from design/reference/shared/base.css.
  * The chrome holds no colour: the one accent marks the link arriving now, and focus. Light by default; dark from
  * the system setting unless the page sets data-theme="light", or always with data-theme="dark".
@@ -57,6 +57,11 @@
 	--dot-orange: #c2570c;
 	--dot-amber: #a87a00;
 	--dot-grey: #7a7f87;
+
+	/* ADR-0005: a row's second line, and the tile a favicon sits on (invisible in light, pale in dark so a black
+	   icon such as GitHub's reads) */
+	--meta: #6b7079;
+	--icon-tile: transparent;
 
 	/* shape and spacing */
 	--radius-card: 8px;
@@ -122,6 +127,8 @@
 	--dot-orange: #f08a3c;
 	--dot-amber: #e0b23a;
 	--dot-grey: #9aa0a8;
+	--meta: #9a9ea6;
+	--icon-tile: #e4e5e8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -160,6 +167,8 @@
 		--dot-orange: #f08a3c;
 		--dot-amber: #e0b23a;
 		--dot-grey: #9aa0a8;
+		--meta: #9a9ea6;
+		--icon-tile: #e4e5e8;
 	}
 }
 
