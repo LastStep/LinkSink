@@ -5,9 +5,9 @@ task: T-0019
 role: builder
 model: opus
 started: 2026-10-25 07:19
-finished: null
-outcome: running
-commits: []
+finished: 2026-10-25 07:31
+outcome: needs-verifier
+commits: ["48dfb78", "828ef1b", "cdd2d54"]
 labels: {}
 ---
 
@@ -17,51 +17,115 @@ labels: {}
 
 ## What is different now
 
-(filled at the end)
+Choosing a file in Settings → Import no longer saves anything. It shows what the file holds: links found, how many
+you already have, how many lines could not be read, and every folder with its full path and link count. Each folder
+gets one choice: a new project (name editable), an existing project (picked for you when one has the folder's name),
+a tag (name editable), or no project (its links land in Unsorted). The browser's own top folders (Bookmarks bar,
+Other Bookmarks, Bookmarks Menu, Mobile) start on No project, the rest on New project. Two switches: keep the file's
+tags, and, for Pocket files only, mark links you'd read as Done. Import saves exactly that; Cancel throws it away.
+A file with 200 folders keeps them in their own scrolling box, at most half the screen tall.
 
 ## Deviations from the plan
 
-(filled as they happen)
+1. **The import button reads "Import", not "Import N links".** The count sits beside it: "5 links will be added,
+   1 duplicate skipped." T-0012's e2e tests (still being verified on its branch) click a button named exactly
+   "Import"; renaming it means editing T-0012's test file here, which would conflict with T-0012's fixes and is a
+   test edit this builder should not make. One-line follow-up once T-0012 lands (proposed below).
+2. **No multipart.** The plan said the preview and import are multipart. T-0012 refuses multipart on purpose (a
+   cross-site form can send it). Instead: the preview sends the file itself as T-0012 does; an import with a
+   mapping sends its own type `application/vnd.linksink.import`: one line of JSON options, a newline, then the
+   file. Like T-0012's types, a cross-site page can send it only after a CORS preflight. Options are capped at
+   512 KB so file + options stay under BODY_SIZE_LIMIT 21M.
+3. **The preview is `POST /api/import?preview`, not `/api/import/preview`.** The body-limit hook
+   (`src/hooks.server.ts`, outside this task's paths) lets only the exact path `/api/import` past 512 KB; a new path
+   would refuse real files with 413. Same route file, so the hook is unchanged.
+4. **"With no mapping sent, the defaults apply" holds for the new request type only.** The file posted alone
+   (T-0012's request) imports exactly as T-0012 did, because T-0012's API test asserts Chrome's "Other bookmarks"
+   becomes a project there, while the new defaults make it No project. An import with options but no entry for a
+   folder gets that folder's default.
 
 ## Log
 
 - 07:19 Read brief M-2026-10-25-c646dda9, STATE, T-0019, P-T-0019, ADR-0005, T-0012's import code and tests.
   Worktree clean at 9129f76 on t0019-import-mapping.
-- Findings before code:
-  - T-0012 sends the file itself as the body (octet-stream/text/html/text/csv only; multipart refused on purpose so
-    no cross-site form can post). The plan says "multipart"; that would undo T-0012's guard. See Deviations.
-  - The body-limit hook (`src/hooks.server.ts`, outside this task's paths) lets only the exact path `/api/import`
-    past 512 KB, so a separate `/api/import/preview` route would 413 on real files. See Deviations.
-  - T-0012's API test asserts Chrome's "Other bookmarks" (no container attribute) becomes a project when the raw
-    file is posted. The new defaults make it No project. See Deviations.
+- Found the three conflicts behind deviations 2–4 before writing code; the fourth (button name) once the T-0012 e2e
+  was read.
+- 48dfb78 server: parser records each link's full folder path (containers included); `mapping.ts` (folders,
+  defaults, preview, option checks, applying a mapping); writer takes existing project ids, re-checked inside the
+  write; `uniqueItems` split out of `importItems` so the preview counts duplicates the same way. T-0012's 57 import
+  unit tests still green.
+- 828ef1b 30 new unit/API tests. Two failed on first run, both wrong expectations in the new test (file order made
+  "shelf" the first name met; a URL keeps its trailing slash); corrected.
+- cdd2d54 the screen (`ImportPreview.svelte`, loaded on first file choice) and 4 e2e tests. First e2e run: one
+  failure, a label lookup matching two fields ("…› Reading" is a prefix of "…› Reading › Long reads"); made exact.
+  Then 4/4 in Chromium, 4/4 in WebKit (QA config in the scratchpad, not the ladder). T-0012's 4 e2e tests green
+  against the new screen.
+- Fixed from the shots: "tags· 1 tag" lost its space; now "Keep the file's tags · 1 tag in it".
+
+## Done when, and what proves it
+
+| Done when | Proof |
+|---|---|
+| Choosing a file writes nothing, shows links, duplicates, unreadable, every folder (path, count) | API: `mapping.spec.ts` "shows links, duplicates…and writes nothing" compares every table's row count and every synced row+version before/after; e2e test 1 compares the export before/after and checks the four numbers, the unreadable line and folder counts |
+| Four choices; defaults (containers → No project, rest → New project, existing name preselected) | Unit table over chrome, firefox, raindrop fixtures + a Bookmarks Menu/Mobile file + existing-name (any case, never another user's) + 64-char cut; e2e tests 1 and 2 check defaults on screen |
+| Toggles: keep tags (on), Pocket read → Done (on, Pocket only) | API tests for both on and off; e2e test 3 (switch shown only for the CSV; off → no tags, no status; on → tag kept, Done); e2e test 1 checks it is absent for HTML |
+| Import writes exactly the mapping; Cancel discards | API: new renamed, existing, tag, none, shared new name → one project, copies keep both folders' choices, batches of 500 (1,201 links → 3 versions); e2e test 2 (each choice, existing reused not copied, no-project links shown on /unsorted); e2e test 1 (Cancel, nothing written) |
+| Mapping checked on the server | 12 API refusals, each 400 with every table unchanged: another user's project, unknown id, deleted project, path not in file, deeper path, overlong project/tag name, blank name, unknown choice, list mapping, non-boolean switch, non-JSON options; plus no options line / empty file |
+| Look at 390/1440, light/dark, Chromium/WebKit; 200 folders usable | e2e test 4: no horizontal overflow, folder list scrolls and is ≤ half the viewport, last of 200 folders reachable and changeable; 16 shots (below) |
+| Ladder green; first-load JS on / ≤ 60 KB | See Ladder; `npm run size`: / 52.24 KB, /login 46.03 KB, /signup 46.09 KB |
+
+Preview speed: 5,000-link file (0.37 MB, 2,500 already saved): **75 ms** (`[timing]` line in the unit run; the
+test fails over 3 s).
 
 ## Ladder
 
-(pending)
+Climbed after this report's commit; the result is in the main checkout's `.bonsai/local/ladder/T-0019.json` and in
+the report message to the orchestrator (the HEAD it was climbed at is named there).
 
 ## What did not work
 
-(pending)
+- The plan's request shapes (multipart, a separate preview path) did not fit T-0012's guard and the body-limit
+  hook; see Deviations 2 and 3.
+- The button label in the plan collides with T-0012's e2e; see Deviation 1.
+- Not built: a "set every folder to…" control. With 200 folders, changing all of them is 200 picks. Proposed below.
+- Raindrop's own "Unsorted" collection defaults to a new project called "Unsorted" (the done_when names only browser
+  folders). Probably wants No project; proposed below rather than decided here.
+- On a phone a long default name ("Reading / Long reads") is cut off inside its field; the field scrolls, the full
+  path is on the line above.
 
 ## Evidence for a human
 
-(pending)
+Shots (Chromium and WebKit, 390 and 1440, light and dark; `preview-*` is a small browser file, `preview-200-*` the
+200-folder file), copied out of test-results to
+`/tmp/claude-1000/-home-rohan-Apps-LinkSink/1c6fe8b7-68f5-437e-b03a-9951b9ac25bc/scratchpad/shots/`.
+To see it: Settings → Import → Choose a file.
 
 ## Files changed
 
-(pending)
+- `src/lib/server/import/types.ts`, `netscape.ts`: each link keeps its full folder path and which folders are
+  browser containers.
+- `src/lib/server/import/mapping.ts` (new): folders, defaults, preview, option checks, applying a mapping.
+- `src/lib/server/import/write.ts`: existing project ids, re-checked inside the write; dedupe split out.
+- `src/lib/server/import/api.ts`, `src/routes/api/import/+server.ts`: `?preview`, and the options request type.
+- `src/routes/settings/ImportPreview.svelte`, `import-preview.ts` (new), `ImportExport.svelte`: the screen.
+- Tests: `src/lib/server/import/mapping.spec.ts` (30), `e2e/t0019-import-mapping.e2e.ts` (4). No existing test edited.
 
 ## Processes left running
 
-(pending)
+The e2e servers were started by Playwright and stopped with each run; checked with `ps -eo pid,etime,cmd | grep -E
+"e2e-server|playwright|vite"` after the last run (re-checked at the end of the session, see the report message).
 
 ## What it cost
 
-(pending)
+About 15 minutes of wall clock to this point (07:17 to 07:31). Spend: not known; the hours are in
+`.bonsai/sessions.md`.
 
 ## Left for next time
 
-(pending)
+- After T-0012 lands: rename the button to "Import N links" and change T-0012's e2e clicks to match (small task).
+- "Set every folder to…" for files with many folders (proposed task).
+- Default Raindrop's "Unsorted" collection to No project (the person's call: a default).
+- `/api/import/preview` as its own path needs the hook's list widened (outside this task); not needed now.
 
 ## Verifier
 
