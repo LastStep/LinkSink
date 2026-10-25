@@ -104,6 +104,7 @@ is `<scratchpad>/playwright.lock`, used with flock. Each agent works in its own 
 
 ## Decided lately
 
+- 2026-10-25 LinkSink is licensed AGPL-3.0 (the person). The repository is public at github.com/LastStep/LinkSink.
 - 2026-10-25 T-0005 settles ADR-0004's open question: the origin is set at run time. The image carries none
   (adapter-node derives https://<Host> behind Caddy), so one image serves any host. Backups, the VPS and CI are
   T-0020 (the person: run it here first).

@@ -52,3 +52,5 @@ The workflows in .github/workflows/ (T-0029's), deploy/ (T-0005's and T-0029's),
 - f03b305 on t0030-readme. Description and 16 topics set on GitHub at 14:27 UTC. When T-0029 lands, check the
   README's hosting section against deploy/SERVER.md (the server settings example's name, the image setting, the
   deploy secrets) and add the CI badge.
+- The person, 14:32 UTC: "use AGPL-3.0". LICENSE is GitHub's canonical AGPL-3.0 text (gh api licenses/agpl-3.0), with a
+  badge and a Licence section in the README naming Rohan Yadav as the copyright holder (the commits' author); c88ccf6.
