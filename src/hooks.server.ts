@@ -3,6 +3,10 @@ import { building } from '$app/env';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { auth } from '#lib/server/auth.ts';
 import { bodyTooLarge } from '#lib/server/body-limit.ts';
+import { kickFetches } from '#lib/server/fetch/queue.ts';
+
+// Links still waiting for their details when the server last stopped (an import cut short) are fetched again.
+if (!building) kickFetches();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const refused = await bodyTooLarge(event.request, event.url.pathname);
